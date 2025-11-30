@@ -30,7 +30,7 @@ import {
 const APP_COLORS = ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7'] as const;
 const NODE_SIZE = 72;
 const TIME_STEP_MIN = 5; // 下拉选项按 5 分钟一格
-const TIME_ROW_HEIGHT = 32; // 每一行在下拉里的大致高度，用来计算滚动位置
+const TIME_ROW_HEIGHT = 40; // 每一行在下拉里的大致高度：8(top pad) + 14(font) + 8(bottom pad) + 4(margin) = 34-40px
 
 
 type Project = {
@@ -169,8 +169,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const [draftEvent, setDraftEvent] = useState<DraftEvent | null>(null);
   const [startHour, setStartHour] = useState(6);
   const scrollRef = useRef<ScrollView | null>(null);
-  const timeListRef = useRef<ScrollView | null>(null);   
-  const scrollTimeListToCurrent = useCallback(() => {
+  const timeListRef = useRef<ScrollView | null>(null);
+  const timeListScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Perform the actual scroll
+  const performTimeListScroll = useCallback(() => {
     if (!editingField || !draftEvent || !timeListRef.current) return;
 
     const current =
@@ -182,8 +185,25 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       nearestIndex * TIME_ROW_HEIGHT - 3 * TIME_ROW_HEIGHT,
     );
 
-    timeListRef.current.scrollTo({ y: scrollY, animated: false });
+    // Add a delay to ensure content is measured
+    if (timeListScrollTimeoutRef.current) {
+      clearTimeout(timeListScrollTimeoutRef.current);
+    }
+
+    timeListScrollTimeoutRef.current = setTimeout(() => {
+      timeListRef.current?.scrollTo({ y: scrollY, animated: false });
+    }, 50);
   }, [editingField, draftEvent]);
+
+  // Scroll when field changes (START/END tap)
+  useEffect(() => {
+    performTimeListScroll();
+    return () => {
+      if (timeListScrollTimeoutRef.current) {
+        clearTimeout(timeListScrollTimeoutRef.current);
+      }
+    };
+  }, [editingField]);
 
 
 
@@ -601,10 +621,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                         : 'Select end time'}
                     </Text>
                     <ScrollView
-                      key={editingField}               // ← 切 start / end 时强制 remount
                       ref={timeListRef}
                       style={{ maxHeight: 260 }}
-                      onLayout={scrollTimeListToCurrent}  // ← 布局好之后再滚动
                     >
                       {timeOptions.map((m) => {
                         const current =
