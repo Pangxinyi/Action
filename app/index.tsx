@@ -403,7 +403,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       />
 
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
-        <View style={{ minHeight: 1200, paddingHorizontal: 12, paddingTop: 8 }}>
+        <View style={{ minHeight: 1200, paddingHorizontal: 12, paddingTop: 0 }}>
           {hours.map((hour) => (
             <View
               key={hour}
@@ -440,7 +440,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                   styles.eventCard,
                   {
                     top,
-                    height: Math.max(24, height),
+                    height: Math.max(20, height),
                     backgroundColor: `${evt.hexColor}4D`,
                     borderLeftColor: evt.hexColor,
                   },
@@ -1357,8 +1357,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderLeftWidth: 4,
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    justifyContent: 'center',
+    paddingVertical: 2,
+    justifyContent: 'flex-start',
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 1 },
