@@ -8,7 +8,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react-native';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   Alert,
@@ -20,7 +20,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 
 
@@ -30,7 +30,7 @@ import {
 const APP_COLORS = ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7'] as const;
 const NODE_SIZE = 72;
 const TIME_STEP_MIN = 5; // 下拉选项按 5 分钟一格
-const TIME_ROW_HEIGHT = 40; // 每一行在下拉里的大致高度：8(top pad) + 14(font) + 8(bottom pad) + 4(margin) = 34-40px
+const TIME_ROW_HEIGHT = 44; // 每一行在下拉里的实际高度：8(top pad) + 14(font ~20) + 8(bottom pad) + 4(margin) = ~44px
 
 
 type Project = {
@@ -170,39 +170,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const [startHour, setStartHour] = useState(6);
   const scrollRef = useRef<ScrollView | null>(null);
   const timeListRef = useRef<ScrollView | null>(null);
-  const timeListScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Perform the actual scroll
-  const performTimeListScroll = useCallback(() => {
-    if (!editingField || !draftEvent || !timeListRef.current) return;
-
-    const current =
-      editingField === 'start' ? draftEvent.start : draftEvent.end;
-
-    const nearestIndex = Math.round(current / TIME_STEP_MIN);
-    const scrollY = Math.max(
-      0,
-      nearestIndex * TIME_ROW_HEIGHT - 3 * TIME_ROW_HEIGHT,
-    );
-
-    // Add a delay to ensure content is measured
-    if (timeListScrollTimeoutRef.current) {
-      clearTimeout(timeListScrollTimeoutRef.current);
-    }
-
-    timeListScrollTimeoutRef.current = setTimeout(() => {
-      timeListRef.current?.scrollTo({ y: scrollY, animated: false });
-    }, 50);
-  }, [editingField, draftEvent]);
 
   // Scroll when field changes (START/END tap)
   useEffect(() => {
-    performTimeListScroll();
-    return () => {
-      if (timeListScrollTimeoutRef.current) {
-        clearTimeout(timeListScrollTimeoutRef.current);
-      }
-    };
+    // The scrolling will happen automatically in onContentSizeChange
   }, [editingField]);
 
 
@@ -228,7 +199,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     const now = new Date();
     const minutesSinceStart = now.getHours() * 60 + now.getMinutes() - startHour * 60;
     const scrollPos = minutesSinceStart * pixelsPerMinute;
-    scrollRef.current.scrollTo({ y: Math.max(0, scrollPos - 150), animated: false });
+    scrollRef.current.scrollTo({ y: Math.max(0, scrollPos), animated: false });
   }, [startHour]);
 
   const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
@@ -621,8 +592,27 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                         : 'Select end time'}
                     </Text>
                     <ScrollView
+                      key={editingField}
                       ref={timeListRef}
                       style={{ maxHeight: 260 }}
+                      scrollEnabled={true}
+                      showsVerticalScrollIndicator={false}
+                      contentContainerStyle={{ paddingVertical: 0 }}
+                      onContentSizeChange={(width, height) => {
+                        if (height === 0) return;
+                        
+                        // Only scroll if we have an active editing field
+                        if (!editingField || !draftEvent) return;
+                        
+                        const current =
+                          editingField === 'start' ? draftEvent.start : draftEvent.end;
+                        const nearestIndex = Math.round(current / TIME_STEP_MIN);
+                        const totalItems = (24 * 60) / TIME_STEP_MIN;
+                        const actualRowHeight = height / totalItems;
+                        const scrollY = nearestIndex * actualRowHeight;
+
+                        timeListRef.current?.scrollTo({ y: scrollY, animated: false });
+                      }}
                     >
                       {timeOptions.map((m) => {
                         const current =
