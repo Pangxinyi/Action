@@ -4,9 +4,8 @@ import {
   PieChart,
   Plus,
   Settings,
-  Sun,
   Trash2,
-  X,
+  X
 } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -29,7 +28,7 @@ import {
 
 const APP_COLORS = ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7'] as const;
 const NODE_SIZE = 72;
-const TIME_STEP_MIN = 5; // 下拉选项按 5 分钟一格
+const TIME_STEP_MIN = 1;
 const TIME_ROW_HEIGHT = 44; // 每一行在下拉里的实际高度：8(top pad) + 14(font ~20) + 8(bottom pad) + 4(margin) = ~44px
 
 
@@ -167,7 +166,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [draftEvent, setDraftEvent] = useState<DraftEvent | null>(null);
-  const [startHour, setStartHour] = useState(6);
+  const [startHour, setStartHour] = useState(0);
   const scrollRef = useRef<ScrollView | null>(null);
   const timeListRef = useRef<ScrollView | null>(null);
 
@@ -181,13 +180,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const timeOptions = useMemo(
     () =>
       Array.from(
-        { length: (24 * 60) / TIME_STEP_MIN },
+        { length: (48 * 60) / TIME_STEP_MIN }, // 支持跨越午夜的事件（最多48小时）
         (_, i) => i * TIME_STEP_MIN,
       ),
     [],
   );
   const pixelsPerMinute = 1;
-  const hours = Array.from({ length: 24 - startHour }, (_, i) => i + startHour);
+  const hours = Array.from({ length: 24 }, (_, i) => i);
 
   useEffect(() => {
     const t = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -197,14 +196,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   useEffect(() => {
     if (!scrollRef.current) return;
     const now = new Date();
-    const minutesSinceStart = now.getHours() * 60 + now.getMinutes() - startHour * 60;
+    const minutesSinceStart = now.getHours() * 60 + now.getMinutes();
     const scrollPos = minutesSinceStart * pixelsPerMinute;
     scrollRef.current.scrollTo({ y: Math.max(0, scrollPos), animated: false });
-  }, [startHour]);
+  }, []);
 
   const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-  const nowTop = (nowMinutes - startHour * 60) * pixelsPerMinute;
-  const nowVisible = nowMinutes >= startHour * 60;
+  const nowTop = nowMinutes * pixelsPerMinute;
+  const nowVisible = true;
 
   const openNewEventAt = (totalMinutes: number) => {
     const firstProjectId = projects[0]?.id ?? null;
@@ -403,7 +402,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       />
 
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
-        <View style={{ minHeight: 1200, paddingHorizontal: 12, paddingTop: 0 }}>
+        <View style={{ minHeight: 1440, paddingHorizontal: 12, paddingTop: 0 }}>
           {hours.map((hour) => (
             <View
               key={hour}
@@ -417,19 +416,25 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               </View>
               <View style={styles.hourTrack}>
                 <Pressable
-                  style={styles.slotHalf}
-                  onPress={() => handleSlotPress(hour, 0)}
-                />
-                <Pressable
-                  style={[styles.slotHalf, { top: '50%' }]}
-                  onPress={() => handleSlotPress(hour, 30)}
+                  style={{ flex: 1 }}
+                  onPress={(e) => {
+                    // Get the Y position within this hour track
+                    const locationY = e.nativeEvent.locationY;
+                    // Calculate minutes within this hour (0-59)
+                    let minutesInHour = Math.round((locationY / 60) * 60);
+                    // Round to nearest 5-minute increment
+                    minutesInHour = Math.round(minutesInHour / 5) * 5;
+                    // Clamp to 0-59 range
+                    minutesInHour = Math.min(59, Math.max(0, minutesInHour));
+                    handleSlotPress(hour, minutesInHour);
+                  }}
                 />
               </View>
             </View>
           ))}
 
           {events.map((evt) => {
-            const top = (evt.start - startHour * 60) * pixelsPerMinute;
+            const top = evt.start * pixelsPerMinute;
             const height = evt.duration * pixelsPerMinute;
             if (top < 0) return null;
             return (
@@ -477,7 +482,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             </View>
 
             <View style={{ gap: 16, marginBottom: 16 }}>
-              <View style={styles.card}>
+              {/* Start of Day selector disabled - now showing full 24 hours */}
+              {/* <View style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Sun size={20} color="#F97316" />
                   <Text style={styles.cardHeaderText}>Start of Day</Text>
@@ -506,7 +512,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     );
                   })}
                 </View>
-              </View>
+              </View> */}
 
               <Pressable style={styles.resetButton} onPress={handleReset}>
                 <Trash2 size={18} color="#DC2626" />
@@ -519,8 +525,19 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
       {/* Event Modal */}
       <Modal visible={isModalOpen && !!draftEvent} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.bottomSheetLarge}>
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => {
+            setIsModalOpen(false);
+            setDraftEvent(null);
+            setEditingField(null);
+          }}
+        >
+          <View 
+            style={styles.bottomSheetLarge}
+            onStartShouldSetResponder={() => true}
+            onResponderRelease={() => {}}
+          >
             {/* 顶部标题 + 删除 + 关闭 */}
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>
@@ -607,7 +624,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                         const current =
                           editingField === 'start' ? draftEvent.start : draftEvent.end;
                         const nearestIndex = Math.round(current / TIME_STEP_MIN);
-                        const totalItems = (24 * 60) / TIME_STEP_MIN;
+                        const totalItems = (48 * 60) / TIME_STEP_MIN; // 支持跨越午夜的事件
                         const actualRowHeight = height / totalItems;
                         const scrollY = nearestIndex * actualRowHeight;
 
@@ -736,7 +753,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               </Text>
             </Pressable>
           </View>
-        </View>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -1077,8 +1094,15 @@ const ProjectGraphView: React.FC<ProjectGraphViewProps> = ({
 
       {/* 编辑 Modal（你原来的那一段几乎不动，只是用 selected / toggleConnection） */}
       <Modal visible={graphModalVisible && !!selected} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.bottomSheetLarge}>
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => closeEdit()}
+        >
+          <View 
+            style={styles.bottomSheetLarge}
+            onStartShouldSetResponder={() => true}
+            onResponderRelease={() => {}}
+          >
             {/* 头部 */}
             <View className="sheetHeader" style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>
@@ -1183,7 +1207,7 @@ const ProjectGraphView: React.FC<ProjectGraphViewProps> = ({
               <Text style={styles.primaryButtonText}>Save Changes</Text>
             </Pressable>
           </View>
-        </View>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -1342,13 +1366,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderTopWidth: StyleSheet.hairlineWidth,
     position: 'relative',
-  },
-  slotHalf: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: '50%',
   },
   eventCard: {
     position: 'absolute',
