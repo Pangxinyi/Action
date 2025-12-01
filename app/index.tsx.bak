@@ -3,13 +3,14 @@ import {
   Network,
   PieChart,
   Plus,
+  Sliders,
   Trash2,
   X
 } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useAppData } from '@hooks/useAppData';
-import { transformCustomFormat } from '@utils/storage';
+import { clearAppData, transformCustomFormat } from '@utils/storage';
 import {
   Alert,
   Modal,
@@ -107,7 +108,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, leftIcon, rightIcon })
   );
 };
 
-type TabKey = 'calendar' | 'analytics' | 'projects';
+type TabKey = 'calendar' | 'analytics';
 
 const TabBar: React.FC<{ activeTab: TabKey; setActiveTab: (t: TabKey) => void }> = ({
   activeTab,
@@ -127,7 +128,6 @@ const TabBar: React.FC<{ activeTab: TabKey; setActiveTab: (t: TabKey) => void }>
     <View style={styles.tabBar}>
       {mkTab('calendar', 'Today', CalendarIcon)}
       {mkTab('analytics', 'Analytics', PieChart)}
-      {mkTab('projects', 'Projects', Network)}
     </View>
   );
 };
@@ -1230,313 +1230,573 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events }) => {
   );
 };
 
-// --- Projects View (Visualization Selection) ---
+// --- Project Graph View ---
 
-type VisualizationType = 'gravity' | 'orbit' | 'pods' | 'list';
+// --- Analytics View ---
+  const [importStatus, setImportStatus] = useState<string>('');
+  const [importError, setImportError] = useState<string>('');
 
-interface VisualizationOption {
-  id: VisualizationType;
-  title: string;
-  description: string;
-  icon: string;
-}
+  // 拖拽状态（以“中心坐标”为基准）
+  const dragStateRef = useRef<{
+    id: number;
+    startX: number;
+    startY: number;
+    touchX: number;
+    touchY: number;
+  } | null>(null);
 
-const VISUALIZATION_OPTIONS: VisualizationOption[] = [
-  {
-    id: 'gravity',
-    title: 'Gravity Clusters',
-    description: 'Organic nodes pulled by gravity',
-    icon: 'gravity',
-  },
-  {
-    id: 'orbit',
-    title: 'Solar Orbits',
-    description: 'Projects orbiting around you',
-    icon: 'orbit',
-  },
-  {
-    id: 'pods',
-    title: 'Category Pods',
-    description: 'Structured containers for clarity',
-    icon: 'pods',
-  },
-  {
-    id: 'list',
-    title: 'Data List',
-    description: 'Minimalist data table',
-    icon: 'list',
-  },
-];
+  const handleExport = () => {
+    const data = {
+      projects,
+      events,
+      links,
+      categories,
+      exportDate: new Date().toISOString(),
+    };
+    const jsonString = JSON.stringify(data, null, 2);
+    console.log('Export data:', jsonString);
+    setImportStatus(`✓ Export data created`);
+    setTimeout(() => setImportStatus(''), 3000);
+  };
 
-interface ProjectsViewProps {
-  onSelectVisualization: (type: VisualizationType) => void;
-}
+  const handleImport = (jsonString: string) => {
+    try {
+      setImportError('');
+      const data = JSON.parse(jsonString);
+      
+      if (Array.isArray(data) && data.length > 0 && (data[0].date || data[0].time || data[0].tag)) {
+        const transformed = transformCustomFormat(data);
+        setProjects(() => transformed.projects);
+        setEvents(() => transformed.events);
+        setLinks(() => transformed.links);
+        setCategories(() => transformed.categories);
+        setImportStatus(`✓ Data imported successfully (${data.length} items)`);
+        setImportText('');
+        setTimeout(() => setImportStatus(''), 3000);
+        return;
+      }
+      
+      if (!data.projects || !Array.isArray(data.projects)) {
+        throw new Error('Invalid format: missing projects array');
+      }
+      if (!data.events || !Array.isArray(data.events)) {
+        throw new Error('Invalid format: missing events array');
+      }
+      if (!data.links || !Array.isArray(data.links)) {
+        throw new Error('Invalid format: missing links array');
+      }
 
-const GravityPreview: React.FC = () => (
-  <View style={{ width: '100%', height: 120, justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-    <View
-      style={{
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: '#3B82F6',
-        position: 'absolute',
-        opacity: 0.8,
-      }}
-    />
-    <View
-      style={{
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: '#8B5CF6',
-        position: 'absolute',
-        top: 35,
-        left: 20,
-        opacity: 0.6,
-      }}
-    />
-    <View
-      style={{
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: '#EC4899',
-        position: 'absolute',
-        top: 40,
-        right: 25,
-        opacity: 0.7,
-      }}
-    />
-  </View>
-);
+      setProjects(() => data.projects);
+      setEvents(() => data.events);
+      setLinks(() => data.links);
+      if (data.categories) {
+        setCategories(() => data.categories);
+      }
 
-const OrbitPreview: React.FC = () => (
-  <View style={{ width: '100%', height: 120, justifyContent: 'center', alignItems: 'center' }}>
-    <View
-      style={{
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        borderWidth: 2,
-        borderColor: '#3B82F6',
-        opacity: 0.3,
-      }}
-    />
-    <View
-      style={{
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        borderWidth: 1.5,
-        borderColor: '#8B5CF6',
-        opacity: 0.2,
-        position: 'absolute',
-      }}
-    />
-    <View
-      style={{
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#3B82F6',
-        position: 'absolute',
-        left: '50%',
-        marginLeft: -4,
-        top: 15,
-      }}
-    />
-  </View>
-);
-
-const PodsPreview: React.FC = () => (
-  <View style={{ width: '100%', height: 120, justifyContent: 'center', alignItems: 'center', gap: 8, flexDirection: 'row', flexWrap: 'wrap' }}>
-    <View style={{ width: '48%', height: 35, borderRadius: 8, backgroundColor: '#3B82F6', opacity: 0.6 }} />
-    <View style={{ width: '48%', height: 35, borderRadius: 8, backgroundColor: '#8B5CF6', opacity: 0.6 }} />
-    <View style={{ width: '48%', height: 35, borderRadius: 8, backgroundColor: '#EC4899', opacity: 0.6 }} />
-    <View style={{ width: '48%', height: 35, borderRadius: 8, backgroundColor: '#F59E0B', opacity: 0.6 }} />
-  </View>
-);
-
-const ListPreview: React.FC = () => (
-  <View style={{ width: '100%', height: 120, justifyContent: 'space-around', alignItems: 'center', paddingVertical: 12 }}>
-    <View style={{ width: '90%', height: 8, borderRadius: 4, backgroundColor: '#E5E7EB' }} />
-    <View style={{ width: '85%', height: 8, borderRadius: 4, backgroundColor: '#D1D5DB' }} />
-    <View style={{ width: '80%', height: 8, borderRadius: 4, backgroundColor: '#9CA3AF' }} />
-    <View style={{ width: '75%', height: 8, borderRadius: 4, backgroundColor: '#6B7280' }} />
-  </View>
-);
-
-const VisualizationCard: React.FC<{
-  option: VisualizationOption;
-  isSelected: boolean;
-  onPress: () => void;
-}> = ({ option, isSelected, onPress }) => {
-  const getPreview = () => {
-    switch (option.id) {
-      case 'gravity':
-        return <GravityPreview />;
-      case 'orbit':
-        return <OrbitPreview />;
-      case 'pods':
-        return <PodsPreview />;
-      case 'list':
-        return <ListPreview />;
+      setImportStatus('✓ Data imported successfully');
+      setImportText('');
+      setTimeout(() => setImportStatus(''), 3000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      setImportError(`✗ Import failed: ${errorMsg}`);
     }
   };
 
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        marginHorizontal: 16,
-        marginVertical: 10,
-        borderRadius: 20,
-        overflow: 'hidden',
-        transform: isSelected ? [{ scale: 0.98 }] : [{ scale: 1 }],
-      }}
-    >
-      <View
-        style={{
-          borderWidth: isSelected ? 2.5 : 1.5,
-          borderColor: isSelected ? '#3B82F6' : '#E5E7EB',
-          borderRadius: 20,
-          padding: 20,
-          shadowColor: isSelected ? '#3B82F6' : '#000000',
-          shadowOffset: { width: 0, height: isSelected ? 8 : 2 },
-          shadowOpacity: isSelected ? 0.25 : 0.08,
-          shadowRadius: isSelected ? 12 : 4,
-          elevation: isSelected ? 8 : 2,
-          backgroundColor: isSelected ? '#F0F9FF' : '#FFFFFF',
-        }}
-      >
-        {/* Preview */}
-        <View style={{ marginBottom: 16 }}>{getPreview()}</View>
-
-        {/* Title */}
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '700',
-            color: '#1F2937',
-            marginBottom: 6,
-          }}
-        >
-          {option.title}
-        </Text>
-
-        {/* Description */}
-        <Text
-          style={{
-            fontSize: 13,
-            color: '#6B7280',
-            fontWeight: '500',
-            marginBottom: 12,
-            lineHeight: 18,
-          }}
-        >
-          {option.description}
-        </Text>
-
-        {/* Selection indicator */}
-        {isSelected && (
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              paddingTop: 8,
-              borderTopWidth: 1,
-              borderTopColor: '#E5E7EB',
-            }}
-          >
-            <View
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: '#3B82F6',
-              }}
-            />
-            <Text style={{ fontSize: 12, color: '#3B82F6', fontWeight: '600' }}>
-              Selected
-            </Text>
-          </View>
-        )}
-      </View>
-    </Pressable>
-  );
-};
-
-const ProjectsView: React.FC<ProjectsViewProps> = ({ onSelectVisualization }) => {
-  const [selectedVis, setSelectedVis] = useState<VisualizationType | null>(null);
-
-  const handleSelect = (type: VisualizationType) => {
-    setSelectedVis(type);
-    // Slight delay for visual feedback
-    setTimeout(() => {
-      onSelectVisualization(type);
-    }, 300);
+  const handleClearData = () => {
+    Alert.alert(
+      'Clear All Data',
+      'Are you sure you want to clear all data? This cannot be undone.',
+      [
+        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Clear',
+          onPress: async () => {
+            try {
+              await clearAppData();
+              setProjects(() => []);
+              setEvents(() => []);
+              setLinks(() => []);
+              setCategories(() => ({}));
+              setImportStatus('✓ All data cleared');
+              setImportText('');
+              setTimeout(() => setImportStatus(''), 3000);
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+              setImportError(`✗ Failed to clear data: ${errorMsg}`);
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
   };
 
+  const openEdit = (p: Project) => {
+    setSelected(p);
+    setGraphModalVisible(true);
+  };
+
+  const closeEdit = () => {
+    setGraphModalVisible(false);
+    setSelected(null);
+  };
+
+  const handleSave = () => {
+    if (!selected) return;
+    setProjects((prev) => prev.map((p) => (p.id === selected.id ? selected : p)));
+    closeEdit();
+  };
+
+  const isConnected = (targetId: number) => {
+    if (!selected) return false;
+    return links.some(
+      (l) =>
+        (l.source === selected.id && l.target === targetId) ||
+        (l.source === targetId && l.target === selected.id),
+    );
+  };
+
+  const toggleConnection = (targetId: number) => {
+    if (!selected) return;
+    setLinks((prev) => {
+      const exists = prev.some(
+        (l) =>
+          (l.source === selected.id && l.target === targetId) ||
+          (l.source === targetId && l.target === selected.id),
+      );
+      if (exists) {
+        return prev.filter(
+          (l) =>
+            !(
+              (l.source === selected.id && l.target === targetId) ||
+              (l.source === targetId && l.target === selected.id)
+            ),
+        );
+      }
+      return [...prev, { source: selected.id, target: targetId }];
+    });
+  };
+
+  // ----- 拖拽相关 -----
+
+  const handleDragStart = (project: Project, e: any) => {
+    const { pageX, pageY } = e.nativeEvent;
+    dragStateRef.current = {
+      id: project.id,
+      startX: project.x,
+      startY: project.y,
+      touchX: pageX,
+      touchY: pageY,
+    };
+  };
+
+  const handleDragMove = (project: Project, e: any) => {
+    const state = dragStateRef.current;
+    if (!state || state.id !== project.id) return;
+
+    const { pageX, pageY } = e.nativeEvent;
+    const dx = pageX - state.touchX;
+    const dy = pageY - state.touchY;
+
+    const newX = state.startX + dx;
+    const newY = state.startY + dy;
+
+    setProjects((prev) =>
+      prev.map((p) => (p.id === project.id ? { ...p, x: newX, y: newY } : p)),
+    );
+  };
+
+  const handleDragEnd = (project: Project, e: any) => {
+    const state = dragStateRef.current;
+    if (!state || state.id !== project.id) {
+      dragStateRef.current = null;
+      return;
+    }
+
+    const { pageX, pageY } = e.nativeEvent;
+    const dx = pageX - state.touchX;
+    const dy = pageY - state.touchY;
+    const distSq = dx * dx + dy * dy;
+
+    dragStateRef.current = null;
+
+    // 移动距离很小，当作“点一下”，打开编辑弹窗
+    if (distSq < 25) {
+      openEdit(project);
+    }
+  };
+
+  // ----- 渲染 -----
+
+  const NODE_RADIUS = NODE_SIZE / 2;
+
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: '#FAFAFA' }}
-      contentContainerStyle={{ paddingVertical: 24 }}
-    >
-      {/* Header */}
-      <View style={{ paddingHorizontal: 16, marginBottom: 32 }}>
-        <Text
-          style={{
-            fontSize: 32,
-            fontWeight: '800',
-            color: '#000000',
-            marginBottom: 8,
-            letterSpacing: -0.5,
-          }}
-        >
-          Choose Your Perspective
-        </Text>
-        <Text
-          style={{
-            fontSize: 15,
-            color: '#6B7280',
-            fontWeight: '500',
-            lineHeight: 22,
-          }}
-        >
-          How do you want to see your goals today?
-        </Text>
+    <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+      <Header 
+        title="Project Map" 
+        subtitle="Drag to move · Tap to edit"
+        rightIcon={
+          <Pressable onPress={() => setSettingsModalVisible(true)}>
+            <Sliders size={24} color="#000" />
+          </Pressable>
+        }
+      />
+
+      {/* 图节点 + 连线画布 */}
+      <View style={styles.graphCanvas}>
+        {/* 连线：按圆心算，并剪掉两端半径，让线接到圆边上 */}
+        {links.map((l, idx) => {
+          const s = projects.find((p) => p.id === l.source);
+          const t = projects.find((p) => p.id === l.target);
+          if (!s || !t) return null;
+
+          const dx = t.x - s.x;
+          const dy = t.y - s.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+          // 如果两个点太近就不画线，避免 length 变负
+          if (dist < NODE_RADIUS * 1.2) return null;
+
+          const ux = dx / dist;
+          const uy = dy / dist;
+
+          const startX = s.x + ux * NODE_RADIUS;
+          const startY = s.y + uy * NODE_RADIUS;
+          const endX = t.x - ux * NODE_RADIUS;
+          const endY = t.y - uy * NODE_RADIUS;
+
+          const segDx = endX - startX;
+          const segDy = endY - startY;
+          const length = Math.sqrt(segDx * segDx + segDy * segDy);
+          const angle = (Math.atan2(segDy, segDx) * 180) / Math.PI;
+
+          const midX = (startX + endX) / 2;
+          const midY = (startY + endY) / 2;
+
+          return (
+            <View
+              key={idx}
+              style={[
+                styles.graphLinkLine,
+                {
+                  width: length,
+                  transform: [
+                    { translateX: midX - length / 2 },
+                    { translateY: midY },
+                    { rotateZ: `${angle}deg` },
+                  ],
+                },
+              ]}
+            />
+          );
+        })}
+
+        {/* 节点：绝对定位，支持拖拽 + 点击 */}
+        {projects.map((p) => (
+          <View
+            key={p.id}
+            style={[
+              styles.graphNodeWrapper,
+              {
+                left: p.x - NODE_RADIUS,
+                top: p.y - NODE_RADIUS,
+              },
+            ]}
+            onStartShouldSetResponder={() => true}
+            onResponderGrant={(e) => handleDragStart(p, e)}
+            onResponderMove={(e) => handleDragMove(p, e)}
+            onResponderRelease={(e) => handleDragEnd(p, e)}
+            onResponderTerminationRequest={() => false}
+          >
+            <View
+              style={[
+                styles.graphNodeOuter,
+                { borderColor: `${p.hexColor}40` },
+              ]}
+            >
+              <View
+                style={[
+                  styles.graphNodeInner,
+                  { backgroundColor: p.hexColor },
+                ]}
+              >
+                <Text style={styles.graphNodeInitial}>
+                  {p.name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+
+              {p.category ? (
+                <View
+                  style={[
+                    styles.graphCategoryBadge,
+                    { backgroundColor: `${p.hexColor}1A` },
+                  ]}
+                >
+                  <Text style={styles.graphCategoryText} numberOfLines={1}>
+                    {p.category}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            <Text style={styles.graphNodeLabel} numberOfLines={1}>
+              {p.name}
+            </Text>
+          </View>
+        ))}
       </View>
 
-      {/* Cards */}
-      {VISUALIZATION_OPTIONS.map((option) => (
-        <VisualizationCard
-          key={option.id}
-          option={option}
-          isSelected={selectedVis === option.id}
-          onPress={() => handleSelect(option.id)}
-        />
-      ))}
-
-      {/* Footer hint */}
-      {selectedVis && (
-        <View
-          style={{
-            marginTop: 24,
-            marginHorizontal: 16,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderRadius: 12,
-            backgroundColor: '#DBEAFE',
-          }}
+      {/* 编辑 Modal（你原来的那一段几乎不动，只是用 selected / toggleConnection） */}
+      <Modal visible={graphModalVisible && !!selected} transparent animationType="slide">
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => closeEdit()}
         >
-          <Text style={{ fontSize: 13, color: '#1E40AF', textAlign: 'center' }}>
-            ✓ You can change this anytime in settings
-          </Text>
-        </View>
-      )}
-    </ScrollView>
+          <View 
+            style={styles.bottomSheetLarge}
+            onStartShouldSetResponder={() => true}
+            onResponderRelease={() => {}}
+          >
+            {/* 头部 */}
+            <View className="sheetHeader" style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>
+                {selected ? selected.name : 'Edit Project'}
+              </Text>
+              <Pressable style={styles.iconButton} onPress={closeEdit}>
+                <X size={20} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            {selected && (
+              <ScrollView
+                style={{ marginTop: 8 }}
+                contentContainerStyle={{ paddingBottom: 16 }}
+              >
+                {/* Name */}
+                <View style={styles.card}>
+                  <Text style={styles.sectionLabel}>Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={selected.name}
+                    onChangeText={(txt) =>
+                      setSelected((prev) => (prev ? { ...prev, name: txt } : prev))
+                    }
+                  />
+                </View>
+
+                {/* Category */}
+                <View style={styles.card}>
+                  <Text style={styles.sectionLabel}>Category</Text>
+                  
+                  {/* Saved Categories - horizontal scroll */}
+                  {Object.keys(categories).length > 0 && (
+                    <View style={{ marginBottom: 12 }}>
+                      <Text style={[styles.sectionLabel, { fontSize: 12, color: '#6B7280', marginBottom: 8 }]}>
+                        Saved Categories
+                      </Text>
+                      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                        {Object.keys(categories).map((catName) => {
+                          const catColor = categories[catName];
+                          const isSelected = selected.category === catName;
+                          return (
+                            <Pressable
+                              key={catName}
+                              style={[
+                                {
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 6,
+                                  borderRadius: 8,
+                                  backgroundColor: `${catColor}20`,
+                                  borderColor: catColor,
+                                  borderWidth: 2,
+                                },
+                                isSelected && { backgroundColor: catColor, borderColor: catColor, borderWidth: 2 },
+                              ]}
+                              onPress={() => {
+                                setSelected((prev) =>
+                                  prev ? { ...prev, category: catName } : prev,
+                                );
+                              }}
+                            >
+                              <Text
+                                style={[
+                                  { color: catColor, fontWeight: '600', fontSize: 12 },
+                                  isSelected && { color: '#FFFFFF' },
+                                ]}
+                              >
+                                {catName}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Create/Edit Category */}
+                  <View style={{ marginBottom: 8 }}>
+                    <Text style={[styles.sectionLabel, { fontSize: 12, color: '#6B7280', marginBottom: 8 }]}>
+                      {selected.category && Object.keys(categories).includes(selected.category) ? 'Edit Category' : 'Create New Category'}
+                    </Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter category name..."
+                      value={selected.category ?? ''}
+                      onChangeText={(txt) =>
+                        setSelected((prev) =>
+                          prev ? { ...prev, category: txt || null } : prev,
+                        )
+                      }
+                    />
+                  </View>
+
+                  {/* Category Color Picker */}
+                  {selected.category && selected.category.trim() && (
+                    <View>
+                      <Text style={[styles.sectionLabel, { fontSize: 12, color: '#6B7280', marginBottom: 8 }]}>
+                        Category Color
+                      </Text>
+                      <View style={{ flexDirection: 'row', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
+                        {CATEGORY_COLORS.map((color) => {
+                          const catColor = categories[selected.category!] ?? null;
+                          const active = catColor === color;
+                          // Check if this color is used by another category
+                          const colorUsedByOther = Object.entries(categories).some(
+                            ([name, col]) => col === color && name !== selected.category
+                          );
+                          const isDisabled = colorUsedByOther && !active;
+                          
+                          return (
+                            <Pressable
+                              key={color}
+                              style={[
+                                styles.colorDotLarge,
+                                { backgroundColor: color, opacity: isDisabled ? 0.5 : 1 },
+                                active && styles.colorDotLargeActive,
+                              ]}
+                              onPress={() => {
+                                if (!isDisabled) {
+                                  // Update or add category color mapping
+                                  setCategories((prev) => {
+                                    const updated = { ...prev };
+                                    updated[selected.category!] = color;
+                                    return updated;
+                                  });
+                                }
+                              }}
+                              disabled={isDisabled}
+                            />
+                          );
+                        })}
+                      </View>
+                      {Object.values(categories).includes(categories[selected.category!]) && 
+                        Object.entries(categories).some(([name, col]) => col === categories[selected.category!] && name !== selected.category) && (
+                        <Text style={{ fontSize: 12, color: '#F97316', marginTop: 8 }}>
+                          ⚠️ Each color can only be assigned to one category
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+
+                {/* Connections */}
+                <View style={styles.card}>
+                  <Text style={styles.sectionLabel}>Connections</Text>
+                  {projects
+                    .filter((p) => p.id !== selected.id)
+                    .map((p) => {
+                      const connected = isConnected(p.id);
+                      return (
+                        <Pressable
+                          key={p.id}
+                          style={styles.connectionRow}
+                          onPress={() => toggleConnection(p.id)}
+                        >
+                          <View
+                            style={[
+                              styles.checkboxBox,
+                              connected && styles.checkboxBoxActive,
+                            ]}
+                          />
+                          <Text style={styles.checkboxLabel}>{p.name}</Text>
+                        </Pressable>
+                      );
+                    })}
+
+                  {projects.length <= 1 && (
+                    <Text style={styles.emptyText}>
+                      Create more projects to connect them.
+                    </Text>
+                  )}
+                </View>
+              </ScrollView>
+            )}
+
+            <Pressable style={styles.primaryButton} onPress={handleSave}>
+              <Text style={styles.primaryButtonText}>Save Changes</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Settings Modal */}
+      <Modal visible={settingsModalVisible} transparent animationType="slide">
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setSettingsModalVisible(false)}
+        />
+        <Pressable 
+          style={[styles.card, { backgroundColor: '#FFFFFF', marginHorizontal: 16, marginVertical: 100, borderRadius: 16 }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <Text style={styles.sectionTitle}>Data Management</Text>
+            <Pressable onPress={() => setSettingsModalVisible(false)}>
+              <X size={24} color="#000" />
+            </Pressable>
+          </View>
+
+          <ScrollView style={{ maxHeight: 400 }} contentContainerStyle={{ gap: 12 }}>
+            {importStatus && (
+              <View style={[styles.card, { backgroundColor: '#D1FAE5', borderLeftColor: '#10B981', borderLeftWidth: 4 }]}>
+                <Text style={{ color: '#10B981', fontWeight: '600', fontSize: 14 }}>{importStatus}</Text>
+              </View>
+            )}
+            
+            {importError && (
+              <View style={[styles.card, { backgroundColor: '#FEE2E2', borderLeftColor: '#EF4444', borderLeftWidth: 4 }]}>
+                <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 14 }}>{importError}</Text>
+              </View>
+            )}
+
+            <Pressable style={styles.primaryButton} onPress={handleExport}>
+              <Text style={styles.primaryButtonText}>📥 Export Data</Text>
+            </Pressable>
+
+            <Pressable 
+              style={[styles.primaryButton, { backgroundColor: '#EF4444' }]} 
+              onPress={handleClearData}
+            >
+              <Text style={styles.primaryButtonText}>🗑 Clear All Data</Text>
+            </Pressable>
+
+            <TextInput
+              style={[styles.input, { minHeight: 120, textAlignVertical: 'top' }]}
+              placeholder="Paste JSON to import..."
+              placeholderTextColor="#D1D5DB"
+              multiline
+              value={importText}
+              onChangeText={(text) => {
+                setImportText(text);
+                if (text.trim()) {
+                  handleImport(text);
+                }
+              }}
+            />
+          </ScrollView>
+        </Pressable>
+      </Modal>
+    </View>
   );
 };
 
@@ -1718,7 +1978,6 @@ const DataView: React.FC<DataViewProps> = ({
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('calendar');
-  const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
@@ -1747,15 +2006,6 @@ const App: React.FC = () => {
     );
   } else if (activeTab === 'analytics') {
     content = <AnalyticsView projects={projects} events={events} />;
-  } else if (activeTab === 'projects') {
-    content = (
-      <ProjectsView
-        onSelectVisualization={(type) => {
-          setSelectedVisualization(type);
-          // In future, this will show different visualization layouts
-        }}
-      />
-    );
   } else {
     content = (
       <DataView

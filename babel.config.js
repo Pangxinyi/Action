@@ -12,6 +12,7 @@ module.exports = function (api) {
             '@components': './components',
             '@hooks': './hooks',
             '@constants': './constants',
+            '@utils': './utils',
           },
         },
       ],
