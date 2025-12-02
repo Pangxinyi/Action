@@ -17,11 +17,9 @@ type UseAppDataResult = {
 export const useAppData = (
   projects: any[],
   events: any[],
-  links: any[],
   categories: { [key: string]: string },
   setProjects: (projects: any[]) => void,
   setEvents: (events: any[]) => void,
-  setLinks: (links: any[]) => void,
   setCategories: (categories: { [key: string]: string }) => void,
   onLoaded?: () => void
 ): UseAppDataResult => {
@@ -34,7 +32,6 @@ export const useAppData = (
       if (savedData) {
         setProjects(savedData.projects);
         setEvents(savedData.events);
-        setLinks(savedData.links);
         setCategories(savedData.categories);
       }
       onLoaded?.();
@@ -48,13 +45,12 @@ export const useAppData = (
       const data: AppData = {
         projects,
         events,
-        links,
         categories,
         version: '1.0.0',
       };
       saveAppData(data).catch(console.error);
     }
-  }, [projects, events, links, categories]);
+  }, [projects, events, categories]);
 
   return { isLoaded };
 };

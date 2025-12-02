@@ -8,7 +8,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export type AppData = {
   projects: any[];
   events: any[];
-  links: any[];
   categories: { [key: string]: string };
   version: string;
 };
@@ -78,14 +77,10 @@ export const importDataFromJSON = (jsonString: string): AppData => {
   if (!data.events || !Array.isArray(data.events)) {
     throw new Error('Invalid format: missing events array');
   }
-  if (!data.links || !Array.isArray(data.links)) {
-    throw new Error('Invalid format: missing links array');
-  }
   
   return {
     projects: data.projects,
     events: data.events,
-    links: data.links,
     categories: data.categories || {},
     version: APP_VERSION,
   };
@@ -128,7 +123,6 @@ export const mergeAppData = (
   return {
     projects: mergedProjects,
     events: mergedEvents,
-    links: [...existingData.links, ...importedData.links],
     categories: { ...existingData.categories, ...importedData.categories },
     version: APP_VERSION,
   };
@@ -249,7 +243,6 @@ export const transformCustomFormat = (customData: any[]): AppData => {
   return {
     projects,
     events,
-    links: [],
     categories,
     version: '1.0.0',
   };

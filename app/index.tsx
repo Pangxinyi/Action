@@ -3,13 +3,15 @@ import {
   Network,
   PieChart,
   Plus,
+  Sliders,
   Trash2,
   X
 } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
+import type { Category as SkiaCategory, Project as SkiaProject } from '@components/ClusterViewAdvanced';
+import { ClusterViewAdvanced } from '@components/ClusterViewAdvanced';
 import { useAppData } from '@hooks/useAppData';
-import { transformCustomFormat } from '@utils/storage';
 import {
   Alert,
   Modal,
@@ -23,6 +25,7 @@ import {
   TextInput,
   View
 } from 'react-native';
+import { clearAppData } from '../utils/storage';
 
 
 
@@ -30,6 +33,15 @@ import {
 
 const APP_COLORS = ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7', '#E6C8DC', '#EFD9CE'] as const;
 const CATEGORY_COLORS = ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7', '#E6C8DC', '#EFD9CE'] as const;
+
+// Color Theme Palettes
+const COLOR_THEMES = {
+  default: ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7', '#E6C8DC', '#EFD9CE'],
+  matisse: ['#A63A2B', '#F9D8A7', '#C65C36', '#E0B458', '#7B3B2E', '#D68C45'],
+  starry: ['#2C3E50', '#FFE082', '#4A90E2', '#5BC0EB', '#F6D186', '#3D348B'],
+  sunflower: ['#E3B505', '#A1887F', '#E86C1A', '#A15C38', '#F0E6C2', '#FFC857'],
+} as const;
+
 const NODE_SIZE = 72;
 const TIME_STEP_MIN = 1;
 
@@ -47,6 +59,11 @@ type Project = {
   category: string | null;
   x: number;
   y: number;
+  vx?: number;
+  vy?: number;
+  // Temporary state for modal editing
+  newCategoryName?: string;
+  newCategoryColor?: string;
 };
 
 type EventItem = {
@@ -160,6 +177,7 @@ type CalendarViewProps = {
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   categories: CategoryMap;
   setCategories: React.Dispatch<React.SetStateAction<CategoryMap>>;
+  selectedColorScheme: string;
 };
 
 const CalendarView: React.FC<CalendarViewProps> = ({
@@ -169,6 +187,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   setProjects,
   categories,
   setCategories,
+  selectedColorScheme,
 }) => {
   const [editingField, setEditingField] = useState<'start' | 'end' | null>(null);
   const [tempTime, setTempTime] = useState('');
@@ -179,6 +198,26 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
   const timeListRef = useRef<ScrollView | null>(null);
+
+  // 获取当前主题的颜色数组
+  const themeColors = COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+
+  // 获取事件的当前颜色（基于项目或分类）
+  const getEventColor = (evt: EventItem): string => {
+    // 优先从关联的项目获取颜色
+    if (evt.projectId) {
+      const project = projects.find(p => p.id === evt.projectId);
+      if (project) {
+        return project.hexColor;
+      }
+    }
+    // 其次从分类获取颜色
+    if (evt.category && categories[evt.category]) {
+      return categories[evt.category];
+    }
+    // 最后使用事件自己的颜色或默认颜色
+    return evt.hexColor || '#9CA3AF';
+  };
 
   // Date navigation functions
   const handlePrevDay = () => {
@@ -290,7 +329,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       date: dateStr,
       isNewCategory: false,
       newCategoryName: '',
-      newCategoryColor: APP_COLORS[0],
+      newCategoryColor: themeColors[0],
     });
     setIsModalOpen(true);
   };
@@ -491,7 +530,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+    return firstDay.getDay();
   };
 
   const daysInMonth = getDaysInMonth(selectedDate);
@@ -676,6 +716,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             .map((evt) => {
             const top = evt.start * pixelsPerMinute;
             const height = evt.duration * pixelsPerMinute;
+            const eventColor = getEventColor(evt);
             if (top < 0) return null;
             return (
               <Pressable
@@ -686,8 +727,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                   {
                     top,
                     height: Math.max(20, height),
-                    backgroundColor: `${evt.hexColor}4D`,
-                    borderLeftColor: evt.hexColor,
+                    backgroundColor: `${eventColor}4D`,
+                    borderLeftColor: eventColor,
                   },
                 ]}
               >
@@ -1030,7 +1071,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                         Color
                       </Text>
                       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                        {APP_COLORS.map((color) => (
+                        {themeColors.map((color) => (
                           <Pressable
                             key={color}
                             style={[
@@ -1076,11 +1117,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 type AnalyticsViewProps = {
   projects: Project[];
   events: EventItem[];
+  selectedColorScheme: string;
 };
 
-const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events }) => {
+const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selectedColorScheme }) => {
   const [timeRange, setTimeRange] = useState<'Week' | 'Month'>('Week');
   const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  // 获取当前主题的颜色数组
+  const themeColors = COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
 
   // Filter events based on timeRange
   const filteredEvents = (() => {
@@ -1182,7 +1227,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events }) => {
                         styles.barFill,
                         {
                           height: `${height}%`,
-                          backgroundColor: APP_COLORS[idx % APP_COLORS.length],
+                          backgroundColor: themeColors[idx % themeColors.length],
                         },
                       ]}
                     />
@@ -1230,6 +1275,1175 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events }) => {
   );
 };
 
+// --- GRAVITY CLUSTERS VIEW ---
+
+type ProjectsViewProps = {
+  projects: Project[];
+  events: EventItem[];
+  categories: CategoryMap;
+  setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
+  setCategories: React.Dispatch<React.SetStateAction<CategoryMap>>;
+  setEvents: React.Dispatch<React.SetStateAction<EventItem[]>>;
+  selectedColorScheme: string;
+  setSelectedColorScheme: React.Dispatch<React.SetStateAction<string>>;
+};
+
+const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categories, setProjects, setCategories, setEvents, selectedColorScheme, setSelectedColorScheme }) => {
+  const [showSettings, setShowSettings] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState('gravity');
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [selectedNode, setSelectedNode] = useState<Project | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const isDraggingRef = useRef(false);
+  const containerRef = useRef<View>(null);
+  const dragStartPosRef = useRef({ x: 0, y: 0 });
+
+  // 获取当前主题的颜色数组
+  const getCurrentThemeColors = () => {
+    return COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+  };
+
+  // 获取 category 颜色
+  const getCategoryColor = (categoryName: string | null): string => {
+    if (!categoryName) return '#9CA3AF'; // uncategorized gray
+    return categories[categoryName] || '#9CA3AF';
+  };
+
+  // 物理模拟：聚类引力效果
+  useEffect(() => {
+    let animationFrameId: number;
+    
+    const simulate = () => {
+      setProjects((prevProjects) => {
+        const nextProjects = prevProjects.map((p) => ({
+          ...p,
+          vx: (p.vx || 0) * 0.9,
+          vy: (p.vy || 0) * 0.9,
+        }));
+
+        // 计算类别中心点
+        const catCenters: Record<string, { x: number; y: number }> = {};
+        const categoryArray = Object.keys(categories);
+        
+        // 如果没有任何 category，uncategorized 在中间
+        if (categoryArray.length === 0) {
+          catCenters['uncategorized'] = { x: 180, y: 340 };
+        } else {
+          // 有类别时，先布局类别
+          categoryArray.forEach((catName, i) => {
+            let x, y;
+            if (categoryArray.length === 1) {
+              x = 180;
+              y = 250;
+            } else if (categoryArray.length === 2) {
+              x = 100 + i * 160;
+              y = 250;
+            } else {
+              const angle = (i / categoryArray.length) * 2 * Math.PI - Math.PI / 2;
+              x = 180 + Math.cos(angle) * 130;
+              y = 280 + Math.sin(angle) * 130;
+            }
+            catCenters[catName] = { x, y };
+          });
+          
+          // Uncategorized 固定在底部，远离类别区域
+          catCenters['uncategorized'] = { x: 180, y: 520 };
+        }
+
+        // 排斥力：防止节点重叠
+        for (let i = 0; i < nextProjects.length; i++) {
+          for (let j = i + 1; j < nextProjects.length; j++) {
+            const p1 = nextProjects[i];
+            const p2 = nextProjects[j];
+            const dx = p1.x - p2.x;
+            const dy = p1.y - p2.y;
+            const distSq = dx * dx + dy * dy;
+            const dist = Math.sqrt(distSq) || 1;
+
+            const r1 = 30 + (p1.percent / 100) * 10;
+            const r2 = 30 + (p2.percent / 100) * 10;
+            const minSpace = r1 + r2 + 10;
+
+            if (dist < minSpace) {
+              const force = ((minSpace - dist) / dist) * 0.5;
+              const fx = dx * force;
+              const fy = dy * force;
+              p1.vx = (p1.vx || 0) + fx;
+              p1.vy = (p1.vy || 0) + fy;
+              p2.vx = (p2.vx || 0) - fx;
+              p2.vy = (p2.vy || 0) - fy;
+            }
+          }
+        }
+
+        // 吸引力：将节点吸向类别中心
+        nextProjects.forEach((p) => {
+          if (p.id === draggingId) return;
+
+          const center = p.category ? catCenters[p.category] : catCenters['uncategorized'];
+          if (!center) return;
+
+          const dx = center.x - p.x;
+          const dy = center.y - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+          const force = dist * 0.008;
+          p.vx = (p.vx || 0) + (dx / dist) * force;
+          p.vy = (p.vy || 0) + (dy / dist) * force;
+        });
+
+        // 应用速度与边界检查
+        return nextProjects.map((p) => {
+          if (p.id === draggingId) return p;
+
+          let newX = p.x + (p.vx || 0);
+          let newY = p.y + (p.vy || 0);
+
+          if (newX < 30) {
+            newX = 30;
+            p.vx = (p.vx || 0) * -0.5;
+          }
+          if (newX > 345) {
+            newX = 345;
+            p.vx = (p.vx || 0) * -0.5;
+          }
+          if (newY < 30) {
+            newY = 30;
+            p.vy = (p.vy || 0) * -0.5;
+          }
+          if (newY > 580) {
+            newY = 580;
+            p.vy = (p.vy || 0) * -0.5;
+          }
+
+          return { ...p, x: newX, y: newY };
+        });
+      });
+
+      animationFrameId = requestAnimationFrame(simulate);
+    };
+
+    animationFrameId = requestAnimationFrame(simulate);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [categories, draggingId, setProjects]);
+
+  // 拖动处理 - 使用原生触摸事件
+  const handleTouchStart = (nodeId: number, evt: any) => {
+    const project = projects.find(p => p.id === nodeId);
+    if (project) {
+      const touch = evt.nativeEvent;
+      dragStartPosRef.current = { x: project.x, y: project.y };
+      setDraggingId(nodeId);
+      isDraggingRef.current = false;
+    }
+  };
+
+  const handleTouchMove = (nodeId: number, evt: any) => {
+    if (draggingId !== nodeId) return;
+    isDraggingRef.current = true;
+    
+    const touch = evt.nativeEvent;
+    const newX = Math.max(30, Math.min(345, touch.pageX - 16));
+    const newY = Math.max(30, Math.min(650, touch.pageY - 100));
+    
+    setProjects(prev => prev.map(p => 
+      p.id === nodeId ? { ...p, x: newX, y: newY, vx: 0, vy: 0 } : p
+    ));
+  };
+
+  const handleTouchEnd = () => {
+    if (draggingId && isDraggingRef.current) {
+      const droppedProject = projects.find(p => p.id === draggingId);
+      if (droppedProject) {
+        // 计算每个类别的项目数量和动态半径
+        const projectCountPerCategory: Record<string, number> = {};
+        projects.forEach(p => {
+          const catName = p.category || 'uncategorized';
+          projectCountPerCategory[catName] = (projectCountPerCategory[catName] || 0) + 1;
+        });
+        
+        const calculateRadius = (count: number): number => {
+          const baseRadius = 80;
+          const minRadius = 60;
+          const maxRadius = 140;
+          const dynamicRadius = baseRadius + (count - 1) * 8;
+          return Math.max(minRadius, Math.min(maxRadius, dynamicRadius));
+        };
+        
+        // 重新计算类别中心
+        const catCenters: Record<string, { x: number; y: number; radius: number }> = {};
+        const categoryArray = Object.keys(categories);
+        
+        categoryArray.forEach((catName, i) => {
+          let x, y;
+          if (categoryArray.length === 1) {
+            x = 180; y = 250;
+          } else if (categoryArray.length === 2) {
+            x = 100 + i * 160; y = 250;
+          } else {
+            const angle = (i / categoryArray.length) * 2 * Math.PI - Math.PI / 2;
+            x = 180 + Math.cos(angle) * 130;
+            y = 280 + Math.sin(angle) * 130;
+          }
+          const count = projectCountPerCategory[catName] || 0;
+          catCenters[catName] = { x, y, radius: calculateRadius(count) };
+        });
+
+        // 找到最近的类别中心，并检查是否在圈内（使用动态半径）
+        let closestCategory: string | null = null;
+        let minDist = 9999;
+
+        // 检查所有类别中心
+        Object.keys(catCenters).forEach(catName => {
+          const center = catCenters[catName];
+          const dist = Math.sqrt(
+            Math.pow(droppedProject.x - center.x, 2) + 
+            Math.pow(droppedProject.y - center.y, 2)
+          );
+          
+          // 使用该类别的动态半径
+          if (dist < center.radius && dist < minDist) {
+            minDist = dist;
+            closestCategory = catName;
+          }
+        });
+
+        // 如果没有找到任何类别圈内，则为 uncategorized
+        // 不需要检查 uncategorized 区域，圈外就是 uncategorized
+
+        // 如果类别改变，更新项目
+        if (droppedProject.category !== closestCategory) {
+          setProjects(prev => prev.map(p => 
+            p.id === draggingId 
+              ? { ...p, category: closestCategory, hexColor: getCategoryColor(closestCategory) }
+              : p
+          ));
+        }
+      }
+    }
+    setDraggingId(null);
+    isDraggingRef.current = false;
+  };
+
+  const handleNodeClick = (project: Project) => {
+    if (!isDraggingRef.current) {
+      setSelectedNode({ ...project });
+      setModalOpen(true);
+    }
+  };
+
+  const handleImportData = () => {
+    Alert.prompt(
+      'Import JSON Data',
+      'Paste your JSON event data array:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          onPress: (jsonText?: string) => {
+            if (!jsonText) return;
+            
+            try {
+              const data = JSON.parse(jsonText);
+              
+              if (!Array.isArray(data)) {
+                Alert.alert('Error', 'JSON data must be an array of events');
+                return;
+              }
+
+              // 转换数据为 EventItem 格式
+              const newCategories: CategoryMap = { ...categories };
+              let colorIndex = Object.keys(newCategories).length;
+              const newEvents: EventItem[] = [];
+              const newProjects: Project[] = [...projects];
+              const themeColors = getCurrentThemeColors();
+
+              data.forEach((item: any, index: number) => {
+                // 解析时间范围，获取开始时间和持续时间
+                const timeData = item.time ? parseTimeRangeWithStart(item.time) : { start: 9 * 60, duration: 60 };
+                const start = timeData.start;
+                const duration = timeData.duration;
+                
+                // 处理 category (type 字段)
+                const category = item.type || null;
+                if (category && !newCategories[category]) {
+                  const color = themeColors[colorIndex % themeColors.length];
+                  newCategories[category] = color;
+                  colorIndex++;
+                }
+
+                // 处理 project 字段
+                let projectId: number | undefined = undefined;
+                if (item.project && item.project.length > 0) {
+                  const projectName = Array.isArray(item.project) ? item.project[0] : item.project;
+                  
+                  // 查找或创建 project
+                  let existingProject = newProjects.find(p => p.name === projectName);
+                  if (!existingProject) {
+                    existingProject = {
+                      id: Date.now() + newProjects.length + index * 1000,
+                      name: projectName,
+                      time: '0h 0m',
+                      percent: 0,
+                      hexColor: category && newCategories[category] ? newCategories[category] : '#9CA3AF',
+                      category: category,
+                      x: 180 + (Math.random() - 0.5) * 100,
+                      y: 250 + (Math.random() - 0.5) * 100,
+                      vx: 0,
+                      vy: 0,
+                    };
+                    newProjects.push(existingProject);
+                  }
+                  projectId = existingProject.id;
+                }
+
+                // 获取颜色
+                const color = category && newCategories[category] ? newCategories[category] : '#9CA3AF';
+
+                // 创建 event
+                const event: EventItem = {
+                  id: Date.now() + index * 100,
+                  title: projectId ? newProjects.find(p => p.id === projectId)?.name || 'Event' : 'Event',
+                  start,
+                  duration,
+                  hexColor: color,
+                  details: item.tag || undefined,
+                  category: category || undefined,
+                  date: item.date || new Date().toISOString().split('T')[0],
+                  projectId,
+                };
+
+                newEvents.push(event);
+              });
+
+              // 更新状态
+              console.log('About to import:', newEvents.length, 'events');
+              console.log('Sample event:', newEvents[0]);
+              setEvents(prev => {
+                const updated = [...prev, ...newEvents];
+                console.log('Total events after import:', updated.length);
+                return updated;
+              });
+              setCategories(newCategories);
+              setProjects(newProjects);
+              setShowSettings(false);
+              
+              Alert.alert('Success', `Imported ${newEvents.length} events, created ${newProjects.length - projects.length} projects`);
+            } catch (error) {
+              console.error('Import error:', error);
+              Alert.alert('Error', `Invalid JSON format: ${error}`);
+            }
+          }
+        }
+      ],
+      'plain-text'
+    );
+  };
+
+  // 解析时间范围，返回开始时间和持续时间
+  const parseTimeRange = (timeStr: string): number => {
+    try {
+      const match = timeStr.match(/(\d+)(am|pm)-(\d+)(am|pm)/i);
+      if (!match) return 60; // 默认1小时
+      
+      let start = parseInt(match[1]);
+      let end = parseInt(match[3]);
+      const startPeriod = match[2].toLowerCase();
+      const endPeriod = match[4].toLowerCase();
+      
+      // 转换为24小时制
+      if (startPeriod === 'pm' && start !== 12) start += 12;
+      if (startPeriod === 'am' && start === 12) start = 0;
+      if (endPeriod === 'pm' && end !== 12) end += 12;
+      if (endPeriod === 'am' && end === 12) end = 0;
+      
+      let duration = end - start;
+      if (duration < 0) duration += 24;
+      
+      return duration * 60;
+    } catch {
+      return 60;
+    }
+  };
+
+  const parseTimeRangeWithStart = (timeStr: string): { start: number; duration: number } => {
+    try {
+      // 匹配格式: "9pm-10pm" 或 "4.30pm-5.30pm" 或 "11.30am-12.30pm"
+      const match = timeStr.match(/(\d+)(?:\.(\d+))?(am|pm)-(\d+)(?:\.(\d+))?(am|pm)/i);
+      if (!match) return { start: 9 * 60, duration: 60 }; // 默认9:00开始，1小时
+      
+      let startHour = parseInt(match[1]);
+      const startMin = match[2] ? parseInt(match[2]) : 0;
+      let endHour = parseInt(match[4]);
+      const endMin = match[5] ? parseInt(match[5]) : 0;
+      const startPeriod = match[3].toLowerCase();
+      const endPeriod = match[6].toLowerCase();
+      
+      // 转换为24小时制
+      if (startPeriod === 'pm' && startHour !== 12) startHour += 12;
+      if (startPeriod === 'am' && startHour === 12) startHour = 0;
+      if (endPeriod === 'pm' && endHour !== 12) endHour += 12;
+      if (endPeriod === 'am' && endHour === 12) endHour = 0;
+      
+      const startMinutes = startHour * 60 + startMin;
+      let endMinutes = endHour * 60 + endMin;
+      
+      // 处理跨午夜的情况
+      if (endMinutes <= startMinutes) {
+        endMinutes += 24 * 60;
+      }
+      
+      const duration = endMinutes - startMinutes;
+      
+      return { start: startMinutes, duration };
+    } catch (error) {
+      console.error('Parse time error:', error, timeStr);
+      return { start: 9 * 60, duration: 60 };
+    }
+  };
+
+  const handleClearData = async () => {
+    Alert.alert(
+      'Clear All Data',
+      'Are you sure you want to delete all projects and events? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Clear', 
+          style: 'destructive',
+          onPress: async () => {
+            // Clear state
+            setProjects([]);
+            setCategories({});
+            setEvents([]);
+            setShowSettings(false);
+            
+            // Explicitly clear AsyncStorage
+            try {
+              await clearAppData();
+              Alert.alert('Success', 'All data has been cleared');
+            } catch (error) {
+              console.error('Failed to clear storage:', error);
+              Alert.alert('Warning', 'Data cleared from app but storage may need manual reset');
+            }
+          }
+        },
+      ]
+    );
+  };
+
+  const handleSelectStyle = (style: string) => {
+    setSelectedStyle(style);
+  };
+
+  const handleSelectColorScheme = (scheme: string) => {
+    setSelectedColorScheme(scheme);
+    
+    // 获取新主题的颜色数组
+    const newColors = COLOR_THEMES[scheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+    
+    // 更新所有分类的颜色
+    const updatedCategories: CategoryMap = {};
+    const categoryNames = Object.keys(categories).filter(name => name !== 'uncategorized');
+    
+    categoryNames.forEach((catName, index) => {
+      updatedCategories[catName] = newColors[index % newColors.length];
+    });
+    
+    // 确保 uncategorized 永远是灰色
+    if (categories['uncategorized']) {
+      updatedCategories['uncategorized'] = '#9CA3AF';
+    }
+    
+    setCategories(updatedCategories);
+    
+    // 更新所有项目的颜色以匹配其分类的新颜色
+    setProjects(prevProjects => 
+      prevProjects.map(project => ({
+        ...project,
+        hexColor: project.category && updatedCategories[project.category] 
+          ? updatedCategories[project.category] 
+          : '#9CA3AF'
+      }))
+    );
+  };
+
+  if (showSettings) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000000AA' }}>
+        <Pressable style={{ flex: 1 }} onPress={() => setShowSettings(false)} />
+        <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 24, paddingHorizontal: 16, maxHeight: '80%' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: '#000000' }}>Settings</Text>
+            <Pressable onPress={() => setShowSettings(false)}>
+              <X size={24} color="#6B7280" />
+            </Pressable>
+          </View>
+          
+          <ScrollView contentContainerStyle={{ gap: 20 }}>
+            {/* Color Theme */}
+            <View>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#6B7280', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Color Theme</Text>
+              <View style={{ gap: 8 }}>
+                {[
+                  { id: 'default', title: 'Default', desc: 'Original pastel colors' },
+                  { id: 'matisse', title: 'Matisse Red', desc: 'Warm reds and earth tones' },
+                  { id: 'starry', title: 'Starry Night', desc: 'Deep blues and golden yellows' },
+                  { id: 'sunflower', title: 'Sunflower', desc: 'Golden yellows and warm browns' },
+                ].map((option) => (
+                  <Pressable
+                    key={option.id}
+                    onPress={() => handleSelectColorScheme(option.id)}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, borderWidth: selectedColorScheme === option.id ? 2 : 1, borderColor: selectedColorScheme === option.id ? '#3B82F6' : '#E5E7EB', backgroundColor: selectedColorScheme === option.id ? '#F0F9FF' : '#FAFAFA' }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#1F2937', marginBottom: 2 }}>{option.title}</Text>
+                      <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: '500' }}>{option.desc}</Text>
+                    </View>
+                    {selectedColorScheme === option.id && (
+                      <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', marginLeft: 8 }}>
+                        <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>✓</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Import Data */}
+            <View>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#6B7280', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Data Management</Text>
+              <Pressable
+                onPress={handleImportData}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: '#3B82F6' }}
+              >
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#FFFFFF' }}>Import Data (JSON)</Text>
+                <Text style={{ fontSize: 20, color: '#FFFFFF' }}>↑</Text>
+              </Pressable>
+            </View>
+
+            {/* Clear Data */}
+            <View>
+              <Pressable
+                onPress={handleClearData}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: '#EF4444' }}
+              >
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#FFFFFF' }}>Clear All Data</Text>
+                <Trash2 size={18} color="#FFFFFF" />
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    );
+  }
+
+  // 渲染类别背景标签
+  const categoryArray = Object.entries(categories);
+  const catCenters: Array<{ name: string; color: string; x: number; y: number; radius: number }> = [];
+  
+  // 计算每个类别的项目数量
+  const projectCountPerCategory: Record<string, number> = {};
+  projects.forEach(p => {
+    const catName = p.category || 'uncategorized';
+    projectCountPerCategory[catName] = (projectCountPerCategory[catName] || 0) + 1;
+  });
+  
+  // 根据项目数量计算半径
+  const calculateRadius = (count: number): number => {
+    const baseRadius = 80;
+    const minRadius = 60;
+    const maxRadius = 140;
+    // 每增加1个项目，半径增加8px
+    const dynamicRadius = baseRadius + (count - 1) * 8;
+    return Math.max(minRadius, Math.min(maxRadius, dynamicRadius));
+  };
+  
+  if (categoryArray.length === 1) {
+    const count = projectCountPerCategory[categoryArray[0][0]] || 0;
+    catCenters.push({ 
+      name: categoryArray[0][0], 
+      color: categoryArray[0][1], 
+      x: 180, 
+      y: 250,
+      radius: calculateRadius(count)
+    });
+  } else if (categoryArray.length === 2) {
+    categoryArray.forEach(([name, color], i) => {
+      const count = projectCountPerCategory[name] || 0;
+      catCenters.push({ 
+        name, 
+        color, 
+        x: 100 + i * 160, 
+        y: 250,
+        radius: calculateRadius(count)
+      });
+    });
+  } else if (categoryArray.length > 2) {
+    categoryArray.forEach(([name, color], i) => {
+      const angle = (i / categoryArray.length) * 2 * Math.PI - Math.PI / 2;
+      const count = projectCountPerCategory[name] || 0;
+      catCenters.push({
+        name,
+        color,
+        x: 180 + Math.cos(angle) * 130,
+        y: 280 + Math.sin(angle) * 130,
+        radius: calculateRadius(count)
+      });
+    });
+  }
+
+  // If Skia mode is selected, render the advanced Skia view
+  if (selectedStyle === 'skia') {
+    // Convert data to Skia format
+    const skiaCategories: SkiaCategory[] = Object.entries(categories).map(([name, color], index) => {
+      const catArray = Object.entries(categories);
+      let centerX = 180;
+      let centerY = 300;
+      
+      if (catArray.length === 1) {
+        centerX = 180;
+        centerY = 250;
+      } else if (catArray.length === 2) {
+        centerX = 100 + index * 160;
+        centerY = 250;
+      } else if (catArray.length > 2) {
+        const angle = (index / catArray.length) * 2 * Math.PI - Math.PI / 2;
+        centerX = 180 + Math.cos(angle) * 130;
+        centerY = 280 + Math.sin(angle) * 130;
+      }
+      
+      return {
+        id: name,
+        name,
+        color,
+        center: { x: centerX, y: centerY },
+      };
+    });
+
+    const skiaProjects: SkiaProject[] = projects.map((p) => ({
+      id: String(p.id),
+      name: p.name,
+      percent: p.percent,
+      categoryId: p.category,
+    }));
+
+    const handleSkiaCategoryChange = (projectId: string, categoryId: string | null) => {
+      setProjects((prev) =>
+        prev.map((p) =>
+          String(p.id) === projectId
+            ? { ...p, category: categoryId, hexColor: categoryId ? categories[categoryId] : '#9CA3AF' }
+            : p
+        )
+      );
+    };
+
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F8F9FA' }}>
+        <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#000000' }}>Gravity Clusters (Skia)</Text>
+          <Pressable onPress={() => setShowSettings(true)} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}>
+            <Sliders size={18} color="#6B7280" />
+          </Pressable>
+        </View>
+        <ClusterViewAdvanced
+          categories={skiaCategories}
+          projects={skiaProjects}
+          onProjectCategoryChange={handleSkiaCategoryChange}
+        />
+      </View>
+    );
+  }
+
+  // Default gravity clusters view
+  return (
+    <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+      <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: '#000000' }}>Gravity Clusters</Text>
+        <Pressable onPress={() => setShowSettings(true)} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}>
+          <Sliders size={18} color="#6B7280" />
+        </Pressable>
+      </View>
+
+      <View ref={containerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        {/* 类别背景圆圈 - 动态大小 */}
+        {catCenters.map((cat) => (
+          <View
+            key={cat.name}
+            style={{
+              position: 'absolute',
+              left: cat.x - cat.radius,
+              top: cat.y - cat.radius,
+              width: cat.radius * 2,
+              height: cat.radius * 2,
+              borderRadius: cat.radius,
+              backgroundColor: cat.color,
+              opacity: 0.15,
+            }}
+          />
+        ))}
+        {catCenters.map((cat) => (
+          <View
+            key={`label-${cat.name}`}
+            style={{
+              position: 'absolute',
+              left: cat.x - 60,
+              top: cat.y - 10,
+              width: 120,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: '700', color: cat.color, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 1 }}>
+              {cat.name}
+            </Text>
+          </View>
+        ))}
+
+        {/* 项目节点 */}
+        {projects.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ fontSize: 14, color: '#9CA3AF' }}>No projects yet</Text>
+          </View>
+        ) : (
+          (() => {
+            // 先计算所有项目的总时间
+            const totalAllMinutes = projects.reduce((sum, p) => {
+              const pEvents = events.filter(e => e.projectId === p.id);
+              const pMinutes = pEvents.reduce((s, e) => s + e.duration, 0);
+              return sum + pMinutes;
+            }, 0);
+
+            return projects.map((project) => {
+              // 计算该项目的总投入时间（分钟）
+              const projectEvents = events.filter(e => e.projectId === project.id);
+              const totalMinutes = projectEvents.reduce((sum, e) => sum + e.duration, 0);
+              
+              // 根据注意力分配比例计算节点大小
+              // 如果总时间为0，使用最小尺寸；否则按比例计算
+              const baseSize = 32;
+              const maxSize = 72;
+              let size = baseSize;
+              
+              if (totalAllMinutes > 0) {
+                const ratio = totalMinutes / totalAllMinutes; // 该项目占总时间的比例
+                // 比例从0%到100%映射到32px-72px
+                size = baseSize + (maxSize - baseSize) * ratio;
+              }
+              
+              const color = getCategoryColor(project.category);
+
+            return (
+              <View
+                key={project.id}
+                onTouchStart={(evt) => handleTouchStart(project.id, evt)}
+                onTouchMove={(evt) => handleTouchMove(project.id, evt)}
+                onTouchEnd={handleTouchEnd}
+                style={{
+                  position: 'absolute',
+                  left: project.x - size / 2,
+                  top: project.y - size / 2,
+                }}
+              >
+                <Pressable onPress={() => handleNodeClick(project)} style={{ alignItems: 'center' }}>
+                  <View
+                    style={{
+                      width: size,
+                      height: size,
+                      borderRadius: size / 2,
+                      backgroundColor: color,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      shadowColor: '#000000',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 8,
+                      elevation: 8,
+                      borderWidth: 2,
+                      borderColor: '#FFFFFF',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {/* 液体填充效果 */}
+                    <View
+                      style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: `${project.percent}%`,
+                        backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                      }}
+                    />
+                    <Text 
+                      style={{ 
+                        fontSize: 10, 
+                        fontWeight: '700', 
+                        color: '#FFFFFF', 
+                        zIndex: 10, 
+                        textAlign: 'center', 
+                        paddingHorizontal: 4 
+                      }}
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                    >
+                      {project.name}
+                    </Text>
+                  </View>
+                  {/* 只在文字可能溢出时显示下方标签 */}
+                  {project.name.length > 6 && (
+                    <View
+                      style={{
+                        marginTop: 4,
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        backgroundColor: 'transparent',
+                        borderRadius: 12,
+                        maxWidth: 120,
+                        alignSelf: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: '#6B7280',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {project.name}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              </View>
+            );
+          });
+        })()
+        )}
+      </View>
+
+      {/* 编辑弹窗 - iOS Style Bottom Sheet */}
+      {modalOpen && selectedNode && (
+        <Modal
+          visible={modalOpen}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setModalOpen(false)}
+        >
+          <Pressable 
+            style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'flex-end' }}
+            onPress={() => setModalOpen(false)}
+          >
+            <View 
+              style={{ 
+                backgroundColor: '#FFFFFF', 
+                borderTopLeftRadius: 24, 
+                borderTopRightRadius: 24, 
+                paddingTop: 20,
+                paddingBottom: 40,
+                maxHeight: '80%',
+              }}
+            >
+              {/* Header */}
+              <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                  <View style={{ flex: 1, marginRight: 16 }}>
+                    <TextInput
+                      style={{ 
+                        fontSize: 28, 
+                        fontWeight: '700', 
+                        color: '#000000',
+                        padding: 0,
+                        margin: 0,
+                      }}
+                      value={selectedNode.name}
+                      onChangeText={(text) => setSelectedNode({ ...selectedNode, name: text })}
+                      placeholder="Project Name"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  </View>
+                  <Pressable 
+                    onPress={() => setModalOpen(false)}
+                    style={{ 
+                      width: 32, 
+                      height: 32, 
+                      borderRadius: 16, 
+                      backgroundColor: '#F3F4F6', 
+                      justifyContent: 'center', 
+                      alignItems: 'center' 
+                    }}
+                  >
+                    <X size={18} color="#6B7280" />
+                  </Pressable>
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: '#6B7280' }}>Edit Details</Text>
+              </View>
+
+              <ScrollView 
+                style={{ flexGrow: 1 }}
+                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Section 1: Accumulation (Progress) */}
+                <View style={{ marginBottom: 32 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Accumulation
+                    </Text>
+                    <View style={{ 
+                      paddingHorizontal: 12, 
+                      paddingVertical: 4, 
+                      borderRadius: 12, 
+                      backgroundColor: selectedNode.percent >= 100 ? '#10B981' : '#F3F4F6' 
+                    }}>
+                      <Text style={{ 
+                        fontSize: 18, 
+                        fontWeight: '800', 
+                        color: selectedNode.percent >= 100 ? '#FFFFFF' : '#000000' 
+                      }}>
+                        {Math.round(selectedNode.percent)}%
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Progress Bar - Draggable */}
+                  <View 
+                    style={{ height: 48, justifyContent: 'center', marginBottom: 12 }}
+                    onStartShouldSetResponder={() => true}
+                    onResponderGrant={(e) => {
+                      const locationX = e.nativeEvent.locationX;
+                      const containerWidth = 327; // Approximate width (screen width - 48px padding)
+                      const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
+                      setSelectedNode({ ...selectedNode, percent: Math.round(newPercent) });
+                    }}
+                    onResponderMove={(e) => {
+                      const locationX = e.nativeEvent.locationX;
+                      const containerWidth = 327;
+                      const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
+                      setSelectedNode({ ...selectedNode, percent: Math.round(newPercent) });
+                    }}
+                  >
+                    <View style={{ 
+                      height: 8, 
+                      backgroundColor: '#F3F4F6', 
+                      borderRadius: 4,
+                      overflow: 'hidden',
+                    }}>
+                      <View style={{ 
+                        height: '100%', 
+                        width: `${selectedNode.percent}%`, 
+                        backgroundColor: selectedNode.hexColor,
+                        borderRadius: 4,
+                      }} />
+                    </View>
+                    
+                    {/* Draggable Handle */}
+                    <View 
+                      style={{ 
+                        position: 'absolute',
+                        left: `${selectedNode.percent}%`,
+                        transform: [{ translateX: -12 }],
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: '#FFFFFF',
+                        borderWidth: 3,
+                        borderColor: selectedNode.hexColor,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 4,
+                        elevation: 4,
+                      }}
+                    />
+                  </View>
+                </View>
+
+                {/* Section 2: Category */}
+                <View style={{ marginBottom: 32 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
+                    Category
+                  </Text>
+                  
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {/* Uncategorized Option */}
+                    <Pressable
+                      onPress={() => setSelectedNode({ ...selectedNode, category: null, hexColor: '#9CA3AF' })}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 10,
+                        borderRadius: 20,
+                        backgroundColor: !selectedNode.category ? '#1F2937' : '#F9FAFB',
+                        borderWidth: 2,
+                        borderColor: !selectedNode.category ? '#1F2937' : '#E5E7EB',
+                      }}
+                    >
+                      <Text style={{ 
+                        fontSize: 13, 
+                        fontWeight: '700', 
+                        color: !selectedNode.category ? '#FFFFFF' : '#6B7280' 
+                      }}>
+                        Uncategorized
+                      </Text>
+                    </Pressable>
+
+                    {/* Existing Categories */}
+                    {Object.entries(categories).map(([catName, catColor]) => {
+                      const isSelected = selectedNode.category === catName;
+                      return (
+                        <Pressable
+                          key={catName}
+                          onPress={() => setSelectedNode({ ...selectedNode, category: catName, hexColor: catColor })}
+                          style={{
+                            paddingHorizontal: 16,
+                            paddingVertical: 10,
+                            borderRadius: 20,
+                            backgroundColor: isSelected ? catColor : '#FFFFFF',
+                            borderWidth: 2,
+                            borderColor: catColor,
+                          }}
+                        >
+                          <Text style={{ 
+                            fontSize: 13, 
+                            fontWeight: '700', 
+                            color: isSelected ? '#FFFFFF' : catColor 
+                          }}>
+                            {catName}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Section 3: Create New Category */}
+                <View style={{ 
+                  backgroundColor: '#F9FAFB', 
+                  padding: 16, 
+                  borderRadius: 16, 
+                  borderWidth: 1, 
+                  borderColor: '#E5E7EB' 
+                }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
+                    Create New Category
+                  </Text>
+
+                  <TextInput
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderWidth: 1,
+                      borderColor: '#E5E7EB',
+                      borderRadius: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      fontSize: 15,
+                      fontWeight: '500',
+                      color: '#000000',
+                      marginBottom: 16,
+                    }}
+                    placeholder="Category name..."
+                    placeholderTextColor="#9CA3AF"
+                    value={selectedNode.newCategoryName || ''}
+                    onChangeText={(text) => setSelectedNode({ ...selectedNode, newCategoryName: text })}
+                  />
+
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 12 }}>
+                    Color
+                  </Text>
+
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+                    {getCurrentThemeColors().map((color) => {
+                      const isSelected = (selectedNode.newCategoryColor || getCurrentThemeColors()[0]) === color;
+                      return (
+                        <Pressable
+                          key={color}
+                          onPress={() => setSelectedNode({ ...selectedNode, newCategoryColor: color })}
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: color,
+                            borderWidth: isSelected ? 3 : 2,
+                            borderColor: isSelected ? '#000000' : '#FFFFFF',
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                            elevation: 3,
+                          }}
+                        />
+                      );
+                    })}
+                  </View>
+
+                  <Pressable
+                    onPress={() => {
+                      if (selectedNode.newCategoryName?.trim()) {
+                        const newCatName = selectedNode.newCategoryName.trim();
+                        const newCatColor = selectedNode.newCategoryColor || getCurrentThemeColors()[0];
+                        setCategories(prev => ({ ...prev, [newCatName]: newCatColor }));
+                        setSelectedNode({ 
+                          ...selectedNode, 
+                          category: newCatName, 
+                          hexColor: newCatColor,
+                          newCategoryName: '',
+                          newCategoryColor: undefined,
+                        });
+                      }
+                    }}
+                    style={{
+                      backgroundColor: selectedNode.newCategoryName?.trim() ? '#3B82F6' : '#E5E7EB',
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                    }}
+                    disabled={!selectedNode.newCategoryName?.trim()}
+                  >
+                    <Text style={{ 
+                      fontSize: 15, 
+                      fontWeight: '700', 
+                      color: selectedNode.newCategoryName?.trim() ? '#FFFFFF' : '#9CA3AF' 
+                    }}>
+                      Create & Assign
+                    </Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+
+              {/* Save Button */}
+              <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
+                <Pressable
+                  onPress={() => {
+                    setProjects(prev => prev.map(p => 
+                      p.id === selectedNode.id ? selectedNode : p
+                    ));
+                    setModalOpen(false);
+                  }}
+                  style={{
+                    backgroundColor: '#000000',
+                    paddingVertical: 16,
+                    borderRadius: 16,
+                    alignItems: 'center',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>
+                    Save Changes
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
+    </View>
+  );
+};
+
 // --- Projects View (Visualization Selection) ---
 
 type VisualizationType = 'gravity' | 'orbit' | 'pods' | 'list';
@@ -1268,464 +2482,18 @@ const VISUALIZATION_OPTIONS: VisualizationOption[] = [
   },
 ];
 
-interface ProjectsViewProps {
-  onSelectVisualization: (type: VisualizationType) => void;
-}
-
-const GravityPreview: React.FC = () => (
-  <View style={{ width: '100%', height: 120, justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-    <View
-      style={{
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: '#3B82F6',
-        position: 'absolute',
-        opacity: 0.8,
-      }}
-    />
-    <View
-      style={{
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: '#8B5CF6',
-        position: 'absolute',
-        top: 35,
-        left: 20,
-        opacity: 0.6,
-      }}
-    />
-    <View
-      style={{
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: '#EC4899',
-        position: 'absolute',
-        top: 40,
-        right: 25,
-        opacity: 0.7,
-      }}
-    />
-  </View>
-);
-
-const OrbitPreview: React.FC = () => (
-  <View style={{ width: '100%', height: 120, justifyContent: 'center', alignItems: 'center' }}>
-    <View
-      style={{
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        borderWidth: 2,
-        borderColor: '#3B82F6',
-        opacity: 0.3,
-      }}
-    />
-    <View
-      style={{
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        borderWidth: 1.5,
-        borderColor: '#8B5CF6',
-        opacity: 0.2,
-        position: 'absolute',
-      }}
-    />
-    <View
-      style={{
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#3B82F6',
-        position: 'absolute',
-        left: '50%',
-        marginLeft: -4,
-        top: 15,
-      }}
-    />
-  </View>
-);
-
-const PodsPreview: React.FC = () => (
-  <View style={{ width: '100%', height: 120, justifyContent: 'center', alignItems: 'center', gap: 8, flexDirection: 'row', flexWrap: 'wrap' }}>
-    <View style={{ width: '48%', height: 35, borderRadius: 8, backgroundColor: '#3B82F6', opacity: 0.6 }} />
-    <View style={{ width: '48%', height: 35, borderRadius: 8, backgroundColor: '#8B5CF6', opacity: 0.6 }} />
-    <View style={{ width: '48%', height: 35, borderRadius: 8, backgroundColor: '#EC4899', opacity: 0.6 }} />
-    <View style={{ width: '48%', height: 35, borderRadius: 8, backgroundColor: '#F59E0B', opacity: 0.6 }} />
-  </View>
-);
-
-const ListPreview: React.FC = () => (
-  <View style={{ width: '100%', height: 120, justifyContent: 'space-around', alignItems: 'center', paddingVertical: 12 }}>
-    <View style={{ width: '90%', height: 8, borderRadius: 4, backgroundColor: '#E5E7EB' }} />
-    <View style={{ width: '85%', height: 8, borderRadius: 4, backgroundColor: '#D1D5DB' }} />
-    <View style={{ width: '80%', height: 8, borderRadius: 4, backgroundColor: '#9CA3AF' }} />
-    <View style={{ width: '75%', height: 8, borderRadius: 4, backgroundColor: '#6B7280' }} />
-  </View>
-);
-
-const VisualizationCard: React.FC<{
-  option: VisualizationOption;
-  isSelected: boolean;
-  onPress: () => void;
-}> = ({ option, isSelected, onPress }) => {
-  const getPreview = () => {
-    switch (option.id) {
-      case 'gravity':
-        return <GravityPreview />;
-      case 'orbit':
-        return <OrbitPreview />;
-      case 'pods':
-        return <PodsPreview />;
-      case 'list':
-        return <ListPreview />;
-    }
-  };
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        marginHorizontal: 16,
-        marginVertical: 10,
-        borderRadius: 20,
-        overflow: 'hidden',
-        transform: isSelected ? [{ scale: 0.98 }] : [{ scale: 1 }],
-      }}
-    >
-      <View
-        style={{
-          borderWidth: isSelected ? 2.5 : 1.5,
-          borderColor: isSelected ? '#3B82F6' : '#E5E7EB',
-          borderRadius: 20,
-          padding: 20,
-          shadowColor: isSelected ? '#3B82F6' : '#000000',
-          shadowOffset: { width: 0, height: isSelected ? 8 : 2 },
-          shadowOpacity: isSelected ? 0.25 : 0.08,
-          shadowRadius: isSelected ? 12 : 4,
-          elevation: isSelected ? 8 : 2,
-          backgroundColor: isSelected ? '#F0F9FF' : '#FFFFFF',
-        }}
-      >
-        {/* Preview */}
-        <View style={{ marginBottom: 16 }}>{getPreview()}</View>
-
-        {/* Title */}
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '700',
-            color: '#1F2937',
-            marginBottom: 6,
-          }}
-        >
-          {option.title}
-        </Text>
-
-        {/* Description */}
-        <Text
-          style={{
-            fontSize: 13,
-            color: '#6B7280',
-            fontWeight: '500',
-            marginBottom: 12,
-            lineHeight: 18,
-          }}
-        >
-          {option.description}
-        </Text>
-
-        {/* Selection indicator */}
-        {isSelected && (
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              paddingTop: 8,
-              borderTopWidth: 1,
-              borderTopColor: '#E5E7EB',
-            }}
-          >
-            <View
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: '#3B82F6',
-              }}
-            />
-            <Text style={{ fontSize: 12, color: '#3B82F6', fontWeight: '600' }}>
-              Selected
-            </Text>
-          </View>
-        )}
-      </View>
-    </Pressable>
-  );
-};
-
-const ProjectsView: React.FC<ProjectsViewProps> = ({ onSelectVisualization }) => {
-  const [selectedVis, setSelectedVis] = useState<VisualizationType | null>(null);
-
-  const handleSelect = (type: VisualizationType) => {
-    setSelectedVis(type);
-    // Slight delay for visual feedback
-    setTimeout(() => {
-      onSelectVisualization(type);
-    }, 300);
-  };
-
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: '#FAFAFA' }}
-      contentContainerStyle={{ paddingVertical: 24 }}
-    >
-      {/* Header */}
-      <View style={{ paddingHorizontal: 16, marginBottom: 32 }}>
-        <Text
-          style={{
-            fontSize: 32,
-            fontWeight: '800',
-            color: '#000000',
-            marginBottom: 8,
-            letterSpacing: -0.5,
-          }}
-        >
-          Choose Your Perspective
-        </Text>
-        <Text
-          style={{
-            fontSize: 15,
-            color: '#6B7280',
-            fontWeight: '500',
-            lineHeight: 22,
-          }}
-        >
-          How do you want to see your goals today?
-        </Text>
-      </View>
-
-      {/* Cards */}
-      {VISUALIZATION_OPTIONS.map((option) => (
-        <VisualizationCard
-          key={option.id}
-          option={option}
-          isSelected={selectedVis === option.id}
-          onPress={() => handleSelect(option.id)}
-        />
-      ))}
-
-      {/* Footer hint */}
-      {selectedVis && (
-        <View
-          style={{
-            marginTop: 24,
-            marginHorizontal: 16,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderRadius: 12,
-            backgroundColor: '#DBEAFE',
-          }}
-        >
-          <Text style={{ fontSize: 13, color: '#1E40AF', textAlign: 'center' }}>
-            ✓ You can change this anytime in settings
-          </Text>
-        </View>
-      )}
-    </ScrollView>
-  );
-};
-
-// --- Data View (Import/Export) ---
-
-type DataViewProps = {
-  projects: Project[];
-  setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
-  events: EventItem[];
-  setEvents: React.Dispatch<React.SetStateAction<EventItem[]>>;
-  links: Link[];
-  setLinks: React.Dispatch<React.SetStateAction<Link[]>>;
-  categories: CategoryMap;
-  setCategories: React.Dispatch<React.SetStateAction<CategoryMap>>;
-};
-
-const DataView: React.FC<DataViewProps> = ({
-  projects,
-  setProjects,
-  events,
-  setEvents,
-  links,
-  setLinks,
-  categories,
-  setCategories,
-}) => {
-  const [importStatus, setImportStatus] = useState<string>('');
-  const [importError, setImportError] = useState<string>('');
-
-  const handleExport = () => {
-    const data = {
-      projects,
-      events,
-      links,
-      categories,
-      exportDate: new Date().toISOString(),
-    };
-    
-    const jsonString = JSON.stringify(data, null, 2);
-    // For web, we'd use a Blob/download approach
-    // For now, we'll copy to clipboard or show a message
-    const timestamp = new Date().toISOString().slice(0, 10);
-    console.log('Export data:', jsonString);
-    setImportStatus(`✓ Export data created (${timestamp})`);
-    setTimeout(() => setImportStatus(''), 3000);
-  };
-
-  const handleImport = (jsonString: string) => {
-    try {
-      setImportError('');
-      const data = JSON.parse(jsonString);
-      
-      // Check if it's the custom format (array of objects with date, time, tag, type, project)
-      if (Array.isArray(data) && data.length > 0 && (data[0].date || data[0].time || data[0].tag)) {
-        // Import custom format
-        const transformed = transformCustomFormat(data);
-        setProjects(() => transformed.projects);
-        setEvents(() => transformed.events);
-        setLinks(() => transformed.links);
-        setCategories(() => transformed.categories);
-        setImportStatus(`✓ Data imported successfully (${data.length} items)`);
-        setTimeout(() => setImportStatus(''), 3000);
-        return;
-      }
-      
-      // Standard format validation
-      if (!data.projects || !Array.isArray(data.projects)) {
-        throw new Error('Invalid format: missing projects array');
-      }
-      if (!data.events || !Array.isArray(data.events)) {
-        throw new Error('Invalid format: missing events array');
-      }
-      if (!data.links || !Array.isArray(data.links)) {
-        throw new Error('Invalid format: missing links array');
-      }
-
-      // Import standard format data
-      setProjects(() => data.projects);
-      setEvents(() => data.events);
-      setLinks(() => data.links);
-      if (data.categories) {
-        setCategories(() => data.categories);
-      }
-
-      setImportStatus('✓ Data imported successfully');
-      setTimeout(() => setImportStatus(''), 3000);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      setImportError(`✗ Import failed: ${errorMsg}`);
-    }
-  };
-
-  return (
-    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-      <Header title="Data Management" subtitle="Import & Export" />
-      
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 20 }}>
-        {/* Status Messages */}
-        {importStatus && (
-          <View style={[styles.card, { backgroundColor: '#D1FAE5', borderLeftColor: '#10B981', borderLeftWidth: 4 }]}>
-            <Text style={{ color: '#10B981', fontWeight: '600', fontSize: 14 }}>{importStatus}</Text>
-          </View>
-        )}
-        
-        {importError && (
-          <View style={[styles.card, { backgroundColor: '#FEE2E2', borderLeftColor: '#EF4444', borderLeftWidth: 4 }]}>
-            <Text style={{ color: '#EF4444', fontWeight: '600', fontSize: 14 }}>{importError}</Text>
-          </View>
-        )}
-
-        {/* Export Section */}
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Export Data</Text>
-          <Text style={{ color: '#6B7280', fontSize: 13, marginBottom: 12, lineHeight: 20 }}>
-            Export all your projects, events, links, and categories as a JSON file. You can save this file and import it later.
-          </Text>
-          <Pressable style={styles.primaryButton} onPress={handleExport}>
-            <Text style={styles.primaryButtonText}>📥 Export as JSON</Text>
-          </Pressable>
-        </View>
-
-        {/* Import Section */}
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Import Data</Text>
-          <Text style={{ color: '#6B7280', fontSize: 13, marginBottom: 12, lineHeight: 20 }}>
-            Paste your JSON data below to import projects, events, links, and categories.
-          </Text>
-          <TextInput
-            style={[styles.input, { minHeight: 200, textAlignVertical: 'top', fontFamily: 'Courier' }]}
-            placeholder='Paste your JSON data here...'
-            placeholderTextColor="#D1D5DB"
-            multiline
-            onChangeText={(text) => {
-              if (text.trim()) {
-                handleImport(text);
-              }
-            }}
-          />
-        </View>
-
-        {/* Data Summary */}
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>Current Data</Text>
-          <View style={{ gap: 8 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomColor: '#E5E7EB', borderBottomWidth: 1 }}>
-              <Text style={{ color: '#6B7280', fontSize: 13 }}>Projects:</Text>
-              <Text style={{ fontWeight: '600', fontSize: 13 }}>{projects.length}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomColor: '#E5E7EB', borderBottomWidth: 1 }}>
-              <Text style={{ color: '#6B7280', fontSize: 13 }}>Events:</Text>
-              <Text style={{ fontWeight: '600', fontSize: 13 }}>{events.length}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomColor: '#E5E7EB', borderBottomWidth: 1 }}>
-              <Text style={{ color: '#6B7280', fontSize: 13 }}>Links:</Text>
-              <Text style={{ fontWeight: '600', fontSize: 13 }}>{links.length}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
-              <Text style={{ color: '#6B7280', fontSize: 13 }}>Categories:</Text>
-              <Text style={{ fontWeight: '600', fontSize: 13 }}>{Object.keys(categories).length}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Reset Warning */}
-        <View style={[styles.card, { backgroundColor: '#FEF3C7', borderLeftColor: '#F59E0B', borderLeftWidth: 4 }]}>
-          <Text style={{ color: '#92400E', fontWeight: '600', fontSize: 13, marginBottom: 8 }}>⚠️ Warning</Text>
-          <Text style={{ color: '#92400E', fontSize: 12, lineHeight: 18 }}>
-            Importing data will replace your current projects, events, and categories. Make sure to export first if you want to keep your current data.
-          </Text>
-        </View>
-      </ScrollView>
-    </View>
-  );
-};
-
-
-
 // --- MAIN APP ---
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('calendar');
   const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType | null>(null);
+  const [selectedColorScheme, setSelectedColorScheme] = useState('default');
   const [projects, setProjects] = useState<Project[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
-  const [links, setLinks] = useState<Link[]>([]);
   const [categories, setCategories] = useState<CategoryMap>({});
 
   // Initialize data persistence
-  useAppData(projects, events, links, categories, setProjects, setEvents, setLinks, setCategories);
+  useAppData(projects, events, categories, setProjects, setEvents, setCategories);
 
   const today = new Date();
   const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
@@ -1743,32 +2511,13 @@ const App: React.FC = () => {
         setProjects={setProjects}
         categories={categories}
         setCategories={setCategories}
+        selectedColorScheme={selectedColorScheme}
       />
     );
   } else if (activeTab === 'analytics') {
-    content = <AnalyticsView projects={projects} events={events} />;
-  } else if (activeTab === 'projects') {
-    content = (
-      <ProjectsView
-        onSelectVisualization={(type) => {
-          setSelectedVisualization(type);
-          // In future, this will show different visualization layouts
-        }}
-      />
-    );
+    content = <AnalyticsView projects={projects} events={events} selectedColorScheme={selectedColorScheme} />;
   } else {
-    content = (
-      <DataView
-        projects={projects}
-        setProjects={setProjects}
-        events={events}
-        setEvents={setEvents}
-        links={links}
-        setLinks={setLinks}
-        categories={categories}
-        setCategories={setCategories}
-      />
-    );
+    content = <ProjectsView projects={projects} events={events} categories={categories} setProjects={setProjects} setCategories={setCategories} setEvents={setEvents} selectedColorScheme={selectedColorScheme} setSelectedColorScheme={setSelectedColorScheme} />;
   }
 
   return (
@@ -1871,7 +2620,9 @@ const styles = StyleSheet.create({
   calendarDropdown: {
     position: 'absolute',
     top: 80,
-    left: 16,
+    left: '50%',
+    transform: [{ translateX: -140 }],
+    width: 280,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
@@ -1881,7 +2632,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 5,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical: 12,
     zIndex: 1000,
   },
@@ -1905,13 +2656,12 @@ const styles = StyleSheet.create({
   calendarWeekdays: {
     flexDirection: 'row',
     marginBottom: 8,
-    justifyContent: 'space-between',
   },
   calendarWeekdayLabel: {
     fontSize: 11,
     fontWeight: '600',
     color: '#6B7280',
-    width: 32,
+    width: 36,
     textAlign: 'center',
   },
   calendarGrid: {
@@ -1922,6 +2672,7 @@ const styles = StyleSheet.create({
   calendarEmptyCell: {
     width: 32,
     height: 32,
+    marginHorizontal: 2,
   },
   calendarDay: {
     width: 32,
@@ -1964,6 +2715,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'space-around',
+    paddingBottom: 0,
+    marginBottom: 0,
   },
   tabItem: {
     alignItems: 'center',
@@ -1983,6 +2736,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
     paddingRight: 4,
+    paddingTop: 0,
+    marginTop: -6,
   },
   hourLabel: {
     fontSize: 11,
@@ -2031,6 +2786,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#EF4444',
     marginLeft: -3,
+    marginTop: -3,
   },
   modalOverlay: {
     flex: 1,
