@@ -1,3 +1,4 @@
+import i18n from 'i18next';
 import {
   Calendar as CalendarIcon,
   Network,
@@ -8,9 +9,11 @@ import {
   X
 } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { Category as SkiaCategory, Project as SkiaProject } from '@components/ClusterViewAdvanced';
 import { ClusterViewAdvanced } from '@components/ClusterViewAdvanced';
+import '@constants/i18n'; // 初始化 i18n
 import { useAppData } from '@hooks/useAppData';
 import {
   Alert,
@@ -26,7 +29,6 @@ import {
   View
 } from 'react-native';
 import { clearAppData } from '../utils/storage';
-
 
 
 // --- CONSTANTS ---
@@ -130,6 +132,7 @@ const TabBar: React.FC<{ activeTab: TabKey; setActiveTab: (t: TabKey) => void }>
   activeTab,
   setActiveTab,
 }) => {
+  const { t } = useTranslation();
   const mkTab = (key: TabKey, label: string, Icon: any) => {
     const active = activeTab === key;
     return (
@@ -142,9 +145,9 @@ const TabBar: React.FC<{ activeTab: TabKey; setActiveTab: (t: TabKey) => void }>
 
   return (
     <View style={styles.tabBar}>
-      {mkTab('calendar', 'Today', CalendarIcon)}
-      {mkTab('analytics', 'Analytics', PieChart)}
-      {mkTab('projects', 'Projects', Network)}
+      {mkTab('calendar', t('tabs.calendar'), CalendarIcon)}
+      {mkTab('analytics', t('tabs.analytics'), PieChart)}
+      {mkTab('projects', t('tabs.projects'), Network)}
     </View>
   );
 };
@@ -189,6 +192,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   setCategories,
   selectedColorScheme,
 }) => {
+  const { t } = useTranslation();
   const [editingField, setEditingField] = useState<'start' | 'end' | null>(null);
   const [tempTime, setTempTime] = useState('');
   const [currentTime, setCurrentTime] = useState(() => new Date());
@@ -201,6 +205,33 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
   // 获取当前主题的颜色数组
   const themeColors = COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+
+  // 格式化月份年份显示
+  const formatMonthYear = (date: Date): string => {
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                        'july', 'august', 'september', 'october', 'november', 'december'];
+    const month = t(`months.${monthNames[date.getMonth()]}`);
+    const year = date.getFullYear();
+    return `${month} ${year}`;
+  };
+
+  // 格式化星期几
+  const formatWeekday = (date: Date, short: boolean = false): string => {
+    const weekdays = short 
+      ? ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+      : ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return t(`calendar.${weekdays[date.getDay()]}`);
+  };
+
+  // 格式化完整日期（带星期、月份、日期）
+  const formatFullDate = (date: Date): string => {
+    const weekday = formatWeekday(date, false);
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                        'july', 'august', 'september', 'october', 'november', 'december'];
+    const month = t(`months.${monthNames[date.getMonth()]}`);
+    const day = date.getDate();
+    return `${weekday}, ${month} ${day}`;
+  };
 
   // 获取事件的当前颜色（基于项目或分类）
   const getEventColor = (evt: EventItem): string => {
@@ -513,17 +544,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
 
 
-
-  const dateStr = selectedDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
-
-  const monthStr = selectedDate.toLocaleDateString('en-US', { month: 'long' });
-  const dayStr = selectedDate.toLocaleDateString('en-US', { day: '2-digit' });
-  const weekdayStr = selectedDate.toLocaleDateString('en-US', { weekday: 'short' });
-
   // Get days in current month for mini calendar
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -546,13 +566,20 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           onPress={() => setIsCalendarOpen(!isCalendarOpen)}
         >
           <View>
-            <Text style={[styles.headerTitle, { fontWeight: 'bold' }]}>{monthStr}</Text>
-            <Text style={styles.headerSubtitle}>{dayStr} {weekdayStr}</Text>
+            <Text style={[styles.headerTitle, { fontWeight: 'bold' }]}>
+              {formatMonthYear(selectedDate).split(' ')[0]}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {i18n.language === 'zh' 
+                ? `${selectedDate.getDate()}日 ${formatWeekday(selectedDate, false)}`
+                : `${String(selectedDate.getDate()).padStart(2, '0')} ${formatWeekday(selectedDate, false)}`
+              }
+            </Text>
           </View>
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <Pressable style={styles.todayButton} onPress={handleTodayClick}>
-            <Text style={styles.todayButtonText}>Today</Text>
+            <Text style={styles.todayButtonText}>{t('calendar.today')}</Text>
           </Pressable>
           <Pressable style={styles.fabSmall} onPress={handleAddNow}>
             <Plus size={18} color="#FFFFFF" />
@@ -582,7 +609,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 <Text style={styles.calendarNavText}>←</Text>
               </Pressable>
               <Text style={styles.calendarMonth}>
-                {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                {formatMonthYear(selectedDate)}
               </Text>
               <Pressable onPress={() => {
                 const next = new Date(selectedDate);
@@ -595,8 +622,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
             {/* Weekday labels */}
             <View style={styles.calendarWeekdays}>
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <Text key={day} style={styles.calendarWeekdayLabel}>{day}</Text>
+              {['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((day) => (
+                <Text key={day} style={styles.calendarWeekdayLabel}>{t(`calendar.${day}`)}</Text>
               ))}
             </View>
 
@@ -771,7 +798,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             {/* 顶部标题 + 删除 + 关闭 */}
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>
-                {draftEvent?.id ? 'Edit Event' : 'Add Event'}
+                {draftEvent?.id ? t('calendar.editEvent') : t('calendar.addEvent')}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 {draftEvent?.id && (
@@ -801,8 +828,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 {/* ---- 时间大卡片 ---- */}
                 <View style={[styles.card, styles.timeCard]}>
                   <View style={styles.timeHeaderRow}>
-                    <Text style={styles.timeHeaderLabel}>START</Text>
-                    <Text style={styles.timeHeaderLabel}>END</Text>
+                    <Text style={styles.timeHeaderLabel}>{t('calendar.start')}</Text>
+                    <Text style={styles.timeHeaderLabel}>{t('calendar.end')}</Text>
                   </View>
 
                   <View style={styles.timeMainRow}>
@@ -835,8 +862,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                   <View style={styles.timePickerContainer}>
                     <Text style={styles.timePickerTitle}>
                       {editingField === 'start'
-                        ? 'Select start time'
-                        : 'Select end time'}
+                        ? t('calendar.startTime')
+                        : t('calendar.duration')}
                     </Text>
                     <ScrollView
                       key={editingField}
@@ -900,10 +927,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
                 {/* ---- Event Details / Tag ---- */}
                 <View style={styles.card}>
-                  <Text style={styles.sectionLabel}>Details / Tag</Text>
+                  <Text style={styles.sectionLabel}>{t('calendar.details')}</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter event details or tag..."
+                    placeholder={t('calendar.details')}
                     value={draftEvent.details || ''}
                     onChangeText={(txt) =>
                       setDraftEvent({ ...draftEvent, details: txt })
@@ -914,7 +941,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
                 {/* ---- Project 选择 ---- */}
                 <View style={styles.card}>
-                  <Text style={styles.sectionLabel}>Project</Text>
+                  <Text style={styles.sectionLabel}>{t('calendar.project')}</Text>
                   <View style={styles.projectGrid}>
                     {projects.map((p) => {
                       const active =
@@ -972,7 +999,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                           draftEvent.isNewProject && { color: '#2563EB' },
                         ]}
                       >
-                        New Project
+                        {t('projects.newProject')}
                       </Text>
                     </Pressable>
                   </View>
@@ -980,7 +1007,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                   {draftEvent.isNewProject && (
                     <TextInput
                       style={styles.input}
-                      placeholder="Enter Project Name"
+                      placeholder={t('projects.projectName')}
                       value={draftEvent.newProjectName}
                       onChangeText={(txt) =>
                         setDraftEvent({ ...draftEvent, newProjectName: txt })
@@ -991,7 +1018,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
                 {/* ---- Event Category ---- */}
                 <View style={styles.card}>
-                  <Text style={styles.sectionLabel}>Category</Text>
+                  <Text style={styles.sectionLabel}>{t('calendar.category')}</Text>
                   <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                     {Object.keys(categories).map((catName) => {
                       const catColor = categories[catName];
@@ -1052,7 +1079,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                           draftEvent.isNewCategory && { color: '#2563EB' },
                         ]}
                       >
-                        New Category
+                        {t('projects.newCategory')}
                       </Text>
                     </Pressable>
                   </View>
@@ -1061,14 +1088,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     <View style={{ marginTop: 12, gap: 8 }}>
                       <TextInput
                         style={styles.input}
-                        placeholder="Category name"
+                        placeholder={t('projects.categoryName')}
                         value={draftEvent.newCategoryName || ''}
                         onChangeText={(txt) =>
                           setDraftEvent({ ...draftEvent, newCategoryName: txt })
                         }
                       />
                       <Text style={{ fontSize: 12, color: '#6B7280', marginLeft: 4 }}>
-                        Color
+                        {t('common.color')}
                       </Text>
                       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                         {themeColors.map((color) => (
@@ -1101,7 +1128,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             {/* 底部主按钮 */}
             <Pressable style={styles.primaryButton} onPress={handleSave}>
               <Text style={styles.primaryButtonText}>
-                {draftEvent?.id ? 'Update Event' : 'Add Event'}
+                {draftEvent?.id ? t('calendar.save') : t('calendar.addEvent')}
               </Text>
             </Pressable>
           </View>
@@ -1121,43 +1148,135 @@ type AnalyticsViewProps = {
 };
 
 const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selectedColorScheme }) => {
-  const [timeRange, setTimeRange] = useState<'Week' | 'Month'>('Week');
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const { t } = useTranslation();
+  const [timeRange, setTimeRange] = useState<'Week' | 'Month' | 'Year'>('Week');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [showPicker, setShowPicker] = useState(false);
+  
+  const days = i18n.language === 'zh' 
+    ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    : [
+        t('calendar.mon'), 
+        t('calendar.tue'), 
+        t('calendar.wed'), 
+        t('calendar.thu'), 
+        t('calendar.fri'), 
+        t('calendar.sat'), 
+        t('calendar.sun')
+      ];
 
   // 获取当前主题的颜色数组
   const themeColors = COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
 
-  // Filter events based on timeRange
-  const filteredEvents = (() => {
-    const today = new Date();
-    const rangeInDays = timeRange === 'Week' ? 7 : 30;
-    const startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - rangeInDays);
-
-    return events.filter((evt) => {
-      const eventDate = new Date(evt.date);
-      return eventDate >= startDate && eventDate <= today;
+  // Get available months/years from events
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    events.forEach(evt => {
+      years.add(new Date(evt.date).getFullYear());
     });
-  })();
+    return Array.from(years).sort((a, b) => b - a); // Descending order
+  }, [events]);
 
-  // Calculate weekly data based on filtered events
-  const weeklyData = (() => {
-    const data = [0, 0, 0, 0, 0, 0, 0]; // Mon-Sun
-
-    filteredEvents.forEach((evt) => {
-      const eventDate = new Date(evt.date);
-      const dayOfWeek = eventDate.getDay();
-      // Convert Sunday (0) to index 6, and Mon (1) to index 0
-      const idx = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      if (idx >= 0 && idx < 7) {
-        data[idx] += evt.duration;
+  const availableMonths = useMemo(() => {
+    const months = new Set<number>();
+    events.forEach(evt => {
+      const date = new Date(evt.date);
+      if (date.getFullYear() === selectedYear) {
+        months.add(date.getMonth());
       }
     });
+    return Array.from(months).sort((a, b) => b - a); // Descending order
+  }, [events, selectedYear]);
 
-    return data;
+  // Filter events based on timeRange
+  const filteredEvents = (() => {
+    if (timeRange === 'Week') {
+      const today = new Date();
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 7);
+      return events.filter((evt) => {
+        const eventDate = new Date(evt.date);
+        return eventDate >= startDate && eventDate <= today;
+      });
+    } else if (timeRange === 'Month') {
+      return events.filter((evt) => {
+        const eventDate = new Date(evt.date);
+        return eventDate.getMonth() === selectedMonth && eventDate.getFullYear() === selectedYear;
+      });
+    } else {
+      return events.filter((evt) => {
+        const eventDate = new Date(evt.date);
+        return eventDate.getFullYear() === selectedYear;
+      });
+    }
   })();
 
-  const maxVal = Math.max(...weeklyData);
+  // Calculate chart data based on timeRange
+  const chartData = (() => {
+    if (timeRange === 'Week') {
+      // Weekly data - 7 days (Mon-Sun)
+      const data = [0, 0, 0, 0, 0, 0, 0];
+      filteredEvents.forEach((evt) => {
+        const eventDate = new Date(evt.date);
+        const dayOfWeek = eventDate.getDay();
+        const idx = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        if (idx >= 0 && idx < 7) {
+          data[idx] += evt.duration;
+        }
+      });
+      return data;
+    } else if (timeRange === 'Year') {
+      // Yearly data - 12 months
+      const data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      filteredEvents.forEach((evt) => {
+        const eventDate = new Date(evt.date);
+        const monthIndex = eventDate.getMonth();
+        if (monthIndex >= 0 && monthIndex < 12) {
+          data[monthIndex] += evt.duration;
+        }
+      });
+      return data;
+    } else {
+      // Monthly data - group by date ranges (1-7, 8-14, 15-21, 22-28, 29-31)
+      const data = [0, 0, 0, 0, 0]; // 5 groups
+      filteredEvents.forEach((evt) => {
+        const eventDate = new Date(evt.date);
+        const day = eventDate.getDate();
+        
+        let groupIndex = -1;
+        if (day >= 1 && day <= 7) groupIndex = 0;
+        else if (day >= 8 && day <= 14) groupIndex = 1;
+        else if (day >= 15 && day <= 21) groupIndex = 2;
+        else if (day >= 22 && day <= 28) groupIndex = 3;
+        else if (day >= 29) groupIndex = 4;
+        
+        if (groupIndex >= 0 && groupIndex < 5) {
+          data[groupIndex] += evt.duration;
+        }
+      });
+      return data;
+    }
+  })();
+
+  // Labels for chart
+  const chartLabels = (() => {
+    if (timeRange === 'Week') {
+      return days;
+    } else if (timeRange === 'Year') {
+      // For year view: show only month number for Chinese, first letter for English
+      if (i18n.language === 'zh') {
+        return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+      } else {
+        return ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+      }
+    } else {
+      // Month view: show start dates like Apple Fitness
+      return ['1', '8', '15', '22', '29'];
+    }
+  })();
+
+  const maxVal = Math.max(...chartData);
 
   // Calculate total focus time (based on filtered events)
   const totalMinutes = filteredEvents.reduce((sum, evt) => sum + evt.duration, 0);
@@ -1172,22 +1291,39 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
     }
   });
 
-  const projectsWithTime = projects.map((p) => ({
-    ...p,
-    duration: projectTimeMap.get(p.id) || 0,
-    percent: totalMinutes > 0 ? Math.round((projectTimeMap.get(p.id) || 0) / totalMinutes * 100) : 0,
-  }));
+  const projectsWithTime = projects
+    .map((p) => ({
+      ...p,
+      duration: projectTimeMap.get(p.id) || 0,
+      percent: totalMinutes > 0 ? Math.round((projectTimeMap.get(p.id) || 0) / totalMinutes * 100) : 0,
+    }))
+    .sort((a, b) => b.duration - a.duration); // 按时长降序排序
+
+  // 根据时间范围显示不同的副标题
+  const getSubtitle = () => {
+    if (timeRange === 'Week') return t('analytics.thisWeek');
+    if (timeRange === 'Month') {
+      const monthNames = ['jan', 'feb', 'mar', 'apr', 'mayShort', 'jun', 
+                          'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+      const monthStr = t(`months.${monthNames[selectedMonth]}`).toUpperCase();
+      return i18n.language === 'zh' 
+        ? t(`months.${['january', 'february', 'march', 'april', 'may', 'june', 
+                       'july', 'august', 'september', 'october', 'november', 'december'][selectedMonth]}`)
+        : `${monthStr} ${selectedYear}`;
+    }
+    return `${selectedYear}`;
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <Header title="Analytics" subtitle="Track your focus" />
+      <Header title={t('analytics.title')} />
 
       <ScrollView
         style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
         <View style={styles.toggleContainer}>
-          {(['Week', 'Month'] as const).map((range) => {
+          {(['Week', 'Month', 'Year'] as const).map((range) => {
             const active = timeRange === range;
             return (
               <Pressable
@@ -1201,7 +1337,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
                     active && styles.toggleTextActive,
                   ]}
                 >
-                  Last {range}
+                  {t(`analytics.${range.toLowerCase()}` as any)}
                 </Text>
               </Pressable>
             );
@@ -1210,17 +1346,99 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
 
         <View style={styles.analyticsCard}>
           <View style={styles.analyticsHeader}>
-            <Text style={styles.analyticsTitle}>Total Focus</Text>
+            <View style={{ position: 'relative' }}>
+              <Text style={styles.analyticsTitle}>{t('analytics.totalTime')}</Text>
+              {timeRange === 'Week' ? (
+                <Text style={styles.analyticsSubtitle}>{getSubtitle()}</Text>
+              ) : (
+                <>
+                  {(timeRange === 'Month' && availableMonths.length > 1) || 
+                   (timeRange === 'Year' && availableYears.length > 1) ? (
+                    <>
+                      <Pressable 
+                        onPress={() => setShowPicker(true)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                      >
+                        <Text style={styles.analyticsSubtitle}>{getSubtitle()}</Text>
+                        <View style={styles.pickerIconContainer}>
+                          <Text style={styles.pickerIconUp}>▲</Text>
+                          <Text style={styles.pickerIconDown}>▼</Text>
+                        </View>
+                      </Pressable>
+                      
+                      {/* Inline Picker Dropdown */}
+                      {showPicker && (
+                        <View style={styles.pickerDropdown}>
+                          <ScrollView style={{ maxHeight: 200 }}>
+                            {timeRange === 'Month' 
+                              ? availableMonths.map((month) => {
+                                  const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                                                      'july', 'august', 'september', 'october', 'november', 'december'];
+                                  const isSelected = month === selectedMonth;
+                                  return (
+                                    <Pressable
+                                      key={month}
+                                      style={styles.pickerItem}
+                                      onPress={() => {
+                                        setSelectedMonth(month);
+                                        setShowPicker(false);
+                                      }}
+                                    >
+                                      <Text style={styles.pickerCheck}>{isSelected ? '✓' : ''}</Text>
+                                      <Text style={[styles.pickerItemText, isSelected && styles.pickerItemSelected]}>
+                                        {i18n.language === 'zh' 
+                                          ? `${selectedYear}年${t(`months.${monthNames[month]}`)}`
+                                          : `${t(`months.${monthNames[month]}`)} ${selectedYear}`
+                                        }
+                                      </Text>
+                                    </Pressable>
+                                  );
+                                })
+                              : availableYears.map((year) => {
+                                  const isSelected = year === selectedYear;
+                                  return (
+                                    <Pressable
+                                      key={year}
+                                      style={styles.pickerItem}
+                                      onPress={() => {
+                                        setSelectedYear(year);
+                                        setShowPicker(false);
+                                      }}
+                                    >
+                                      <Text style={styles.pickerCheck}>{isSelected ? '✓' : ''}</Text>
+                                      <Text style={[styles.pickerItemText, isSelected && styles.pickerItemSelected]}>
+                                        {year}
+                                      </Text>
+                                    </Pressable>
+                                  );
+                                })
+                            }
+                          </ScrollView>
+                        </View>
+                      )}
+                    </>
+                  ) : (
+                    <Text style={styles.analyticsSubtitle}>{getSubtitle()}</Text>
+                  )}
+                </>
+              )}
+            </View>
             <Text style={styles.analyticsValue}>
-              {totalHours}<Text style={styles.analyticsValueUnit}>h</Text> {totalMins}
-              <Text style={styles.analyticsValueUnit}>m</Text>
+              {totalHours}<Text style={styles.analyticsValueUnit}>{t('common.hours')}</Text> {totalMins}
+              <Text style={styles.analyticsValueUnit}>{t('common.minutes')}</Text>
             </Text>
           </View>
           <View style={styles.barChartRow}>
-            {weeklyData.map((val, idx) => {
+            {chartData.map((val, idx) => {
               const height = maxVal ? (val / maxVal) * 100 : 0;
               return (
-                <View key={idx} style={styles.barWrapper}>
+                <View 
+                  key={idx} 
+                  style={[
+                    styles.barWrapper,
+                    timeRange === 'Month' && { alignItems: 'flex-start' }
+                  ]}
+                >
                   <View style={styles.barBackground}>
                     <View
                       style={[
@@ -1232,14 +1450,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
                       ]}
                     />
                   </View>
-                  <Text style={styles.barLabel}>{days[idx]}</Text>
+                  <Text style={styles.barLabel}>{chartLabels[idx]}</Text>
                 </View>
               );
             })}
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Time Distribution</Text>
+        <Text style={styles.sectionTitle}>{t('analytics.projects')}</Text>
         {projectsWithTime.map((p) => {
           const hours = Math.floor(p.duration / 60);
           const mins = p.duration % 60;
@@ -1253,10 +1471,10 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
                       { backgroundColor: p.hexColor },
                     ]}
                   />
-                  <Text style={styles.projectRowName}>{p.name}</Text>
+                  <Text style={styles.projectRowName} numberOfLines={1} ellipsizeMode="tail">{p.name}</Text>
                 </View>
                 <Text style={styles.projectRowTime}>
-                  {hours}h {mins}m
+                  {hours}{t('common.hours')} {mins}{t('common.minutes')}
                 </Text>
               </View>
               <View style={styles.progressTrack}>
@@ -1289,14 +1507,21 @@ type ProjectsViewProps = {
 };
 
 const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categories, setProjects, setCategories, setEvents, selectedColorScheme, setSelectedColorScheme }) => {
+  const { t, i18n } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState('gravity');
-  const [draggingId, setDraggingId] = useState<number | null>(null);
   const [selectedNode, setSelectedNode] = useState<Project | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const isDraggingRef = useRef(false);
+  const [showColorTheme, setShowColorTheme] = useState(false);
+  const [showDataManagement, setShowDataManagement] = useState(false);
   const containerRef = useRef<View>(null);
-  const dragStartPosRef = useRef({ x: 0, y: 0 });
+  
+  // 缩放状态 - Pinch to zoom
+  const [scale, setScale] = useState(1);
+  const scaleRef = useRef(1);
+  const initialDistance = useRef(0);
+  const MIN_SCALE = 0.5;
+  const MAX_SCALE = 3;
 
   // 获取当前主题的颜色数组
   const getCurrentThemeColors = () => {
@@ -1313,6 +1538,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
   useEffect(() => {
     let animationFrameId: number;
     
+    // 画布尺寸
+    const CANVAS_WIDTH = 800;
+    const CANVAS_HEIGHT = 1200;
+    
     const simulate = () => {
       setProjects((prevProjects) => {
         const nextProjects = prevProjects.map((p) => ({
@@ -1321,36 +1550,52 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
           vy: (p.vy || 0) * 0.9,
         }));
 
-        // 计算类别中心点
+        // 计算类别中心点 - 与渲染逻辑一致
         const catCenters: Record<string, { x: number; y: number }> = {};
         const categoryArray = Object.keys(categories);
         
+        // 计算每个类别的项目数量
+        const projectCountPerCategory: Record<string, number> = {};
+        nextProjects.forEach(p => {
+          const catName = p.category || 'uncategorized';
+          projectCountPerCategory[catName] = (projectCountPerCategory[catName] || 0) + 1;
+        });
+        
+        // 根据项目数量计算半径
+        const calculateRadius = (count: number): number => {
+          const baseRadius = 100;
+          const minRadius = 80;
+          const maxRadius = 200;
+          const dynamicRadius = baseRadius + (count - 1) * 15;
+          return Math.max(minRadius, Math.min(maxRadius, dynamicRadius));
+        };
+        
         // 如果没有任何 category，uncategorized 在中间
         if (categoryArray.length === 0) {
-          catCenters['uncategorized'] = { x: 180, y: 340 };
+          catCenters['uncategorized'] = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
         } else {
-          // 有类别时，先布局类别
-          categoryArray.forEach((catName, i) => {
-            let x, y;
-            if (categoryArray.length === 1) {
-              x = 180;
-              y = 250;
-            } else if (categoryArray.length === 2) {
-              x = 100 + i * 160;
-              y = 250;
-            } else {
-              const angle = (i / categoryArray.length) * 2 * Math.PI - Math.PI / 2;
-              x = 180 + Math.cos(angle) * 130;
-              y = 280 + Math.sin(angle) * 130;
-            }
+          // 按项目数量排序
+          const sortedCategories = [...categoryArray].sort((a, b) => {
+            const countA = projectCountPerCategory[a] || 0;
+            const countB = projectCountPerCategory[b] || 0;
+            return countB - countA;
+          });
+          
+          // 使用网格布局
+          sortedCategories.forEach((catName, i) => {
+            const cols = 2;
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const x = 200 + col * 350;
+            const y = 200 + row * 350;
             catCenters[catName] = { x, y };
           });
           
-          // Uncategorized 固定在底部，远离类别区域
-          catCenters['uncategorized'] = { x: 180, y: 520 };
+          // Uncategorized 固定在画布底部
+          catCenters['uncategorized'] = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 150 };
         }
 
-        // 排斥力：防止节点重叠
+        // 排斥力：防止节点重叠（包括下方标签空间）
         for (let i = 0; i < nextProjects.length; i++) {
           for (let j = i + 1; j < nextProjects.length; j++) {
             const p1 = nextProjects[i];
@@ -1362,10 +1607,11 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
             const r1 = 30 + (p1.percent / 100) * 10;
             const r2 = 30 + (p2.percent / 100) * 10;
-            const minSpace = r1 + r2 + 10;
+            // 增加间距以容纳下方标签（约30px高度）
+            const minSpace = r1 + r2 + 50;
 
             if (dist < minSpace) {
-              const force = ((minSpace - dist) / dist) * 0.5;
+              const force = ((minSpace - dist) / dist) * 0.6;
               const fx = dx * force;
               const fy = dy * force;
               p1.vx = (p1.vx || 0) + fx;
@@ -1378,8 +1624,6 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
         // 吸引力：将节点吸向类别中心
         nextProjects.forEach((p) => {
-          if (p.id === draggingId) return;
-
           const center = p.category ? catCenters[p.category] : catCenters['uncategorized'];
           if (!center) return;
 
@@ -1394,25 +1638,24 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
         // 应用速度与边界检查
         return nextProjects.map((p) => {
-          if (p.id === draggingId) return p;
-
           let newX = p.x + (p.vx || 0);
           let newY = p.y + (p.vy || 0);
 
+          // 更新边界以匹配更大的画布
           if (newX < 30) {
             newX = 30;
             p.vx = (p.vx || 0) * -0.5;
           }
-          if (newX > 345) {
-            newX = 345;
+          if (newX > CANVAS_WIDTH - 30) {
+            newX = CANVAS_WIDTH - 30;
             p.vx = (p.vx || 0) * -0.5;
           }
           if (newY < 30) {
             newY = 30;
             p.vy = (p.vy || 0) * -0.5;
           }
-          if (newY > 580) {
-            newY = 580;
+          if (newY > CANVAS_HEIGHT - 30) {
+            newY = CANVAS_HEIGHT - 30;
             p.vy = (p.vy || 0) * -0.5;
           }
 
@@ -1425,219 +1668,142 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
     animationFrameId = requestAnimationFrame(simulate);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [categories, draggingId, setProjects]);
-
-  // 拖动处理 - 使用原生触摸事件
-  const handleTouchStart = (nodeId: number, evt: any) => {
-    const project = projects.find(p => p.id === nodeId);
-    if (project) {
-      const touch = evt.nativeEvent;
-      dragStartPosRef.current = { x: project.x, y: project.y };
-      setDraggingId(nodeId);
-      isDraggingRef.current = false;
-    }
-  };
-
-  const handleTouchMove = (nodeId: number, evt: any) => {
-    if (draggingId !== nodeId) return;
-    isDraggingRef.current = true;
-    
-    const touch = evt.nativeEvent;
-    const newX = Math.max(30, Math.min(345, touch.pageX - 16));
-    const newY = Math.max(30, Math.min(650, touch.pageY - 100));
-    
-    setProjects(prev => prev.map(p => 
-      p.id === nodeId ? { ...p, x: newX, y: newY, vx: 0, vy: 0 } : p
-    ));
-  };
-
-  const handleTouchEnd = () => {
-    if (draggingId && isDraggingRef.current) {
-      const droppedProject = projects.find(p => p.id === draggingId);
-      if (droppedProject) {
-        // 计算每个类别的项目数量和动态半径
-        const projectCountPerCategory: Record<string, number> = {};
-        projects.forEach(p => {
-          const catName = p.category || 'uncategorized';
-          projectCountPerCategory[catName] = (projectCountPerCategory[catName] || 0) + 1;
-        });
-        
-        const calculateRadius = (count: number): number => {
-          const baseRadius = 80;
-          const minRadius = 60;
-          const maxRadius = 140;
-          const dynamicRadius = baseRadius + (count - 1) * 8;
-          return Math.max(minRadius, Math.min(maxRadius, dynamicRadius));
-        };
-        
-        // 重新计算类别中心
-        const catCenters: Record<string, { x: number; y: number; radius: number }> = {};
-        const categoryArray = Object.keys(categories);
-        
-        categoryArray.forEach((catName, i) => {
-          let x, y;
-          if (categoryArray.length === 1) {
-            x = 180; y = 250;
-          } else if (categoryArray.length === 2) {
-            x = 100 + i * 160; y = 250;
-          } else {
-            const angle = (i / categoryArray.length) * 2 * Math.PI - Math.PI / 2;
-            x = 180 + Math.cos(angle) * 130;
-            y = 280 + Math.sin(angle) * 130;
-          }
-          const count = projectCountPerCategory[catName] || 0;
-          catCenters[catName] = { x, y, radius: calculateRadius(count) };
-        });
-
-        // 找到最近的类别中心，并检查是否在圈内（使用动态半径）
-        let closestCategory: string | null = null;
-        let minDist = 9999;
-
-        // 检查所有类别中心
-        Object.keys(catCenters).forEach(catName => {
-          const center = catCenters[catName];
-          const dist = Math.sqrt(
-            Math.pow(droppedProject.x - center.x, 2) + 
-            Math.pow(droppedProject.y - center.y, 2)
-          );
-          
-          // 使用该类别的动态半径
-          if (dist < center.radius && dist < minDist) {
-            minDist = dist;
-            closestCategory = catName;
-          }
-        });
-
-        // 如果没有找到任何类别圈内，则为 uncategorized
-        // 不需要检查 uncategorized 区域，圈外就是 uncategorized
-
-        // 如果类别改变，更新项目
-        if (droppedProject.category !== closestCategory) {
-          setProjects(prev => prev.map(p => 
-            p.id === draggingId 
-              ? { ...p, category: closestCategory, hexColor: getCategoryColor(closestCategory) }
-              : p
-          ));
-        }
-      }
-    }
-    setDraggingId(null);
-    isDraggingRef.current = false;
-  };
+  }, [categories, setProjects]);
 
   const handleNodeClick = (project: Project) => {
-    if (!isDraggingRef.current) {
-      setSelectedNode({ ...project });
-      setModalOpen(true);
-    }
+    setSelectedNode({ ...project });
+    setModalOpen(true);
   };
 
-  const handleImportData = () => {
-    Alert.prompt(
-      'Import JSON Data',
-      'Paste your JSON event data array:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Import',
-          onPress: (jsonText?: string) => {
-            if (!jsonText) return;
-            
-            try {
-              const data = JSON.parse(jsonText);
-              
-              if (!Array.isArray(data)) {
-                Alert.alert('Error', 'JSON data must be an array of events');
-                return;
-              }
+  const handleImportData = async () => {
+    try {
+      // 使用 DocumentPicker 选择多个JSON文件
+      const DocumentPicker = require('expo-document-picker');
+      
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        multiple: true, // 支持多选
+        copyToCacheDirectory: true,
+      });
 
-              // 转换数据为 EventItem 格式
-              const newCategories: CategoryMap = { ...categories };
-              let colorIndex = Object.keys(newCategories).length;
-              const newEvents: EventItem[] = [];
-              const newProjects: Project[] = [...projects];
-              const themeColors = getCurrentThemeColors();
+      if (result.canceled) {
+        return;
+      }
 
-              data.forEach((item: any, index: number) => {
-                // 解析时间范围，获取开始时间和持续时间
-                const timeData = item.time ? parseTimeRangeWithStart(item.time) : { start: 9 * 60, duration: 60 };
-                const start = timeData.start;
-                const duration = timeData.duration;
-                
-                // 处理 category (type 字段)
-                const category = item.type || null;
-                if (category && !newCategories[category]) {
-                  const color = themeColors[colorIndex % themeColors.length];
-                  newCategories[category] = color;
-                  colorIndex++;
-                }
+      const files = result.assets || [result];
+      let totalImported = 0;
+      let totalProjectsCreated = 0;
+      const newCategories: CategoryMap = { ...categories };
+      let colorIndex = Object.keys(newCategories).length;
+      const allNewEvents: EventItem[] = [];
+      const newProjects: Project[] = [...projects];
+      const themeColors = getCurrentThemeColors();
 
-                // 处理 project 字段
-                let projectId: number | undefined = undefined;
-                if (item.project && item.project.length > 0) {
-                  const projectName = Array.isArray(item.project) ? item.project[0] : item.project;
-                  
-                  // 查找或创建 project
-                  let existingProject = newProjects.find(p => p.name === projectName);
-                  if (!existingProject) {
-                    existingProject = {
-                      id: Date.now() + newProjects.length + index * 1000,
-                      name: projectName,
-                      time: '0h 0m',
-                      percent: 0,
-                      hexColor: category && newCategories[category] ? newCategories[category] : '#9CA3AF',
-                      category: category,
-                      x: 180 + (Math.random() - 0.5) * 100,
-                      y: 250 + (Math.random() - 0.5) * 100,
-                      vx: 0,
-                      vy: 0,
-                    };
-                    newProjects.push(existingProject);
-                  }
-                  projectId = existingProject.id;
-                }
+      // 处理每个文件
+      for (const file of files) {
+        try {
+          const response = await fetch(file.uri);
+          const jsonText = await response.text();
+          const data = JSON.parse(jsonText);
 
-                // 获取颜色
-                const color = category && newCategories[category] ? newCategories[category] : '#9CA3AF';
-
-                // 创建 event
-                const event: EventItem = {
-                  id: Date.now() + index * 100,
-                  title: projectId ? newProjects.find(p => p.id === projectId)?.name || 'Event' : 'Event',
-                  start,
-                  duration,
-                  hexColor: color,
-                  details: item.tag || undefined,
-                  category: category || undefined,
-                  date: item.date || new Date().toISOString().split('T')[0],
-                  projectId,
-                };
-
-                newEvents.push(event);
-              });
-
-              // 更新状态
-              console.log('About to import:', newEvents.length, 'events');
-              console.log('Sample event:', newEvents[0]);
-              setEvents(prev => {
-                const updated = [...prev, ...newEvents];
-                console.log('Total events after import:', updated.length);
-                return updated;
-              });
-              setCategories(newCategories);
-              setProjects(newProjects);
-              setShowSettings(false);
-              
-              Alert.alert('Success', `Imported ${newEvents.length} events, created ${newProjects.length - projects.length} projects`);
-            } catch (error) {
-              console.error('Import error:', error);
-              Alert.alert('Error', `Invalid JSON format: ${error}`);
-            }
+          if (!Array.isArray(data)) {
+            Alert.alert('Error', `File ${file.name} must contain an array of events`);
+            continue;
           }
+
+          // 转换数据为 EventItem 格式
+          data.forEach((item: any, index: number) => {
+            // 只读取需要的字段：date, time, tag, type, project
+            const date = item.date || new Date().toISOString().split('T')[0];
+            const tag = item.tag || undefined;
+            const type = item.type || null; // type 字段用作 category
+            const project = item.project || null;
+            const time = item.time || null;
+            
+            // 解析时间范围，获取开始时间和持续时间
+            const timeData = time ? parseTimeRangeWithStart(time) : { start: 9 * 60, duration: 60 };
+            const start = timeData.start;
+            const duration = timeData.duration;
+            
+            // 只有 type 字段的内容才存储为 category
+            const category = type;
+            if (category && !newCategories[category]) {
+              const color = themeColors[colorIndex % themeColors.length];
+              newCategories[category] = color;
+              colorIndex++;
+            }
+
+            // 处理 project 字段
+            let projectId: number | undefined = undefined;
+            if (project && project.length > 0) {
+              const projectName = Array.isArray(project) ? project[0] : project;
+              
+              // 查找或创建 project，project 的 category 只能是 type 字段的值
+              let existingProject = newProjects.find(p => p.name === projectName);
+              if (!existingProject) {
+                existingProject = {
+                  id: Date.now() + newProjects.length + index * 1000 + Math.random() * 100,
+                  name: projectName,
+                  time: '0h 0m',
+                  percent: 0,
+                  hexColor: category && newCategories[category] ? newCategories[category] : '#9CA3AF',
+                  category: category, // 只使用 type 字段作为 category
+                  x: 180 + (Math.random() - 0.5) * 100,
+                  y: 250 + (Math.random() - 0.5) * 100,
+                  vx: 0,
+                  vy: 0,
+                };
+                newProjects.push(existingProject);
+                totalProjectsCreated++;
+              }
+              projectId = existingProject.id;
+            }
+
+            // 获取颜色（只使用 type 字段的颜色）
+            const color = category && newCategories[category] ? newCategories[category] : '#9CA3AF';
+
+            // 创建 event
+            const event: EventItem = {
+              id: Date.now() + totalImported * 100 + Math.random() * 50,
+              title: projectId ? newProjects.find(p => p.id === projectId)?.name || 'Event' : 'Event',
+              start,
+              duration,
+              hexColor: color,
+              details: tag, // tag 字段用作 details
+              category: category, // 只使用 type 字段作为 category
+              date: date,
+              projectId,
+            };
+
+            allNewEvents.push(event);
+            totalImported++;
+          });
+
+        } catch (fileError) {
+          console.error(`Error processing file ${file.name}:`, fileError);
+          Alert.alert('Error', `Failed to process ${file.name}: ${fileError}`);
         }
-      ],
-      'plain-text'
-    );
+      }
+
+      if (allNewEvents.length > 0) {
+        // 更新状态
+        console.log('About to import:', allNewEvents.length, 'events from', files.length, 'files');
+        setEvents(prev => {
+          const updated = [...prev, ...allNewEvents];
+          console.log('Total events after import:', updated.length);
+          return updated;
+        });
+        setCategories(newCategories);
+        setProjects(newProjects);
+        setShowSettings(false);
+        
+        Alert.alert('Success', `Imported ${totalImported} events from ${files.length} file(s), created ${totalProjectsCreated} new projects`);
+      }
+
+    } catch (error) {
+      console.error('Import error:', error);
+      Alert.alert('Error', `Failed to import files: ${error}`);
+    }
   };
 
   // 解析时间范围，返回开始时间和持续时间
@@ -1774,7 +1940,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
         <Pressable style={{ flex: 1 }} onPress={() => setShowSettings(false)} />
         <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 24, paddingHorizontal: 16, maxHeight: '80%' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: '#000000' }}>Settings</Text>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: '#000000' }}>{t('projects.settings')}</Text>
             <Pressable onPress={() => setShowSettings(false)}>
               <X size={24} color="#6B7280" />
             </Pressable>
@@ -1783,54 +1949,67 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
           <ScrollView contentContainerStyle={{ gap: 20 }}>
             {/* Color Theme */}
             <View>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#6B7280', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Color Theme</Text>
-              <View style={{ gap: 8 }}>
-                {[
-                  { id: 'default', title: 'Default', desc: 'Original pastel colors' },
-                  { id: 'matisse', title: 'Matisse Red', desc: 'Warm reds and earth tones' },
-                  { id: 'starry', title: 'Starry Night', desc: 'Deep blues and golden yellows' },
-                  { id: 'sunflower', title: 'Sunflower', desc: 'Golden yellows and warm browns' },
-                ].map((option) => (
+              <Pressable 
+                onPress={() => setShowColorTheme(!showColorTheme)}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showColorTheme ? 12 : 0 }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.colorTheme')}</Text>
+                <Text style={{ fontSize: 12, color: '#6B7280' }}>{showColorTheme ? '▼' : '▶'}</Text>
+              </Pressable>
+              {showColorTheme && (
+                <View style={{ gap: 8 }}>
+                  {[
+                    { id: 'default', title: t('themes.default') },
+                    { id: 'matisse', title: t('themes.matisseRed') },
+                    { id: 'starry', title: t('themes.starryNight') },
+                    { id: 'sunflower', title: t('themes.sunflower') },
+                  ].map((option) => (
+                    <Pressable
+                      key={option.id}
+                      onPress={() => handleSelectColorScheme(option.id)}
+                      style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, borderWidth: selectedColorScheme === option.id ? 2 : 1, borderColor: selectedColorScheme === option.id ? '#3B82F6' : '#E5E7EB', backgroundColor: selectedColorScheme === option.id ? '#F0F9FF' : '#FAFAFA' }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#1F2937', flex: 1 }}>{option.title}</Text>
+                      {selectedColorScheme === option.id && (
+                        <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', marginLeft: 8 }}>
+                          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>✓</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            
+
+            {/* Data Management */}
+            <View>
+              <Pressable 
+                onPress={() => setShowDataManagement(!showDataManagement)}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showDataManagement ? 12 : 0 }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.dataManagement')}</Text>
+                <Text style={{ fontSize: 12, color: '#6B7280' }}>{showDataManagement ? '▼' : '▶'}</Text>
+              </Pressable>
+              {showDataManagement && (
+                <View style={{ gap: 8 }}>
                   <Pressable
-                    key={option.id}
-                    onPress={() => handleSelectColorScheme(option.id)}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, borderWidth: selectedColorScheme === option.id ? 2 : 1, borderColor: selectedColorScheme === option.id ? '#3B82F6' : '#E5E7EB', backgroundColor: selectedColorScheme === option.id ? '#F0F9FF' : '#FAFAFA' }}
+                    onPress={handleImportData}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: '#3B82F6' }}
                   >
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#1F2937', marginBottom: 2 }}>{option.title}</Text>
-                      <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: '500' }}>{option.desc}</Text>
-                    </View>
-                    {selectedColorScheme === option.id && (
-                      <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', marginLeft: 8 }}>
-                        <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>✓</Text>
-                      </View>
-                    )}
+                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#FFFFFF' }}>{t('projects.importData')}</Text>
+                    <Text style={{ fontSize: 20, color: '#FFFFFF' }}>↑</Text>
                   </Pressable>
-                ))}
-              </View>
-            </View>
-
-            {/* Import Data */}
-            <View>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#6B7280', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Data Management</Text>
-              <Pressable
-                onPress={handleImportData}
-                style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: '#3B82F6' }}
-              >
-                <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#FFFFFF' }}>Import Data (JSON)</Text>
-                <Text style={{ fontSize: 20, color: '#FFFFFF' }}>↑</Text>
-              </Pressable>
-            </View>
-
-            {/* Clear Data */}
-            <View>
-              <Pressable
-                onPress={handleClearData}
-                style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: '#EF4444' }}
-              >
-                <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#FFFFFF' }}>Clear All Data</Text>
-                <Trash2 size={18} color="#FFFFFF" />
-              </Pressable>
+                  <Pressable
+                    onPress={handleClearData}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: '#EF4444' }}
+                  >
+                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#FFFFFF' }}>{t('projects.clearAllData')}</Text>
+                    <Trash2 size={18} color="#FFFFFF" />
+                  </Pressable>
+                </View>
+              )}
             </View>
           </ScrollView>
         </View>
@@ -1842,6 +2021,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
   const categoryArray = Object.entries(categories);
   const catCenters: Array<{ name: string; color: string; x: number; y: number; radius: number }> = [];
   
+  // 画布尺寸 - 更大的画布
+  const CANVAS_WIDTH = 800;
+  const CANVAS_HEIGHT = 1200;
+  
   // 计算每个类别的项目数量
   const projectCountPerCategory: Record<string, number> = {};
   projects.forEach(p => {
@@ -1851,47 +2034,93 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
   
   // 根据项目数量计算半径
   const calculateRadius = (count: number): number => {
-    const baseRadius = 80;
-    const minRadius = 60;
-    const maxRadius = 140;
-    // 每增加1个项目，半径增加8px
-    const dynamicRadius = baseRadius + (count - 1) * 8;
+    const baseRadius = 100;
+    const minRadius = 80;
+    const maxRadius = 200;
+    // 每增加1个项目，半径增加15px
+    const dynamicRadius = baseRadius + (count - 1) * 15;
     return Math.max(minRadius, Math.min(maxRadius, dynamicRadius));
   };
   
-  if (categoryArray.length === 1) {
-    const count = projectCountPerCategory[categoryArray[0][0]] || 0;
-    catCenters.push({ 
-      name: categoryArray[0][0], 
-      color: categoryArray[0][1], 
-      x: 180, 
-      y: 250,
-      radius: calculateRadius(count)
-    });
-  } else if (categoryArray.length === 2) {
-    categoryArray.forEach(([name, color], i) => {
-      const count = projectCountPerCategory[name] || 0;
-      catCenters.push({ 
-        name, 
-        color, 
-        x: 100 + i * 160, 
-        y: 250,
-        radius: calculateRadius(count)
-      });
-    });
-  } else if (categoryArray.length > 2) {
-    categoryArray.forEach(([name, color], i) => {
-      const angle = (i / categoryArray.length) * 2 * Math.PI - Math.PI / 2;
-      const count = projectCountPerCategory[name] || 0;
-      catCenters.push({
-        name,
-        color,
-        x: 180 + Math.cos(angle) * 130,
-        y: 280 + Math.sin(angle) * 130,
-        radius: calculateRadius(count)
-      });
-    });
-  }
+  // 检查两个圆是否重叠
+  const isOverlapping = (
+    x1: number, y1: number, r1: number, 
+    x2: number, y2: number, r2: number,
+    padding: number = 30
+  ): boolean => {
+    const dx = x1 - x2;
+    const dy = y1 - y2;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance < (r1 + r2 + padding);
+  };
+  
+  // 找到不重叠的位置
+  const findNonOverlappingPosition = (
+    radius: number, 
+    existingCenters: Array<{ x: number; y: number; radius: number }>,
+    startX: number,
+    startY: number
+  ): { x: number; y: number } => {
+    let x = startX;
+    let y = startY;
+    let attempts = 0;
+    const maxAttempts = 100;
+    
+    while (attempts < maxAttempts) {
+      let hasOverlap = false;
+      for (const center of existingCenters) {
+        if (isOverlapping(x, y, radius, center.x, center.y, center.radius)) {
+          hasOverlap = true;
+          break;
+        }
+      }
+      
+      if (!hasOverlap) {
+        return { x, y };
+      }
+      
+      // 螺旋式向外寻找位置
+      const angle = attempts * 0.5;
+      const dist = 50 + attempts * 20;
+      x = startX + Math.cos(angle) * dist;
+      y = startY + Math.sin(angle) * dist;
+      
+      // 确保在画布范围内
+      x = Math.max(radius + 20, Math.min(CANVAS_WIDTH - radius - 20, x));
+      y = Math.max(radius + 20, Math.min(CANVAS_HEIGHT - radius - 20, y));
+      
+      attempts++;
+    }
+    
+    return { x, y };
+  };
+  
+  // 按项目数量排序（大的先布局）
+  const sortedCategories = [...categoryArray].sort((a, b) => {
+    const countA = projectCountPerCategory[a[0]] || 0;
+    const countB = projectCountPerCategory[b[0]] || 0;
+    return countB - countA;
+  });
+  
+  // 布局类别圆圈 - 确保不重叠
+  const placedCenters: Array<{ x: number; y: number; radius: number }> = [];
+  
+  sortedCategories.forEach(([name, color], i) => {
+    const count = projectCountPerCategory[name] || 0;
+    const radius = calculateRadius(count);
+    
+    // 初始位置使用网格布局
+    const cols = 2;
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const startX = 200 + col * 350;
+    const startY = 200 + row * 350;
+    
+    const { x, y } = findNonOverlappingPosition(radius, placedCenters, startX, startY);
+    
+    catCenters.push({ name, color, x, y, radius });
+    placedCenters.push({ x, y, radius });
+  });
 
   // If Skia mode is selected, render the advanced Skia view
   if (selectedStyle === 'skia') {
@@ -1941,7 +2170,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     return (
       <View style={{ flex: 1, backgroundColor: '#F8F9FA' }}>
         <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#000000' }}>Gravity Clusters (Skia)</Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#000000' }}>{t('tabs.projects')}</Text>
           <Pressable onPress={() => setShowSettings(true)} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}>
             <Sliders size={18} color="#6B7280" />
           </Pressable>
@@ -1959,27 +2188,80 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
   return (
     <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
       <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
-        <Text style={{ fontSize: 18, fontWeight: '700', color: '#000000' }}>Gravity Clusters</Text>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: '#000000' }}>{t('tabs.projects')}</Text>
         <Pressable onPress={() => setShowSettings(true)} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}>
           <Sliders size={18} color="#6B7280" />
         </Pressable>
       </View>
 
-      <View ref={containerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {/* 类别背景圆圈 - 动态大小 */}
-        {catCenters.map((cat) => (
-          <View
-            key={cat.name}
-            style={{
-              position: 'absolute',
-              left: cat.x - cat.radius,
-              top: cat.y - cat.radius,
-              width: cat.radius * 2,
-              height: cat.radius * 2,
-              borderRadius: cat.radius,
-              backgroundColor: cat.color,
-              opacity: 0.15,
+      <ScrollView 
+        style={{ flex: 1 }}
+        contentContainerStyle={{ width: CANVAS_WIDTH * scale, minHeight: CANVAS_HEIGHT * scale }}
+        horizontal={false}
+        showsVerticalScrollIndicator={true}
+        showsHorizontalScrollIndicator={true}
+        bounces={true}
+        maximumZoomScale={MAX_SCALE}
+        minimumZoomScale={MIN_SCALE}
+        bouncesZoom={true}
+      >
+        <ScrollView 
+          horizontal={true}
+          showsHorizontalScrollIndicator={false}
+          bounces={true}
+          contentContainerStyle={{ width: CANVAS_WIDTH * scale, minHeight: CANVAS_HEIGHT * scale }}
+          maximumZoomScale={MAX_SCALE}
+          minimumZoomScale={MIN_SCALE}
+          bouncesZoom={true}
+          onTouchStart={(e) => {
+            if (e.nativeEvent.touches.length === 2) {
+              const touch1 = e.nativeEvent.touches[0];
+              const touch2 = e.nativeEvent.touches[1];
+              const dx = touch1.pageX - touch2.pageX;
+              const dy = touch1.pageY - touch2.pageY;
+              initialDistance.current = Math.sqrt(dx * dx + dy * dy);
+              scaleRef.current = scale;
+            }
+          }}
+          onTouchMove={(e) => {
+            if (e.nativeEvent.touches.length === 2 && initialDistance.current > 0) {
+              const touch1 = e.nativeEvent.touches[0];
+              const touch2 = e.nativeEvent.touches[1];
+              const dx = touch1.pageX - touch2.pageX;
+              const dy = touch1.pageY - touch2.pageY;
+              const currentDistance = Math.sqrt(dx * dx + dy * dy);
+              const newScale = scaleRef.current * (currentDistance / initialDistance.current);
+              setScale(Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale)));
+            }
+          }}
+          onTouchEnd={() => {
+            initialDistance.current = 0;
+          }}
+        >
+          <View 
+            ref={containerRef} 
+            style={{ 
+              width: CANVAS_WIDTH, 
+              height: CANVAS_HEIGHT, 
+              position: 'relative',
+              transform: [{ scale: scale }],
+              transformOrigin: 'top left',
             }}
+          >
+            {/* 类别背景圆圈 - 动态大小 */}
+            {catCenters.map((cat) => (
+              <View
+                key={cat.name}
+                style={{
+                  position: 'absolute',
+                  left: cat.x - cat.radius,
+                  top: cat.y - cat.radius,
+                  width: cat.radius * 2,
+                  height: cat.radius * 2,
+                  borderRadius: cat.radius,
+                  backgroundColor: cat.color,
+                  opacity: 0.15,
+                }}
           />
         ))}
         {catCenters.map((cat) => (
@@ -2002,7 +2284,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
         {/* 项目节点 */}
         {projects.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ fontSize: 14, color: '#9CA3AF' }}>No projects yet</Text>
+            <Text style={{ fontSize: 14, color: '#9CA3AF' }}>{t('projects.noProjectsYet')}</Text>
           </View>
         ) : (
           (() => {
@@ -2035,9 +2317,6 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
             return (
               <View
                 key={project.id}
-                onTouchStart={(evt) => handleTouchStart(project.id, evt)}
-                onTouchMove={(evt) => handleTouchMove(project.id, evt)}
-                onTouchEnd={handleTouchEnd}
                 style={{
                   position: 'absolute',
                   left: project.x - size / 2,
@@ -2081,10 +2360,11 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                         color: '#FFFFFF', 
                         zIndex: 10, 
                         textAlign: 'center', 
-                        paddingHorizontal: 4 
+                        paddingHorizontal: 2,
+                        width: size - 8,
                       }}
                       numberOfLines={2}
-                      ellipsizeMode="tail"
+                      ellipsizeMode="clip"
                     >
                       {project.name}
                     </Text>
@@ -2098,7 +2378,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                         paddingVertical: 2,
                         backgroundColor: 'transparent',
                         borderRadius: 12,
-                        maxWidth: 120,
+                        maxWidth: 100,
                         alignSelf: 'center',
                       }}
                     >
@@ -2120,7 +2400,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
           });
         })()
         )}
-      </View>
+          </View>
+        </ScrollView>
+      </ScrollView>
 
       {/* 编辑弹窗 - iOS Style Bottom Sheet */}
       {modalOpen && selectedNode && (
@@ -2485,6 +2767,7 @@ const VISUALIZATION_OPTIONS: VisualizationOption[] = [
 // --- MAIN APP ---
 
 const App: React.FC = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>('calendar');
   const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType | null>(null);
   const [selectedColorScheme, setSelectedColorScheme] = useState('default');
@@ -2525,7 +2808,7 @@ const App: React.FC = () => {
       <StatusBar barStyle="dark-content" />
       <View style={styles.appContainer}>
         <View style={styles.topStrip}>
-          <Text style={styles.topStripText}>Today · {dateStr}</Text>
+          <Text style={styles.topStripText}>{t('calendar.today')} · {dateStr}</Text>
         </View>
 
         <View style={{ flex: 1 }}>{content}</View>
@@ -3096,13 +3379,94 @@ const styles = StyleSheet.create({
   analyticsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
   analyticsTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
+  },
+  analyticsSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  pickerIconContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  pickerIconUp: {
+    fontSize: 8,
+    color: '#6B7280',
+    lineHeight: 8,
+    marginBottom: -1,
+  },
+  pickerIconDown: {
+    fontSize: 8,
+    color: '#6B7280',
+    lineHeight: 8,
+  },
+  pickerButton: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginLeft: 2,
+  },
+  pickerDropdown: {
+    position: 'absolute',
+    top: 38,
+    left: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    minWidth: 200,
+    maxHeight: 200,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 1000,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerContainer: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 14,
+    width: 200,
+    maxHeight: 300,
+    overflow: 'hidden',
+  },
+  pickerList: {
+    maxHeight: 300,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  pickerCheck: {
+    fontSize: 16,
+    color: '#3B82F6',
+    marginRight: 8,
+    width: 20,
+  },
+  pickerItemText: {
+    fontSize: 15,
+    color: '#111827',
+  },
+  pickerItemSelected: {
+    fontWeight: '600',
+    color: '#3B82F6',
   },
   analyticsValue: {
     fontSize: 24,
@@ -3167,15 +3531,19 @@ const styles = StyleSheet.create({
   projectRowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
   },
   projectRowName: {
     fontSize: 14,
     fontWeight: '600',
     color: '#111827',
+    flex: 1,
   },
   projectRowTime: {
     fontSize: 12,
     color: '#4B5563',
+    flexShrink: 0,
   },
   projectCategory: {
     fontSize: 11,
