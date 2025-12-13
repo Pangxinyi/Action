@@ -11,8 +11,6 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { Category as SkiaCategory, Project as SkiaProject } from '@components/ClusterViewAdvanced';
-import { ClusterViewAdvanced } from '@components/ClusterViewAdvanced';
 import '@constants/i18n'; // 初始化 i18n
 import { useAppData } from '@hooks/useAppData';
 import {
@@ -34,14 +32,15 @@ import { clearAppData } from '../utils/storage';
 // --- CONSTANTS ---
 
 const APP_COLORS = ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7', '#E6C8DC', '#EFD9CE'] as const;
-const CATEGORY_COLORS = ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7', '#E6C8DC', '#EFD9CE'] as const;
 
 // Color Theme Palettes
 const COLOR_THEMES = {
   default: ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7', '#E6C8DC', '#EFD9CE'],
-  matisse: ['#A63A2B', '#F9D8A7', '#C65C36', '#E0B458', '#7B3B2E', '#D68C45'],
-  starry: ['#2C3E50', '#FFE082', '#4A90E2', '#5BC0EB', '#F6D186', '#3D348B'],
-  sunflower: ['#E3B505', '#A1887F', '#E86C1A', '#A15C38', '#F0E6C2', '#FFC857'],
+  matisse: ['#8B311E', '#B93057', '#CE934D', '#CF9F9D', '#A99C7C', '#6D5E34'],
+  starry: ['#436493', '#7FC5DC', '#708FB9', '#818837', '#E8E163', '#11275D'],
+  persistence: [ '#3698BF', '#D9D3B4', '#D97C2B', '#ac3c2dff', '#FADB85', '#8F9779','#441D0D',],
+  giverny: ['#9FA6C8', '#8DAA91', '#D9A6A1', '#4C8C94', '#7F7B99', '#E3C98D'],
+  california: ['#4BC4D5', '#F3989F', '#89C764', '#FCD45E', '#D98A69', '#446E9B'],
 } as const;
 
 const NODE_SIZE = 72;
@@ -80,18 +79,15 @@ type EventItem = {
   projectId?: number; // link to project
 };
 
-type Link = {
-  source: number;
-  target: number;
-};
-
 const DEFAULT_PROJECTS: Project[] = [];
 
 const DEFAULT_EVENTS: EventItem[] = [];
 
-const DEFAULT_LINKS: Link[] = [];
-
-const DEFAULT_CATEGORIES: CategoryMap = {};
+const DEFAULT_CATEGORIES: CategoryMap = {
+  '工作': COLOR_THEMES.default[0],
+  '学习': COLOR_THEMES.default[1],
+  '运动': COLOR_THEMES.default[2],
+};
 
 // --- Shared small helpers ---
 
@@ -161,6 +157,7 @@ type DraftEvent = {
   selectedProjectId: number | null;
   isNewProject: boolean;
   newProjectName: string;
+  newProjectPercent: number; // accumulation for new project (0-100)
   details?: string; // tag/details for event
   category?: string; // category for event
   title?: string;
@@ -354,6 +351,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       selectedProjectId: null,
       isNewProject: false,
       newProjectName: '',
+      newProjectPercent: 60, // default to "Growth" level
       details: '',
       category: '',
       title: '',
@@ -388,13 +386,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       selectedProjectId: matchingProject ? matchingProject.id : null,
       isNewProject: false,
       newProjectName: '',
+      newProjectPercent: 60,
       details: evt.details || '',
       category: evt.category || '',
       title: evt.title,
       date: evt.date,
       isNewCategory: false,
       newCategoryName: '',
-      newCategoryColor: APP_COLORS[0],
+      newCategoryColor: themeColors[0],
     });
     setIsModalOpen(true);
   };
@@ -417,28 +416,35 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     let title = draftEvent.title || 'New Event';
     let color = '#9CA3AF'; // 默认灰色
     let selectedCategory = draftEvent.category;
+    let newCategoryColor: string | undefined = undefined;
 
     // Handle new category
     if (draftEvent.isNewCategory && draftEvent.newCategoryName?.trim()) {
       const catName = draftEvent.newCategoryName.trim();
-      const catColor = draftEvent.newCategoryColor || APP_COLORS[0];
+      const catColor = draftEvent.newCategoryColor || themeColors[0];
       setCategories((prev) => ({ ...prev, [catName]: catColor }));
       selectedCategory = catName;
+      newCategoryColor = catColor; // 保存新类别的颜色
     }
 
     if (draftEvent.isNewProject && draftEvent.newProjectName.trim()) {
+      const projectCategory = selectedCategory || null;
+      // 使用新类别颜色或已存在类别的颜色
+      const categoryColor = newCategoryColor || (projectCategory ? (categories[projectCategory] || '#9CA3AF') : '#9CA3AF');
       const newProject: Project = {
         id: Date.now(),
         name: draftEvent.newProjectName,
         time: '0h 0m',
-        percent: 0,
-        hexColor: '#9CA3AF', // 默认灰色，后期跟着 category 变色
-        category: null,
+        percent: draftEvent.newProjectPercent || 60, // use user-defined accumulation
+        hexColor: categoryColor, // 使用类别颜色
+        category: projectCategory, // 绑定事件的类别到项目
         x: 150,
         y: 150,
       };
       setProjects((prev) => [...prev, newProject]);
       title = newProject.name;
+      // Save the new project ID to link to the event
+      draftEvent.selectedProjectId = newProject.id;
       // 颜色跟着 category 走，不跟着 project 走
     } else if (draftEvent.selectedProjectId) {
       const proj = projects.find((p) => p.id === draftEvent.selectedProjectId);
@@ -449,7 +455,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     }
 
     // 颜色由 category 决定，如果选了 category 就用 category 的颜色
-    if (selectedCategory && categories[selectedCategory]) {
+    // 优先使用新创建类别的颜色
+    if (newCategoryColor) {
+      color = newCategoryColor;
+    } else if (selectedCategory && categories[selectedCategory]) {
       color = categories[selectedCategory];
     }
 
@@ -939,83 +948,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                   />
                 </View>
 
-                {/* ---- Project 选择 ---- */}
-                <View style={styles.card}>
-                  <Text style={styles.sectionLabel}>{t('calendar.project')}</Text>
-                  <View style={styles.projectGrid}>
-                    {projects.map((p) => {
-                      const active =
-                        !draftEvent.isNewProject &&
-                        draftEvent.selectedProjectId === p.id;
-                      return (
-                        <Pressable
-                          key={p.id}
-                          style={[
-                            styles.projectChip,
-                            active && styles.projectChipActive,
-                          ]}
-                          onPress={() =>
-                            setDraftEvent({
-                              ...draftEvent,
-                              isNewProject: false,
-                              selectedProjectId: p.id,
-                            })
-                          }
-                        >
-                          <View
-                            style={[
-                              styles.projectDot,
-                              { backgroundColor: p.hexColor },
-                            ]}
-                          />
-                          <Text
-                            numberOfLines={1}
-                            style={styles.projectChipText}
-                          >
-                            {p.name}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-
-                    <Pressable
-                      style={[
-                        styles.newProjectChip,
-                        draftEvent.isNewProject && styles.newProjectChipActive,
-                      ]}
-                      onPress={() =>
-                        setDraftEvent({ ...draftEvent, isNewProject: true })
-                      }
-                    >
-                      <Plus
-                        size={14}
-                        color={
-                          draftEvent.isNewProject ? '#2563EB' : '#6B7280'
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.newProjectText,
-                          draftEvent.isNewProject && { color: '#2563EB' },
-                        ]}
-                      >
-                        {t('projects.newProject')}
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  {draftEvent.isNewProject && (
-                    <TextInput
-                      style={styles.input}
-                      placeholder={t('projects.projectName')}
-                      value={draftEvent.newProjectName}
-                      onChangeText={(txt) =>
-                        setDraftEvent({ ...draftEvent, newProjectName: txt })
-                      }
-                    />
-                  )}
-                </View>
-
                 {/* ---- Event Category ---- */}
                 <View style={styles.card}>
                   <Text style={styles.sectionLabel}>{t('calendar.category')}</Text>
@@ -1122,6 +1054,171 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     </View>
                   )}
                 </View>
+
+                {/* ---- Project 选择 ---- */}
+                <View style={styles.card}>
+                  <Text style={styles.sectionLabel}>{t('calendar.project')}</Text>
+                  <Text style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12, lineHeight: 16 }}>
+                    {t('calendar.projectHint')}
+                  </Text>
+                  <View style={styles.projectGrid}>
+                    {projects.map((p) => {
+                      const active =
+                        !draftEvent.isNewProject &&
+                        draftEvent.selectedProjectId === p.id;
+                      return (
+                        <Pressable
+                          key={p.id}
+                          style={[
+                            styles.projectChip,
+                            active && styles.projectChipActive,
+                          ]}
+                          onPress={() =>
+                            setDraftEvent({
+                              ...draftEvent,
+                              isNewProject: false,
+                              selectedProjectId: p.id,
+                            })
+                          }
+                        >
+                          <View
+                            style={[
+                              styles.projectDot,
+                              { backgroundColor: p.hexColor },
+                            ]}
+                          />
+                          <Text
+                            numberOfLines={1}
+                            style={styles.projectChipText}
+                          >
+                            {p.name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+
+                    <Pressable
+                      style={[
+                        styles.newProjectChip,
+                        draftEvent.isNewProject && styles.newProjectChipActive,
+                      ]}
+                      onPress={() =>
+                        setDraftEvent({ ...draftEvent, isNewProject: true })
+                      }
+                    >
+                      <Plus
+                        size={14}
+                        color={
+                          draftEvent.isNewProject ? '#2563EB' : '#6B7280'
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.newProjectText,
+                          draftEvent.isNewProject && { color: '#2563EB' },
+                        ]}
+                      >
+                        {t('projects.newProject')}
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  {draftEvent.isNewProject && (
+                    <>
+                      <TextInput
+                        style={styles.input}
+                        placeholder={t('projects.projectName')}
+                        value={draftEvent.newProjectName}
+                        onChangeText={(txt) =>
+                          setDraftEvent({ ...draftEvent, newProjectName: txt })
+                        }
+                      />
+                      
+                      {/* Accumulation Slider */}
+                      <View style={{ marginTop: 16, paddingHorizontal: 4 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                            {t('projects.accumulation')}
+                          </Text>
+                          <View style={{ 
+                            paddingHorizontal: 10, 
+                            paddingVertical: 3, 
+                            borderRadius: 10, 
+                            backgroundColor: '#F3F4F6' 
+                          }}>
+                            <Text style={{ fontSize: 16, fontWeight: '800', color: '#000000' }}>
+                              {Math.round(draftEvent.newProjectPercent)}%
+                            </Text>
+                          </View>
+                        </View>
+
+                        <Text style={{ fontSize: 11, color: '#6B7280', lineHeight: 16, marginBottom: 12 }}>
+                          {t('projects.accumulationHint')}
+                        </Text>
+
+                        {/* Slider */}
+                        <View 
+                          style={{ height: 40, justifyContent: 'center', marginBottom: 6 }}
+                          onStartShouldSetResponder={() => true}
+                          onResponderGrant={(e) => {
+                            const locationX = e.nativeEvent.locationX;
+                            const containerWidth = 327; // Approximate width
+                            const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
+                            setDraftEvent({ ...draftEvent, newProjectPercent: Math.round(newPercent) });
+                          }}
+                          onResponderMove={(e) => {
+                            const locationX = e.nativeEvent.locationX;
+                            const containerWidth = 327;
+                            const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
+                            setDraftEvent({ ...draftEvent, newProjectPercent: Math.round(newPercent) });
+                          }}
+                        >
+                          <View style={{ 
+                            height: 6, 
+                            backgroundColor: '#E5E7EB', 
+                            borderRadius: 3,
+                            overflow: 'hidden',
+                          }}>
+                            <View style={{ 
+                              height: '100%', 
+                              width: `${draftEvent.newProjectPercent}%`, 
+                              backgroundColor: '#3B82F6',
+                              borderRadius: 3,
+                            }} />
+                          </View>
+                          
+                          {/* Draggable Handle */}
+                          <View 
+                            style={{ 
+                              position: 'absolute',
+                              left: `${draftEvent.newProjectPercent}%`,
+                              transform: [{ translateX: -10 }],
+                              width: 20,
+                              height: 20,
+                              borderRadius: 10,
+                              backgroundColor: '#FFFFFF',
+                              borderWidth: 2,
+                              borderColor: '#3B82F6',
+                              shadowColor: '#000',
+                              shadowOffset: { width: 0, height: 1 },
+                              shadowOpacity: 0.15,
+                              shadowRadius: 3,
+                              elevation: 3,
+                            }}
+                          />
+                        </View>
+
+                        {/* Scale Labels */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 1 }}>
+                          <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
+                          <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
+                          <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
+                          <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
+                        </View>
+                      </View>
+                    </>
+                  )}
+                </View>
               </ScrollView>
             )}
 
@@ -1144,15 +1241,22 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 type AnalyticsViewProps = {
   projects: Project[];
   events: EventItem[];
+  categories: CategoryMap;
   selectedColorScheme: string;
+  setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
+  setCategories: React.Dispatch<React.SetStateAction<CategoryMap>>;
 };
 
-const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selectedColorScheme }) => {
-  const { t } = useTranslation();
+const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categories, selectedColorScheme, setProjects, setCategories }) => {
+  const { t, i18n } = useTranslation();
   const [timeRange, setTimeRange] = useState<'Week' | 'Month' | 'Year'>('Week');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showPicker, setShowPicker] = useState(false);
+  const [distributionMode, setDistributionMode] = useState<'project' | 'category'>('category');
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [showUnassignedEvents, setShowUnassignedEvents] = useState(false);
   
   const days = i18n.language === 'zh' 
     ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -1168,6 +1272,11 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
 
   // 获取当前主题的颜色数组
   const themeColors = COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+
+  // Get current theme colors
+  const getCurrentThemeColors = () => {
+    return COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+  };
 
   // Get available months/years from events
   const availableYears = useMemo(() => {
@@ -1212,52 +1321,68 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
     }
   })();
 
-  // Calculate chart data based on timeRange
-  const chartData = (() => {
-    if (timeRange === 'Week') {
-      // Weekly data - 7 days (Mon-Sun)
-      const data = [0, 0, 0, 0, 0, 0, 0];
-      filteredEvents.forEach((evt) => {
-        const eventDate = new Date(evt.date);
+  // Calculate stacked chart data based on timeRange (by category)
+  const stackedChartData = (() => {
+    // Get number of bars based on timeRange
+    const barCount = timeRange === 'Week' ? 7 : timeRange === 'Year' ? 12 : 5;
+    
+    // Initialize: each bar is an array of { category, duration, color }
+    const data: Array<Array<{ category: string; duration: number; color: string }>> = 
+      Array.from({ length: barCount }, () => []);
+    
+    // Group events by time period and category
+    const periodCategoryMap: Map<number, Map<string, number>> = new Map();
+    
+    filteredEvents.forEach((evt) => {
+      const eventDate = new Date(evt.date);
+      let idx = -1;
+      
+      if (timeRange === 'Week') {
         const dayOfWeek = eventDate.getDay();
-        const idx = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-        if (idx >= 0 && idx < 7) {
-          data[idx] += evt.duration;
-        }
-      });
-      return data;
-    } else if (timeRange === 'Year') {
-      // Yearly data - 12 months
-      const data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-      filteredEvents.forEach((evt) => {
-        const eventDate = new Date(evt.date);
-        const monthIndex = eventDate.getMonth();
-        if (monthIndex >= 0 && monthIndex < 12) {
-          data[monthIndex] += evt.duration;
-        }
-      });
-      return data;
-    } else {
-      // Monthly data - group by date ranges (1-7, 8-14, 15-21, 22-28, 29-31)
-      const data = [0, 0, 0, 0, 0]; // 5 groups
-      filteredEvents.forEach((evt) => {
-        const eventDate = new Date(evt.date);
+        idx = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      } else if (timeRange === 'Year') {
+        idx = eventDate.getMonth();
+      } else {
+        // Month view
         const day = eventDate.getDate();
-        
-        let groupIndex = -1;
-        if (day >= 1 && day <= 7) groupIndex = 0;
-        else if (day >= 8 && day <= 14) groupIndex = 1;
-        else if (day >= 15 && day <= 21) groupIndex = 2;
-        else if (day >= 22 && day <= 28) groupIndex = 3;
-        else if (day >= 29) groupIndex = 4;
-        
-        if (groupIndex >= 0 && groupIndex < 5) {
-          data[groupIndex] += evt.duration;
+        if (day >= 1 && day <= 7) idx = 0;
+        else if (day >= 8 && day <= 14) idx = 1;
+        else if (day >= 15 && day <= 21) idx = 2;
+        else if (day >= 22 && day <= 28) idx = 3;
+        else if (day >= 29) idx = 4;
+      }
+      
+      if (idx >= 0 && idx < barCount) {
+        if (!periodCategoryMap.has(idx)) {
+          periodCategoryMap.set(idx, new Map());
         }
+        const categoryMap = periodCategoryMap.get(idx)!;
+        const category = evt.category || 'uncategorized';
+        categoryMap.set(category, (categoryMap.get(category) || 0) + evt.duration);
+      }
+    });
+    
+    // Convert to stacked data format
+    periodCategoryMap.forEach((categoryMap, idx) => {
+      categoryMap.forEach((duration, category) => {
+        data[idx].push({
+          category,
+          duration,
+          color: categories[category] || '#9CA3AF',
+        });
       });
-      return data;
-    }
+      // Sort by duration descending so larger segments are at bottom
+      data[idx].sort((a, b) => b.duration - a.duration);
+    });
+    
+    return data;
   })();
+
+  // Calculate total for each bar (for height calculation)
+  const chartTotals = stackedChartData.map(bar => 
+    bar.reduce((sum, segment) => sum + segment.duration, 0)
+  );
+  const maxVal = Math.max(...chartTotals);
 
   // Labels for chart
   const chartLabels = (() => {
@@ -1276,7 +1401,6 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
     }
   })();
 
-  const maxVal = Math.max(...chartData);
 
   // Calculate total focus time (based on filtered events)
   const totalMinutes = filteredEvents.reduce((sum, evt) => sum + evt.duration, 0);
@@ -1285,9 +1409,12 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
 
   // Calculate time distribution by project (based on filtered events)
   const projectTimeMap = new Map<number, number>();
+  let unassignedProjectTime = 0;
   filteredEvents.forEach((evt) => {
     if (evt.projectId) {
       projectTimeMap.set(evt.projectId, (projectTimeMap.get(evt.projectId) || 0) + evt.duration);
+    } else {
+      unassignedProjectTime += evt.duration;
     }
   });
 
@@ -1295,8 +1422,35 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
     .map((p) => ({
       ...p,
       duration: projectTimeMap.get(p.id) || 0,
-      percent: totalMinutes > 0 ? Math.round((projectTimeMap.get(p.id) || 0) / totalMinutes * 100) : 0,
+      timeShare: totalMinutes > 0 ? Math.round((projectTimeMap.get(p.id) || 0) / totalMinutes * 100) : 0,
     }))
+    .filter((p) => p.duration > 0) // 只显示有时间的项目
+    .sort((a, b) => b.duration - a.duration); // 按时长降序排序
+
+  // 添加未分配项目行
+  const unassignedProject = unassignedProjectTime > 0 ? {
+    id: -1,
+    name: t('calendar.uncategorized'),
+    hexColor: '#9CA3AF',
+    duration: unassignedProjectTime,
+    timeShare: totalMinutes > 0 ? Math.round((unassignedProjectTime / totalMinutes) * 100) : 0,
+  } : null;
+
+  // Calculate time distribution by category (based on filtered events)
+  const categoryTimeMap = new Map<string, number>();
+  filteredEvents.forEach((evt) => {
+    const category = evt.category || 'uncategorized';
+    categoryTimeMap.set(category, (categoryTimeMap.get(category) || 0) + evt.duration);
+  });
+
+  const categoriesWithTime = Array.from(categoryTimeMap.entries())
+    .map(([name, duration]) => ({
+      name,
+      color: categories[name] || '#9CA3AF',
+      duration,
+      percent: totalMinutes > 0 ? Math.round((duration / totalMinutes) * 100) : 0,
+    }))
+    .filter((c) => c.duration > 0) // 只显示有时间的类别
     .sort((a, b) => b.duration - a.duration); // 按时长降序排序
 
   // 根据时间范围显示不同的副标题
@@ -1321,6 +1475,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
       <ScrollView
         style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}
         contentContainerStyle={{ paddingBottom: 24 }}
+        onScrollBeginDrag={() => showPicker && setShowPicker(false)}
       >
         <View style={styles.toggleContainer}>
           {(['Week', 'Month', 'Year'] as const).map((range) => {
@@ -1368,8 +1523,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
                       
                       {/* Inline Picker Dropdown */}
                       {showPicker && (
-                        <View style={styles.pickerDropdown}>
-                          <ScrollView style={{ maxHeight: 200 }}>
+                        <>
+                          {/* Backdrop to close picker */}
+                          <Pressable 
+                            style={{ position: 'absolute', top: -200, left: -200, right: -200, bottom: -500, zIndex: 999 }} 
+                            onPress={() => setShowPicker(false)} 
+                          />
+                          <View style={[styles.pickerDropdown, { zIndex: 1000 }]}>
+                            <ScrollView style={{ maxHeight: 132 }} nestedScrollEnabled={true}>
                             {timeRange === 'Month' 
                               ? availableMonths.map((month) => {
                                   const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
@@ -1415,6 +1576,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
                             }
                           </ScrollView>
                         </View>
+                        </>
                       )}
                     </>
                   ) : (
@@ -1429,8 +1591,9 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
             </Text>
           </View>
           <View style={styles.barChartRow}>
-            {chartData.map((val, idx) => {
-              const height = maxVal ? (val / maxVal) * 100 : 0;
+            {stackedChartData.map((barSegments, idx) => {
+              const barTotal = chartTotals[idx];
+              const barHeight = maxVal ? (barTotal / maxVal) * 100 : 0;
               return (
                 <View 
                   key={idx} 
@@ -1440,15 +1603,21 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
                   ]}
                 >
                   <View style={styles.barBackground}>
-                    <View
-                      style={[
-                        styles.barFill,
-                        {
-                          height: `${height}%`,
-                          backgroundColor: themeColors[idx % themeColors.length],
-                        },
-                      ]}
-                    />
+                    <View style={{ height: `${barHeight}%`, width: '100%', flexDirection: 'column-reverse', borderRadius: 4, overflow: 'hidden' }}>
+                      {barSegments.map((segment, segIdx) => {
+                        const segmentPercent = barTotal > 0 ? (segment.duration / barTotal) * 100 : 0;
+                        return (
+                          <View
+                            key={segIdx}
+                            style={{
+                              height: `${segmentPercent}%`,
+                              width: '100%',
+                              backgroundColor: segment.color,
+                            }}
+                          />
+                        );
+                      })}
+                    </View>
                   </View>
                   <Text style={styles.barLabel}>{chartLabels[idx]}</Text>
                 </View>
@@ -1457,12 +1626,60 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>{t('analytics.projects')}</Text>
-        {projectsWithTime.map((p) => {
+        {/* Distribution Mode Toggle */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <Text style={styles.sectionTitle}>{t('analytics.projects')}</Text>
+          <View style={{ flexDirection: 'row', gap: 4, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 2 }}>
+            <Pressable
+              onPress={() => setDistributionMode('category')}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 6,
+                backgroundColor: distributionMode === 'category' ? '#FFFFFF' : 'transparent',
+              }}
+            >
+              <Text style={{
+                fontSize: 12,
+                fontWeight: '600',
+                color: distributionMode === 'category' ? '#000000' : '#6B7280',
+              }}>
+                {t('analytics.byCategory')}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setDistributionMode('project')}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 6,
+                backgroundColor: distributionMode === 'project' ? '#FFFFFF' : 'transparent',
+              }}
+            >
+              <Text style={{
+                fontSize: 12,
+                fontWeight: '600',
+                color: distributionMode === 'project' ? '#000000' : '#6B7280',
+              }}>
+                {t('analytics.byProject')}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Distribution List - By Project */}
+        {distributionMode === 'project' && projectsWithTime.map((p) => {
           const hours = Math.floor(p.duration / 60);
           const mins = p.duration % 60;
           return (
-            <View key={p.id} style={styles.projectRow}>
+            <Pressable 
+              key={p.id} 
+              style={styles.projectRow}
+              onPress={() => {
+                setEditingProject(p);
+                setModalOpen(true);
+              }}
+            >
               <View style={styles.projectRowHeader}>
                 <View style={styles.projectRowLeft}>
                   <View
@@ -1481,7 +1698,77 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
                 <View
                   style={[
                     styles.progressFill,
-                    { width: `${p.percent}%`, backgroundColor: p.hexColor },
+                    { width: `${p.timeShare}%`, backgroundColor: p.hexColor },
+                  ]}
+                />
+              </View>
+            </Pressable>
+          );
+        })}
+
+        {/* Unassigned Project */}
+        {distributionMode === 'project' && unassignedProject && (() => {
+          const hours = Math.floor(unassignedProject.duration / 60);
+          const mins = unassignedProject.duration % 60;
+          return (
+            <Pressable 
+              key="unassigned" 
+              style={styles.projectRow}
+              onPress={() => setShowUnassignedEvents(true)}
+            >
+              <View style={styles.projectRowHeader}>
+                <View style={styles.projectRowLeft}>
+                  <View
+                    style={[
+                      styles.projectDot,
+                      { backgroundColor: unassignedProject.hexColor },
+                    ]}
+                  />
+                  <Text style={styles.projectRowName} numberOfLines={1} ellipsizeMode="tail">{unassignedProject.name}</Text>
+                </View>
+                <Text style={styles.projectRowTime}>
+                  {hours}{t('common.hours')} {mins}{t('common.minutes')}
+                </Text>
+              </View>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${unassignedProject.timeShare}%`, backgroundColor: unassignedProject.hexColor },
+                  ]}
+                />
+              </View>
+            </Pressable>
+          );
+        })()}
+
+        {/* Distribution List - By Category */}
+        {distributionMode === 'category' && categoriesWithTime.map((c) => {
+          const hours = Math.floor(c.duration / 60);
+          const mins = c.duration % 60;
+          return (
+            <View key={c.name} style={styles.projectRow}>
+              <View style={styles.projectRowHeader}>
+                <View style={styles.projectRowLeft}>
+                  <View
+                    style={[
+                      styles.projectDot,
+                      { backgroundColor: c.color },
+                    ]}
+                  />
+                  <Text style={styles.projectRowName} numberOfLines={1} ellipsizeMode="tail">
+                    {c.name === 'uncategorized' ? t('calendar.uncategorized') : c.name}
+                  </Text>
+                </View>
+                <Text style={styles.projectRowTime}>
+                  {hours}{t('common.hours')} {mins}{t('common.minutes')}
+                </Text>
+              </View>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${c.percent}%`, backgroundColor: c.color },
                   ]}
                 />
               </View>
@@ -1489,11 +1776,492 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, selecte
           );
         })}
       </ScrollView>
+
+      {/* Edit Project Modal */}
+      {modalOpen && editingProject && (
+        <Modal
+          visible={modalOpen}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setModalOpen(false)}
+        >
+          <Pressable 
+            style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'flex-end' }}
+            onPress={() => setModalOpen(false)}
+          >
+            <View 
+              style={{ 
+                backgroundColor: '#FFFFFF', 
+                borderTopLeftRadius: 24, 
+                borderTopRightRadius: 24, 
+                paddingTop: 20,
+                paddingBottom: 40,
+                maxHeight: '80%',
+              }}
+            >
+              {/* Header */}
+              <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                  <View style={{ flex: 1, marginRight: 16 }}>
+                    <TextInput
+                      style={{ 
+                        fontSize: 28, 
+                        fontWeight: '700', 
+                        color: '#000000',
+                        padding: 0,
+                        margin: 0,
+                      }}
+                      value={editingProject.name}
+                      onChangeText={(text) => setEditingProject({ ...editingProject, name: text })}
+                      placeholder="Project Name"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  </View>
+                  <Pressable 
+                    onPress={() => setModalOpen(false)}
+                    style={{ 
+                      width: 32, 
+                      height: 32, 
+                      borderRadius: 16, 
+                      backgroundColor: '#F3F4F6', 
+                      justifyContent: 'center', 
+                      alignItems: 'center' 
+                    }}
+                  >
+                    <X size={18} color="#6B7280" />
+                  </Pressable>
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: '#6B7280' }}>{t('projects.editDetails')}</Text>
+              </View>
+
+              <ScrollView 
+                style={{ flexGrow: 1 }}
+                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Section 1: Accumulation (Progress) */}
+                <View style={{ marginBottom: 32 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      {t('projects.accumulation')}
+                    </Text>
+                    <View style={{ 
+                      paddingHorizontal: 12, 
+                      paddingVertical: 4, 
+                      borderRadius: 12, 
+                      backgroundColor: editingProject.percent >= 100 ? '#10B981' : '#F3F4F6' 
+                    }}>
+                      <Text style={{ 
+                        fontSize: 18, 
+                        fontWeight: '800', 
+                        color: editingProject.percent >= 100 ? '#FFFFFF' : '#000000' 
+                      }}>
+                        {Math.round(editingProject.percent)}%
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Hint Text */}
+                  <Text style={{ fontSize: 12, color: '#6B7280', lineHeight: 18, marginBottom: 16 }}>
+                    {t('projects.accumulationHint')}
+                  </Text>
+
+                  {/* Progress Bar - Draggable */}
+                  <View 
+                    style={{ height: 48, justifyContent: 'center', marginBottom: 8 }}
+                    onStartShouldSetResponder={() => true}
+                    onResponderGrant={(e) => {
+                      const locationX = e.nativeEvent.locationX;
+                      const containerWidth = 327; // Approximate width (screen width - 48px padding)
+                      const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
+                      setEditingProject({ ...editingProject, percent: Math.round(newPercent) });
+                    }}
+                    onResponderMove={(e) => {
+                      const locationX = e.nativeEvent.locationX;
+                      const containerWidth = 327;
+                      const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
+                      setEditingProject({ ...editingProject, percent: Math.round(newPercent) });
+                    }}
+                  >
+                    <View style={{ 
+                      height: 8, 
+                      backgroundColor: '#F3F4F6', 
+                      borderRadius: 4,
+                      overflow: 'hidden',
+                    }}>
+                      <View style={{ 
+                        height: '100%', 
+                        width: `${editingProject.percent}%`, 
+                        backgroundColor: editingProject.hexColor,
+                        borderRadius: 4,
+                      }} />
+                    </View>
+                    
+                    {/* Draggable Handle */}
+                    <View 
+                      style={{ 
+                        position: 'absolute',
+                        left: `${editingProject.percent}%`,
+                        transform: [{ translateX: -12 }],
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: '#FFFFFF',
+                        borderWidth: 3,
+                        borderColor: editingProject.hexColor,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 4,
+                        elevation: 4,
+                      }}
+                    />
+                  </View>
+
+                  {/* Scale Labels */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 }}>
+                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
+                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
+                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
+                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
+                  </View>
+                </View>
+
+                {/* Section 2: Category */}
+                <View style={{ marginBottom: 32 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
+                    {t('projects.category')}
+                  </Text>
+                  
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {/* Uncategorized Option */}
+                    <Pressable
+                      onPress={() => setEditingProject({ ...editingProject, category: null, hexColor: '#9CA3AF' })}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 10,
+                        borderRadius: 20,
+                        backgroundColor: !editingProject.category ? '#1F2937' : '#F9FAFB',
+                        borderWidth: 2,
+                        borderColor: !editingProject.category ? '#1F2937' : '#E5E7EB',
+                      }}
+                    >
+                      <Text style={{ 
+                        fontSize: 13, 
+                        fontWeight: '700', 
+                        color: !editingProject.category ? '#FFFFFF' : '#6B7280' 
+                      }}>
+                        {t('projects.uncategorized')}
+                      </Text>
+                    </Pressable>
+
+                    {/* Existing Categories */}
+                    {Object.entries(categories).map(([catName, catColor]) => {
+                      const isSelected = editingProject.category === catName;
+                      return (
+                        <Pressable
+                          key={catName}
+                          onPress={() => setEditingProject({ ...editingProject, category: catName, hexColor: catColor })}
+                          style={{
+                            paddingHorizontal: 16,
+                            paddingVertical: 10,
+                            borderRadius: 20,
+                            backgroundColor: isSelected ? catColor : '#FFFFFF',
+                            borderWidth: 2,
+                            borderColor: catColor,
+                          }}
+                        >
+                          <Text style={{ 
+                            fontSize: 13, 
+                            fontWeight: '700', 
+                            color: isSelected ? '#FFFFFF' : catColor 
+                          }}>
+                            {catName}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Section 3: Create New Category */}
+                <View style={{ 
+                  backgroundColor: '#F9FAFB', 
+                  padding: 16, 
+                  borderRadius: 16, 
+                  borderWidth: 1, 
+                  borderColor: '#E5E7EB' 
+                }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
+                    {t('projects.createNewCategory')}
+                  </Text>
+
+                  <TextInput
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderWidth: 1,
+                      borderColor: '#E5E7EB',
+                      borderRadius: 12,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      fontSize: 15,
+                      fontWeight: '500',
+                      color: '#000000',
+                      marginBottom: 16,
+                    }}
+                    placeholder={t('projects.categoryNamePlaceholder')}
+                    placeholderTextColor="#9CA3AF"
+                    value={(editingProject as any).newCategoryName || ''}
+                    onChangeText={(text) => setEditingProject({ ...editingProject, newCategoryName: text } as any)}
+                  />
+
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 12 }}>
+                    {t('common.color')}
+                  </Text>
+
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+                    {getCurrentThemeColors().map((color) => {
+                      const isSelected = ((editingProject as any).newCategoryColor || getCurrentThemeColors()[0]) === color;
+                      return (
+                        <Pressable
+                          key={color}
+                          onPress={() => setEditingProject({ ...editingProject, newCategoryColor: color } as any)}
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: color,
+                            borderWidth: isSelected ? 3 : 2,
+                            borderColor: isSelected ? '#000000' : '#FFFFFF',
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                            elevation: 3,
+                          }}
+                        />
+                      );
+                    })}
+                  </View>
+
+                  <Pressable
+                    onPress={() => {
+                      if ((editingProject as any).newCategoryName?.trim()) {
+                        const newCatName = (editingProject as any).newCategoryName.trim();
+                        const newCatColor = (editingProject as any).newCategoryColor || getCurrentThemeColors()[0];
+                        setCategories(prev => ({ ...prev, [newCatName]: newCatColor }));
+                        setEditingProject({ 
+                          ...editingProject, 
+                          category: newCatName, 
+                          hexColor: newCatColor,
+                          newCategoryName: '',
+                          newCategoryColor: undefined,
+                        } as any);
+                      }
+                    }}
+                    style={{
+                      backgroundColor: (editingProject as any).newCategoryName?.trim() ? '#3B82F6' : '#E5E7EB',
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                    }}
+                    disabled={!(editingProject as any).newCategoryName?.trim()}
+                  >
+                    <Text style={{ 
+                      fontSize: 15, 
+                      fontWeight: '700', 
+                      color: (editingProject as any).newCategoryName?.trim() ? '#FFFFFF' : '#9CA3AF' 
+                    }}>
+                      {t('projects.createAndAssign')}
+                    </Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+
+              {/* Save Button */}
+              <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
+                <Pressable
+                  onPress={() => {
+                    setProjects(prev => prev.map(p => 
+                      p.id === editingProject.id ? editingProject : p
+                    ));
+                    setModalOpen(false);
+                  }}
+                  style={{
+                    backgroundColor: '#000000',
+                    paddingVertical: 16,
+                    borderRadius: 16,
+                    alignItems: 'center',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 17, fontWeight: '700', color: '#FFFFFF' }}>
+                    {t('common.save')}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
+
+      {/* Unassigned Events Modal */}
+      {showUnassignedEvents && (() => {
+        const unassignedEvents = filteredEvents.filter(evt => !evt.projectId);
+        return (
+          <Modal
+            visible={showUnassignedEvents}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowUnassignedEvents(false)}
+          >
+            <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'flex-end' }}>
+              {/* Backdrop */}
+              <Pressable 
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                onPress={() => setShowUnassignedEvents(false)}
+              />
+              
+              {/* Content */}
+              <View 
+                style={{ 
+                  backgroundColor: '#FFFFFF', 
+                  borderTopLeftRadius: 24, 
+                  borderTopRightRadius: 24, 
+                  paddingTop: 20,
+                  paddingBottom: 40,
+                  maxHeight: '80%',
+                }}
+              >
+                {/* Header */}
+                <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View>
+                      <Text style={{ fontSize: 24, fontWeight: '700', color: '#000000' }}>
+                        {t('calendar.uncategorized')}
+                      </Text>
+                      <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>
+                        {unassignedEvents.length} {unassignedEvents.length === 1 ? t('calendar.eventTitle') : t('calendar.eventTitle')}
+                      </Text>
+                    </View>
+                    <Pressable 
+                      onPress={() => setShowUnassignedEvents(false)}
+                      style={{ 
+                        width: 32, 
+                        height: 32, 
+                        borderRadius: 16, 
+                        backgroundColor: '#F3F4F6', 
+                        justifyContent: 'center', 
+                        alignItems: 'center' 
+                      }}
+                    >
+                      <X size={18} color="#6B7280" />
+                    </Pressable>
+                  </View>
+                </View>
+
+                {/* Events List */}
+                <ScrollView 
+                  style={{ flexGrow: 1 }}
+                  contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {unassignedEvents.length === 0 ? (
+                    <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 15, color: '#9CA3AF', textAlign: 'center' }}>
+                        {t('projects.noProjectsYet')}
+                      </Text>
+                    </View>
+                  ) : (
+                    unassignedEvents.map((evt, index) => {
+                      const eventDate = new Date(evt.date);
+                      const hours = Math.floor(evt.duration / 60);
+                      const mins = evt.duration % 60;
+                      const categoryColor = evt.category ? (categories[evt.category] || '#9CA3AF') : '#9CA3AF';
+                      
+                      return (
+                        <View 
+                          key={`${evt.date}-${evt.start}-${index}`}
+                          style={{
+                            backgroundColor: '#F9FAFB',
+                            borderRadius: 12,
+                            padding: 16,
+                            marginBottom: 12,
+                            borderLeftWidth: 4,
+                            borderLeftColor: categoryColor,
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                            <Text style={{ fontSize: 16, fontWeight: '600', color: '#000000', flex: 1 }}>
+                              {evt.title || t('calendar.newEvent')}
+                            </Text>
+                            <View style={{ 
+                              paddingHorizontal: 8, 
+                              paddingVertical: 4, 
+                              backgroundColor: '#FFFFFF',
+                              borderRadius: 6,
+                            }}>
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: '#6B7280' }}>
+                                {hours > 0 && `${hours}${t('common.hours')} `}{mins}{t('common.minutes')}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: categoryColor }} />
+                              <Text style={{ fontSize: 13, color: '#6B7280' }}>
+                                {evt.category || t('calendar.uncategorized')}
+                              </Text>
+                            </View>
+                            <Text style={{ fontSize: 13, color: '#9CA3AF' }}>•</Text>
+                            <Text style={{ fontSize: 13, color: '#6B7280' }}>
+                              {eventDate.toLocaleDateString(i18n.language === 'zh' ? 'zh-CN' : 'en-US', { 
+                                month: 'short', 
+                                day: 'numeric' 
+                              })}
+                            </Text>
+                          </View>
+
+                          {evt.details && (
+                            <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 8, lineHeight: 18 }}>
+                              {evt.details}
+                            </Text>
+                          )}
+                        </View>
+                      );
+                    })
+                  )}
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+        );
+      })()}
     </View>
   );
 };
 
-// --- GRAVITY CLUSTERS VIEW ---
+// --- PROJECT QUADRANT MAP VIEW ---
+
+type TimeRangeType = '30d' | '90d' | 'year';
+
+type ProjectDataPoint = {
+  id: number;
+  name: string;
+  category: string | null;
+  color: string;
+  durationHours: number;
+  share: number; // 0-1 percentage
+  accumulation: number; // 0-100
+  recentActivity: number; // days since last event
+  x: number; // chart x position (0-1)
+  y: number; // chart y position (0-1)
+};
 
 type ProjectsViewProps = {
   projects: Project[];
@@ -1504,191 +2272,174 @@ type ProjectsViewProps = {
   setEvents: React.Dispatch<React.SetStateAction<EventItem[]>>;
   selectedColorScheme: string;
   setSelectedColorScheme: React.Dispatch<React.SetStateAction<string>>;
+  onGoToCalendar?: () => void;
 };
 
-const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categories, setProjects, setCategories, setEvents, selectedColorScheme, setSelectedColorScheme }) => {
-  const { t, i18n } = useTranslation();
+const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categories, setProjects, setCategories, setEvents, selectedColorScheme, setSelectedColorScheme, onGoToCalendar }) => {
+  const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedStyle, setSelectedStyle] = useState('gravity');
-  const [selectedNode, setSelectedNode] = useState<Project | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [timeRange, setTimeRange] = useState<TimeRangeType>('30d');
+  const [selectedProject, setSelectedProject] = useState<ProjectDataPoint | null>(null);
   const [showColorTheme, setShowColorTheme] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
-  const containerRef = useRef<View>(null);
-  
-  // 缩放状态 - Pinch to zoom
-  const [scale, setScale] = useState(1);
-  const scaleRef = useRef(1);
-  const initialDistance = useRef(0);
-  const MIN_SCALE = 0.5;
-  const MAX_SCALE = 3;
+  const [selectedNode, setSelectedNode] = useState<Project | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [chartWidth, setChartWidth] = useState(320);
 
-  // 获取当前主题的颜色数组
+  // Chart dimensions
+  const CHART_PADDING = { top: 40, right: 20, bottom: 60, left: 28 };
+  const CHART_HEIGHT = 340; // ~55% of screen for chart area
+  const chartInnerWidth = chartWidth - CHART_PADDING.left - CHART_PADDING.right;
+  const chartInnerHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
+  
+  // Quadrant thresholds
+  const SHARE_THRESHOLD = 0.10; // 10% time share
+  const ACCUMULATION_THRESHOLD = 60; // 60% accumulation
+
+  // Get current theme colors
   const getCurrentThemeColors = () => {
     return COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
   };
 
-  // 获取 category 颜色
+  // Get category color
   const getCategoryColor = (categoryName: string | null): string => {
-    if (!categoryName) return '#9CA3AF'; // uncategorized gray
+    if (!categoryName) return '#9CA3AF';
     return categories[categoryName] || '#9CA3AF';
   };
 
-  // 物理模拟：聚类引力效果
-  useEffect(() => {
-    let animationFrameId: number;
+  // Calculate project data for quadrant chart
+  const projectDataPoints = useMemo((): ProjectDataPoint[] => {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
     
-    // 画布尺寸
-    const CANVAS_WIDTH = 800;
-    const CANVAS_HEIGHT = 1200;
+    // Calculate date range
+    let startDate: Date;
+    if (timeRange === '30d') {
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 30);
+    } else if (timeRange === '90d') {
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 90);
+    } else {
+      startDate = new Date(today.getFullYear(), 0, 1); // Jan 1st of current year
+    }
+    startDate.setHours(0, 0, 0, 0);
+
+    // Filter events in time range
+    const filteredEvents = events.filter(evt => {
+      const evtDate = new Date(evt.date);
+      return evtDate >= startDate && evtDate <= today;
+    });
+
+    // Calculate total duration in range
+    const totalDuration = filteredEvents.reduce((sum, evt) => sum + evt.duration, 0);
+
+    // Calculate per-project metrics
+    const projectMetrics = new Map<number, { duration: number; lastEventDate: Date }>();
     
-    const simulate = () => {
-      setProjects((prevProjects) => {
-        const nextProjects = prevProjects.map((p) => ({
-          ...p,
-          vx: (p.vx || 0) * 0.9,
-          vy: (p.vy || 0) * 0.9,
-        }));
+    filteredEvents.forEach(evt => {
+      if (!evt.projectId) return;
+      const current = projectMetrics.get(evt.projectId) || { duration: 0, lastEventDate: new Date(0) };
+      current.duration += evt.duration;
+      const evtDate = new Date(evt.date);
+      if (evtDate > current.lastEventDate) {
+        current.lastEventDate = evtDate;
+      }
+      projectMetrics.set(evt.projectId, current);
+    });
 
-        // 计算类别中心点 - 与渲染逻辑一致
-        const catCenters: Record<string, { x: number; y: number }> = {};
-        const categoryArray = Object.keys(categories);
-        
-        // 计算每个类别的项目数量
-        const projectCountPerCategory: Record<string, number> = {};
-        nextProjects.forEach(p => {
-          const catName = p.category || 'uncategorized';
-          projectCountPerCategory[catName] = (projectCountPerCategory[catName] || 0) + 1;
-        });
-        
-        // 根据项目数量计算半径
-        const calculateRadius = (count: number): number => {
-          const baseRadius = 100;
-          const minRadius = 80;
-          const maxRadius = 200;
-          const dynamicRadius = baseRadius + (count - 1) * 15;
-          return Math.max(minRadius, Math.min(maxRadius, dynamicRadius));
-        };
-        
-        // 如果没有任何 category，uncategorized 在中间
-        if (categoryArray.length === 0) {
-          catCenters['uncategorized'] = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
-        } else {
-          // 按项目数量排序
-          const sortedCategories = [...categoryArray].sort((a, b) => {
-            const countA = projectCountPerCategory[a] || 0;
-            const countB = projectCountPerCategory[b] || 0;
-            return countB - countA;
-          });
-          
-          // 使用网格布局
-          sortedCategories.forEach((catName, i) => {
-            const cols = 2;
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            const x = 200 + col * 350;
-            const y = 200 + row * 350;
-            catCenters[catName] = { x, y };
-          });
-          
-          // Uncategorized 固定在画布底部
-          catCenters['uncategorized'] = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 150 };
-        }
+    // Convert to data points
+    const dataPoints: ProjectDataPoint[] = [];
 
-        // 排斥力：防止节点重叠（包括下方标签空间）
-        for (let i = 0; i < nextProjects.length; i++) {
-          for (let j = i + 1; j < nextProjects.length; j++) {
-            const p1 = nextProjects[i];
-            const p2 = nextProjects[j];
-            const dx = p1.x - p2.x;
-            const dy = p1.y - p2.y;
-            const distSq = dx * dx + dy * dy;
-            const dist = Math.sqrt(distSq) || 1;
+    projects.forEach(project => {
+      const metrics = projectMetrics.get(project.id);
+      if (!metrics || metrics.duration === 0) return; // Skip projects with no time in range
 
-            const r1 = 30 + (p1.percent / 100) * 10;
-            const r2 = 30 + (p2.percent / 100) * 10;
-            // 增加间距以容纳下方标签（约30px高度）
-            const minSpace = r1 + r2 + 50;
+      const durationHours = metrics.duration / 60;
+      const share = totalDuration > 0 ? metrics.duration / totalDuration : 0;
+      const daysSinceLastEvent = Math.floor((today.getTime() - metrics.lastEventDate.getTime()) / (1000 * 60 * 60 * 24));
 
-            if (dist < minSpace) {
-              const force = ((minSpace - dist) / dist) * 0.6;
-              const fx = dx * force;
-              const fy = dy * force;
-              p1.vx = (p1.vx || 0) + fx;
-              p1.vy = (p1.vy || 0) + fy;
-              p2.vx = (p2.vx || 0) - fx;
-              p2.vy = (p2.vy || 0) - fy;
-            }
-          }
-        }
-
-        // 吸引力：将节点吸向类别中心
-        nextProjects.forEach((p) => {
-          const center = p.category ? catCenters[p.category] : catCenters['uncategorized'];
-          if (!center) return;
-
-          const dx = center.x - p.x;
-          const dy = center.y - p.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-
-          const force = dist * 0.008;
-          p.vx = (p.vx || 0) + (dx / dist) * force;
-          p.vy = (p.vy || 0) + (dy / dist) * force;
-        });
-
-        // 应用速度与边界检查
-        return nextProjects.map((p) => {
-          let newX = p.x + (p.vx || 0);
-          let newY = p.y + (p.vy || 0);
-
-          // 更新边界以匹配更大的画布
-          if (newX < 30) {
-            newX = 30;
-            p.vx = (p.vx || 0) * -0.5;
-          }
-          if (newX > CANVAS_WIDTH - 30) {
-            newX = CANVAS_WIDTH - 30;
-            p.vx = (p.vx || 0) * -0.5;
-          }
-          if (newY < 30) {
-            newY = 30;
-            p.vy = (p.vy || 0) * -0.5;
-          }
-          if (newY > CANVAS_HEIGHT - 30) {
-            newY = CANVAS_HEIGHT - 30;
-            p.vy = (p.vy || 0) * -0.5;
-          }
-
-          return { ...p, x: newX, y: newY };
-        });
+      dataPoints.push({
+        id: project.id,
+        name: project.name,
+        category: project.category,
+        color: getCategoryColor(project.category),
+        durationHours,
+        share,
+        accumulation: project.percent,
+        recentActivity: daysSinceLastEvent,
+        x: share, // Use share directly (0-1 range)
+        y: project.percent / 100, // Normalize to 0-1
       });
+    });
 
-      animationFrameId = requestAnimationFrame(simulate);
-    };
+    return dataPoints;
+  }, [projects, events, timeRange, categories]);
 
-    animationFrameId = requestAnimationFrame(simulate);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [categories, setProjects]);
+  // Get suggestion text based on quadrant
+  const getSuggestion = (share: number, accumulation: number): string => {
+    const isHighShare = share >= SHARE_THRESHOLD;
+    const isHighAccum = accumulation >= ACCUMULATION_THRESHOLD;
+    
+    if (isHighShare && isHighAccum) return t('visualization.suggestionTopRight');
+    if (!isHighShare && isHighAccum) return t('visualization.suggestionTopLeft');
+    if (isHighShare && !isHighAccum) return t('visualization.suggestionBottomRight');
+    return t('visualization.suggestionBottomLeft');
+  };
 
-  const handleNodeClick = (project: Project) => {
-    setSelectedNode({ ...project });
-    setModalOpen(true);
+  // Get quadrant label
+  const getQuadrantLabel = (share: number, accumulation: number): string => {
+    const isHighShare = share >= SHARE_THRESHOLD;
+    const isHighAccum = accumulation >= ACCUMULATION_THRESHOLD;
+    
+    if (isHighShare && isHighAccum) return t('visualization.quadrantTopRight');
+    if (!isHighShare && isHighAccum) return t('visualization.quadrantTopLeft');
+    if (isHighShare && !isHighAccum) return t('visualization.quadrantBottomRight');
+    return t('visualization.quadrantBottomLeft');
+  };
+
+  // Calculate bubble radius based on duration
+  const getBubbleRadius = (durationHours: number, allDurations: number[]): number => {
+    const minRadius = 16;
+    const maxRadius = 40;
+    const maxDuration = Math.max(...allDurations, 1);
+    const k = (maxRadius - minRadius) / Math.sqrt(maxDuration);
+    return Math.min(maxRadius, minRadius + k * Math.sqrt(durationHours));
+  };
+
+  // Calculate opacity based on recent activity
+  const getOpacity = (daysSinceLastEvent: number): number => {
+    if (daysSinceLastEvent <= 7) return 1;
+    if (daysSinceLastEvent <= 14) return 0.85;
+    if (daysSinceLastEvent <= 30) return 0.6;
+    return 0.35;
+  };
+
+  // Handle bubble press
+  const handleBubblePress = (dataPoint: ProjectDataPoint) => {
+    setSelectedProject(dataPoint);
+  };
+
+  // Handle long press to edit
+  const handleBubbleLongPress = (dataPoint: ProjectDataPoint) => {
+    const project = projects.find(p => p.id === dataPoint.id);
+    if (project) {
+      setSelectedNode({ ...project });
+      setModalOpen(true);
+    }
   };
 
   const handleImportData = async () => {
     try {
-      // 使用 DocumentPicker 选择多个JSON文件
       const DocumentPicker = require('expo-document-picker');
       
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/json',
-        multiple: true, // 支持多选
+        multiple: true,
         copyToCacheDirectory: true,
       });
 
-      if (result.canceled) {
-        return;
-      }
+      if (result.canceled) return;
 
       const files = result.assets || [result];
       let totalImported = 0;
@@ -1699,7 +2450,6 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       const newProjects: Project[] = [...projects];
       const themeColors = getCurrentThemeColors();
 
-      // 处理每个文件
       for (const file of files) {
         try {
           const response = await fetch(file.uri);
@@ -1711,21 +2461,17 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
             continue;
           }
 
-          // 转换数据为 EventItem 格式
           data.forEach((item: any, index: number) => {
-            // 只读取需要的字段：date, time, tag, type, project
             const date = item.date || new Date().toISOString().split('T')[0];
             const tag = item.tag || undefined;
-            const type = item.type || null; // type 字段用作 category
+            const type = item.type || null;
             const project = item.project || null;
             const time = item.time || null;
             
-            // 解析时间范围，获取开始时间和持续时间
             const timeData = time ? parseTimeRangeWithStart(time) : { start: 9 * 60, duration: 60 };
             const start = timeData.start;
             const duration = timeData.duration;
             
-            // 只有 type 字段的内容才存储为 category
             const category = type;
             if (category && !newCategories[category]) {
               const color = themeColors[colorIndex % themeColors.length];
@@ -1733,12 +2479,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
               colorIndex++;
             }
 
-            // 处理 project 字段
             let projectId: number | undefined = undefined;
             if (project && project.length > 0) {
               const projectName = Array.isArray(project) ? project[0] : project;
               
-              // 查找或创建 project，project 的 category 只能是 type 字段的值
               let existingProject = newProjects.find(p => p.name === projectName);
               if (!existingProject) {
                 existingProject = {
@@ -1747,7 +2491,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                   time: '0h 0m',
                   percent: 0,
                   hexColor: category && newCategories[category] ? newCategories[category] : '#9CA3AF',
-                  category: category, // 只使用 type 字段作为 category
+                  category: category,
                   x: 180 + (Math.random() - 0.5) * 100,
                   y: 250 + (Math.random() - 0.5) * 100,
                   vx: 0,
@@ -1759,18 +2503,16 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
               projectId = existingProject.id;
             }
 
-            // 获取颜色（只使用 type 字段的颜色）
             const color = category && newCategories[category] ? newCategories[category] : '#9CA3AF';
 
-            // 创建 event
             const event: EventItem = {
               id: Date.now() + totalImported * 100 + Math.random() * 50,
               title: projectId ? newProjects.find(p => p.id === projectId)?.name || 'Event' : 'Event',
               start,
               duration,
               hexColor: color,
-              details: tag, // tag 字段用作 details
-              category: category, // 只使用 type 字段作为 category
+              details: tag,
+              category: category,
               date: date,
               projectId,
             };
@@ -1786,17 +2528,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       }
 
       if (allNewEvents.length > 0) {
-        // 更新状态
-        console.log('About to import:', allNewEvents.length, 'events from', files.length, 'files');
-        setEvents(prev => {
-          const updated = [...prev, ...allNewEvents];
-          console.log('Total events after import:', updated.length);
-          return updated;
-        });
+        setEvents(prev => [...prev, ...allNewEvents]);
         setCategories(newCategories);
         setProjects(newProjects);
         setShowSettings(false);
-        
         Alert.alert('Success', `Imported ${totalImported} events from ${files.length} file(s), created ${totalProjectsCreated} new projects`);
       }
 
@@ -1806,37 +2541,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     }
   };
 
-  // 解析时间范围，返回开始时间和持续时间
-  const parseTimeRange = (timeStr: string): number => {
-    try {
-      const match = timeStr.match(/(\d+)(am|pm)-(\d+)(am|pm)/i);
-      if (!match) return 60; // 默认1小时
-      
-      let start = parseInt(match[1]);
-      let end = parseInt(match[3]);
-      const startPeriod = match[2].toLowerCase();
-      const endPeriod = match[4].toLowerCase();
-      
-      // 转换为24小时制
-      if (startPeriod === 'pm' && start !== 12) start += 12;
-      if (startPeriod === 'am' && start === 12) start = 0;
-      if (endPeriod === 'pm' && end !== 12) end += 12;
-      if (endPeriod === 'am' && end === 12) end = 0;
-      
-      let duration = end - start;
-      if (duration < 0) duration += 24;
-      
-      return duration * 60;
-    } catch {
-      return 60;
-    }
-  };
-
   const parseTimeRangeWithStart = (timeStr: string): { start: number; duration: number } => {
     try {
-      // 匹配格式: "9pm-10pm" 或 "4.30pm-5.30pm" 或 "11.30am-12.30pm"
       const match = timeStr.match(/(\d+)(?:\.(\d+))?(am|pm)-(\d+)(?:\.(\d+))?(am|pm)/i);
-      if (!match) return { start: 9 * 60, duration: 60 }; // 默认9:00开始，1小时
+      if (!match) return { start: 9 * 60, duration: 60 };
       
       let startHour = parseInt(match[1]);
       const startMin = match[2] ? parseInt(match[2]) : 0;
@@ -1845,7 +2553,6 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       const startPeriod = match[3].toLowerCase();
       const endPeriod = match[6].toLowerCase();
       
-      // 转换为24小时制
       if (startPeriod === 'pm' && startHour !== 12) startHour += 12;
       if (startPeriod === 'am' && startHour === 12) startHour = 0;
       if (endPeriod === 'pm' && endHour !== 12) endHour += 12;
@@ -1854,16 +2561,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       const startMinutes = startHour * 60 + startMin;
       let endMinutes = endHour * 60 + endMin;
       
-      // 处理跨午夜的情况
       if (endMinutes <= startMinutes) {
         endMinutes += 24 * 60;
       }
       
-      const duration = endMinutes - startMinutes;
-      
-      return { start: startMinutes, duration };
-    } catch (error) {
-      console.error('Parse time error:', error, timeStr);
+      return { start: startMinutes, duration: endMinutes - startMinutes };
+    } catch {
       return { start: 9 * 60, duration: 60 };
     }
   };
@@ -1878,13 +2581,11 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
           text: 'Clear', 
           style: 'destructive',
           onPress: async () => {
-            // Clear state
             setProjects([]);
             setCategories({});
             setEvents([]);
             setShowSettings(false);
             
-            // Explicitly clear AsyncStorage
             try {
               await clearAppData();
               Alert.alert('Success', 'All data has been cleared');
@@ -1898,17 +2599,11 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     );
   };
 
-  const handleSelectStyle = (style: string) => {
-    setSelectedStyle(style);
-  };
-
   const handleSelectColorScheme = (scheme: string) => {
     setSelectedColorScheme(scheme);
     
-    // 获取新主题的颜色数组
     const newColors = COLOR_THEMES[scheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
     
-    // 更新所有分类的颜色
     const updatedCategories: CategoryMap = {};
     const categoryNames = Object.keys(categories).filter(name => name !== 'uncategorized');
     
@@ -1916,14 +2611,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       updatedCategories[catName] = newColors[index % newColors.length];
     });
     
-    // 确保 uncategorized 永远是灰色
     if (categories['uncategorized']) {
       updatedCategories['uncategorized'] = '#9CA3AF';
     }
     
     setCategories(updatedCategories);
     
-    // 更新所有项目的颜色以匹配其分类的新颜色
     setProjects(prevProjects => 
       prevProjects.map(project => ({
         ...project,
@@ -1934,6 +2627,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     );
   };
 
+  // Settings panel
   if (showSettings) {
     return (
       <View style={{ flex: 1, backgroundColor: '#000000AA' }}>
@@ -1960,9 +2654,11 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                 <View style={{ gap: 8 }}>
                   {[
                     { id: 'default', title: t('themes.default') },
+                    { id: 'giverny', title: t('themes.giverny') },
                     { id: 'matisse', title: t('themes.matisseRed') },
                     { id: 'starry', title: t('themes.starryNight') },
-                    { id: 'sunflower', title: t('themes.sunflower') },
+                    { id: 'persistence', title: t('themes.persistence') },
+                    { id: 'california', title: t('themes.california') },
                   ].map((option) => (
                     <Pressable
                       key={option.id}
@@ -2017,394 +2713,299 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     );
   }
 
-  // 渲染类别背景标签
-  const categoryArray = Object.entries(categories);
-  const catCenters: Array<{ name: string; color: string; x: number; y: number; radius: number }> = [];
-  
-  // 画布尺寸 - 更大的画布
-  const CANVAS_WIDTH = 800;
-  const CANVAS_HEIGHT = 1200;
-  
-  // 计算每个类别的项目数量
-  const projectCountPerCategory: Record<string, number> = {};
-  projects.forEach(p => {
-    const catName = p.category || 'uncategorized';
-    projectCountPerCategory[catName] = (projectCountPerCategory[catName] || 0) + 1;
-  });
-  
-  // 根据项目数量计算半径
-  const calculateRadius = (count: number): number => {
-    const baseRadius = 100;
-    const minRadius = 80;
-    const maxRadius = 200;
-    // 每增加1个项目，半径增加15px
-    const dynamicRadius = baseRadius + (count - 1) * 15;
-    return Math.max(minRadius, Math.min(maxRadius, dynamicRadius));
-  };
-  
-  // 检查两个圆是否重叠
-  const isOverlapping = (
-    x1: number, y1: number, r1: number, 
-    x2: number, y2: number, r2: number,
-    padding: number = 30
-  ): boolean => {
-    const dx = x1 - x2;
-    const dy = y1 - y2;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance < (r1 + r2 + padding);
-  };
-  
-  // 找到不重叠的位置
-  const findNonOverlappingPosition = (
-    radius: number, 
-    existingCenters: Array<{ x: number; y: number; radius: number }>,
-    startX: number,
-    startY: number
-  ): { x: number; y: number } => {
-    let x = startX;
-    let y = startY;
-    let attempts = 0;
-    const maxAttempts = 100;
-    
-    while (attempts < maxAttempts) {
-      let hasOverlap = false;
-      for (const center of existingCenters) {
-        if (isOverlapping(x, y, radius, center.x, center.y, center.radius)) {
-          hasOverlap = true;
-          break;
-        }
-      }
-      
-      if (!hasOverlap) {
-        return { x, y };
-      }
-      
-      // 螺旋式向外寻找位置
-      const angle = attempts * 0.5;
-      const dist = 50 + attempts * 20;
-      x = startX + Math.cos(angle) * dist;
-      y = startY + Math.sin(angle) * dist;
-      
-      // 确保在画布范围内
-      x = Math.max(radius + 20, Math.min(CANVAS_WIDTH - radius - 20, x));
-      y = Math.max(radius + 20, Math.min(CANVAS_HEIGHT - radius - 20, y));
-      
-      attempts++;
-    }
-    
-    return { x, y };
-  };
-  
-  // 按项目数量排序（大的先布局）
-  const sortedCategories = [...categoryArray].sort((a, b) => {
-    const countA = projectCountPerCategory[a[0]] || 0;
-    const countB = projectCountPerCategory[b[0]] || 0;
-    return countB - countA;
-  });
-  
-  // 布局类别圆圈 - 确保不重叠
-  const placedCenters: Array<{ x: number; y: number; radius: number }> = [];
-  
-  sortedCategories.forEach(([name, color], i) => {
-    const count = projectCountPerCategory[name] || 0;
-    const radius = calculateRadius(count);
-    
-    // 初始位置使用网格布局
-    const cols = 2;
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const startX = 200 + col * 350;
-    const startY = 200 + row * 350;
-    
-    const { x, y } = findNonOverlappingPosition(radius, placedCenters, startX, startY);
-    
-    catCenters.push({ name, color, x, y, radius });
-    placedCenters.push({ x, y, radius });
-  });
-
-  // If Skia mode is selected, render the advanced Skia view
-  if (selectedStyle === 'skia') {
-    // Convert data to Skia format
-    const skiaCategories: SkiaCategory[] = Object.entries(categories).map(([name, color], index) => {
-      const catArray = Object.entries(categories);
-      let centerX = 180;
-      let centerY = 300;
-      
-      if (catArray.length === 1) {
-        centerX = 180;
-        centerY = 250;
-      } else if (catArray.length === 2) {
-        centerX = 100 + index * 160;
-        centerY = 250;
-      } else if (catArray.length > 2) {
-        const angle = (index / catArray.length) * 2 * Math.PI - Math.PI / 2;
-        centerX = 180 + Math.cos(angle) * 130;
-        centerY = 280 + Math.sin(angle) * 130;
-      }
-      
-      return {
-        id: name,
-        name,
-        color,
-        center: { x: centerX, y: centerY },
-      };
-    });
-
-    const skiaProjects: SkiaProject[] = projects.map((p) => ({
-      id: String(p.id),
-      name: p.name,
-      percent: p.percent,
-      categoryId: p.category,
-    }));
-
-    const handleSkiaCategoryChange = (projectId: string, categoryId: string | null) => {
-      setProjects((prev) =>
-        prev.map((p) =>
-          String(p.id) === projectId
-            ? { ...p, category: categoryId, hexColor: categoryId ? categories[categoryId] : '#9CA3AF' }
-            : p
-        )
-      );
-    };
-
-    return (
-      <View style={{ flex: 1, backgroundColor: '#F8F9FA' }}>
-        <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: '#000000' }}>{t('tabs.projects')}</Text>
-          <Pressable onPress={() => setShowSettings(true)} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}>
-            <Sliders size={18} color="#6B7280" />
-          </Pressable>
-        </View>
-        <ClusterViewAdvanced
-          categories={skiaCategories}
-          projects={skiaProjects}
-          onProjectCategoryChange={handleSkiaCategoryChange}
-        />
-      </View>
-    );
-  }
-
-  // Default gravity clusters view
+  // Main quadrant map view
   return (
-    <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+      {/* Header */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
-        <Text style={{ fontSize: 18, fontWeight: '700', color: '#000000' }}>{t('tabs.projects')}</Text>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: '#000000' }}>{t('visualization.title')}</Text>
         <Pressable onPress={() => setShowSettings(true)} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}>
           <Sliders size={18} color="#6B7280" />
         </Pressable>
       </View>
 
-      <ScrollView 
-        style={{ flex: 1 }}
-        contentContainerStyle={{ width: CANVAS_WIDTH * scale, minHeight: CANVAS_HEIGHT * scale }}
-        horizontal={false}
-        showsVerticalScrollIndicator={true}
-        showsHorizontalScrollIndicator={true}
-        bounces={true}
-        maximumZoomScale={MAX_SCALE}
-        minimumZoomScale={MIN_SCALE}
-        bouncesZoom={true}
-      >
+      {/* Empty state or Chart + Detail Card */}
+      {projectDataPoints.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 8, textAlign: 'center' }}>
+            {t('projects.noProjectsYet')}
+          </Text>
+          <Text style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', lineHeight: 20, marginBottom: 24 }}>
+            {t('projects.noProjectsHint')}
+          </Text>
+          {onGoToCalendar && (
+            <Pressable
+              onPress={onGoToCalendar}
+              style={{
+                backgroundColor: '#3B82F6',
+                paddingHorizontal: 20,
+                paddingVertical: 12,
+                borderRadius: 12,
+              }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>
+                {t('projects.goToCalendar')}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      ) : (
         <ScrollView 
-          horizontal={true}
-          showsHorizontalScrollIndicator={false}
-          bounces={true}
-          contentContainerStyle={{ width: CANVAS_WIDTH * scale, minHeight: CANVAS_HEIGHT * scale }}
-          maximumZoomScale={MAX_SCALE}
-          minimumZoomScale={MIN_SCALE}
-          bouncesZoom={true}
-          onTouchStart={(e) => {
-            if (e.nativeEvent.touches.length === 2) {
-              const touch1 = e.nativeEvent.touches[0];
-              const touch2 = e.nativeEvent.touches[1];
-              const dx = touch1.pageX - touch2.pageX;
-              const dy = touch1.pageY - touch2.pageY;
-              initialDistance.current = Math.sqrt(dx * dx + dy * dy);
-              scaleRef.current = scale;
-            }
-          }}
-          onTouchMove={(e) => {
-            if (e.nativeEvent.touches.length === 2 && initialDistance.current > 0) {
-              const touch1 = e.nativeEvent.touches[0];
-              const touch2 = e.nativeEvent.touches[1];
-              const dx = touch1.pageX - touch2.pageX;
-              const dy = touch1.pageY - touch2.pageY;
-              const currentDistance = Math.sqrt(dx * dx + dy * dy);
-              const newScale = scaleRef.current * (currentDistance / initialDistance.current);
-              setScale(Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale)));
-            }
-          }}
-          onTouchEnd={() => {
-            initialDistance.current = 0;
-          }}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          showsVerticalScrollIndicator={false}
         >
+          {/* Time Range Selector */}
+          <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, backgroundColor: '#FFFFFF' }}>
+            <View style={styles.toggleContainer}>
+              {(['30d', '90d', 'year'] as TimeRangeType[]).map((range) => (
+                <Pressable
+                  key={range}
+                  onPress={() => {
+                    setTimeRange(range);
+                    setSelectedProject(null);
+                  }}
+                  style={[styles.toggleItem, timeRange === range && styles.toggleItemActive]}
+                >
+                  <Text style={[styles.toggleText, timeRange === range && styles.toggleTextActive]}>
+                    {range === '30d' ? t('visualization.timeRange30') : range === '90d' ? t('visualization.timeRange90') : t('visualization.timeRangeYear')}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Quadrant Chart */}
           <View 
-            ref={containerRef} 
-            style={{ 
-              width: CANVAS_WIDTH, 
-              height: CANVAS_HEIGHT, 
-              position: 'relative',
-              transform: [{ scale: scale }],
-              transformOrigin: 'top left',
-            }}
+            style={{ paddingHorizontal: 12, paddingTop: 20, paddingBottom: 16 }}
+            onLayout={(e) => setChartWidth(e.nativeEvent.layout.width - 24)}
           >
-            {/* 类别背景圆圈 - 动态大小 */}
-            {catCenters.map((cat) => (
-              <View
-                key={cat.name}
-                style={{
-                  position: 'absolute',
-                  left: cat.x - cat.radius,
-                  top: cat.y - cat.radius,
-                  width: cat.radius * 2,
-                  height: cat.radius * 2,
-                  borderRadius: cat.radius,
-                  backgroundColor: cat.color,
-                  opacity: 0.15,
-                }}
-          />
-        ))}
-        {catCenters.map((cat) => (
-          <View
-            key={`label-${cat.name}`}
-            style={{
-              position: 'absolute',
-              left: cat.x - 60,
-              top: cat.y - 10,
-              width: 120,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 18, fontWeight: '700', color: cat.color, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 1 }}>
-              {cat.name}
-            </Text>
-          </View>
-        ))}
+            <View style={{ width: '100%', height: CHART_HEIGHT, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 10 }}>
+              {/* Y-axis label */}
+              <View style={{ position: 'absolute', left: 0, top: CHART_HEIGHT / 2, transform: [{ rotate: '-90deg' }] }}>
+                <Text style={{ fontSize: 9, fontWeight: '600', color: '#9CA3AF' }}>{t('visualization.yAxis')}</Text>
+              </View>
 
-        {/* 项目节点 */}
-        {projects.length === 0 ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ fontSize: 14, color: '#9CA3AF' }}>{t('projects.noProjectsYet')}</Text>
-          </View>
-        ) : (
-          (() => {
-            // 先计算所有项目的总时间
-            const totalAllMinutes = projects.reduce((sum, p) => {
-              const pEvents = events.filter(e => e.projectId === p.id);
-              const pMinutes = pEvents.reduce((s, e) => s + e.duration, 0);
-              return sum + pMinutes;
-            }, 0);
+              {/* Chart area */}
+              <View style={{ marginLeft: CHART_PADDING.left, marginTop: CHART_PADDING.top, width: chartInnerWidth, height: chartInnerHeight }}>
+                {/* Grid lines */}
+                {[0, 0.25, 0.5, 0.75, 1].map((val) => (
+                  <View 
+                    key={`v-${val}`}
+                    style={{ 
+                      position: 'absolute', 
+                      left: val * chartInnerWidth, 
+                      top: 0, 
+                      width: 1, 
+                      height: chartInnerHeight, 
+                      backgroundColor: '#E5E7EB' 
+                    }} 
+                  />
+                ))}
+                {[0, 0.25, 0.5, 0.75, 1].map((val) => (
+                  <View 
+                    key={`h-${val}`}
+                    style={{ 
+                      position: 'absolute', 
+                      left: 0, 
+                      top: (1 - val) * chartInnerHeight, 
+                      width: chartInnerWidth, 
+                      height: 1, 
+                      backgroundColor: '#E5E7EB' 
+                    }} 
+                  />
+                ))}
 
-            return projects.map((project) => {
-              // 计算该项目的总投入时间（分钟）
-              const projectEvents = events.filter(e => e.projectId === project.id);
-              const totalMinutes = projectEvents.reduce((sum, e) => sum + e.duration, 0);
-              
-              // 根据注意力分配比例计算节点大小
-              // 如果总时间为0，使用最小尺寸；否则按比例计算
-              const baseSize = 32;
-              const maxSize = 72;
-              let size = baseSize;
-              
-              if (totalAllMinutes > 0) {
-                const ratio = totalMinutes / totalAllMinutes; // 该项目占总时间的比例
-                // 比例从0%到100%映射到32px-72px
-                size = baseSize + (maxSize - baseSize) * ratio;
-              }
-              
-              const color = getCategoryColor(project.category);
+                {/* Quadrant lines */}
+                <View 
+                  style={{ 
+                    position: 'absolute', 
+                    left: SHARE_THRESHOLD * chartInnerWidth, 
+                    top: 0, 
+                    width: 2, 
+                    height: chartInnerHeight, 
+                    backgroundColor: '#9CA3AF',
+                    opacity: 0.5
+                  }} 
+                />
+                <View 
+                  style={{ 
+                    position: 'absolute', 
+                    left: 0, 
+                    top: (1 - ACCUMULATION_THRESHOLD / 100) * chartInnerHeight, 
+                    width: chartInnerWidth, 
+                    height: 2, 
+                    backgroundColor: '#9CA3AF',
+                    opacity: 0.5
+                  }} 
+                />
 
-            return (
-              <View
-                key={project.id}
-                style={{
-                  position: 'absolute',
-                  left: project.x - size / 2,
-                  top: project.y - size / 2,
-                }}
-              >
-                <Pressable onPress={() => handleNodeClick(project)} style={{ alignItems: 'center' }}>
-                  <View
-                    style={{
-                      width: size,
-                      height: size,
-                      borderRadius: size / 2,
-                      backgroundColor: color,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      shadowColor: '#000000',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.2,
-                      shadowRadius: 8,
-                      elevation: 8,
-                      borderWidth: 2,
-                      borderColor: '#FFFFFF',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {/* 液体填充效果 */}
-                    <View
+                {/* Quadrant labels */}
+                <View style={{ position: 'absolute', right: 4, top: 4 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: '#6B7280', textAlign: 'right' }}>
+                    {t('visualization.quadrantTopRight')}
+                  </Text>
+                </View>
+                <View style={{ position: 'absolute', left: 4, top: 4 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: '#6B7280' }}>
+                    {t('visualization.quadrantTopLeft')}
+                  </Text>
+                </View>
+                <View style={{ position: 'absolute', right: 4, bottom: 4 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: '#6B7280', textAlign: 'right' }}>
+                    {t('visualization.quadrantBottomRight')}
+                  </Text>
+                </View>
+                <View style={{ position: 'absolute', left: 4, bottom: 4 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: '#6B7280' }}>
+                    {t('visualization.quadrantBottomLeft')}
+                  </Text>
+                </View>
+
+                {/* Project bubbles */}
+                {projectDataPoints.map((point) => {
+                  const allDurations = projectDataPoints.map(p => p.durationHours);
+                  const radius = getBubbleRadius(point.durationHours, allDurations);
+                  const opacity = getOpacity(point.recentActivity);
+                  const isSelected = selectedProject?.id === point.id;
+
+                  // Clamp bubble position to chart boundaries
+                  const x = Math.max(radius, Math.min(point.x * chartInnerWidth, chartInnerWidth - radius));
+                  const y = Math.max(radius, Math.min((1 - point.y) * chartInnerHeight, chartInnerHeight - radius));
+
+                  return (
+                    <Pressable
+                      key={point.id}
+                      onPress={() => handleBubblePress(point)}
+                      onLongPress={() => handleBubbleLongPress(point)}
                       style={{
                         position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: `${project.percent}%`,
-                        backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                        left: x - radius,
+                        top: y - radius,
+                        width: radius * 2,
+                        height: radius * 2,
+                        borderRadius: radius,
+                        backgroundColor: point.color,
+                        opacity: opacity,
+                        borderWidth: isSelected ? 3 : 1,
+                        borderColor: isSelected ? '#000000' : '#FFFFFF',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 4,
+                        elevation: 4,
                       }}
-                    />
-                    <Text 
-                      style={{ 
-                        fontSize: 10, 
-                        fontWeight: '700', 
-                        color: '#FFFFFF', 
-                        zIndex: 10, 
-                        textAlign: 'center', 
-                        paddingHorizontal: 2,
-                        width: size - 8,
-                      }}
-                      numberOfLines={2}
-                      ellipsizeMode="clip"
                     >
-                      {project.name}
+                      {radius > 20 && (
+                        <Text
+                          style={{
+                            fontSize: radius > 30 ? 9 : 7,
+                            fontWeight: '700',
+                            color: '#FFFFFF',
+                            textAlign: 'center',
+                            paddingHorizontal: 2,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {point.name}
+                        </Text>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* X-axis labels */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginLeft: CHART_PADDING.left, marginTop: 8, width: chartInnerWidth }}>
+                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>0%</Text>
+                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>25%</Text>
+                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>50%</Text>
+                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>75%</Text>
+                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>100%</Text>
+              </View>
+              
+              {/* X-axis label */}
+              <Text style={{ fontSize: 11, fontWeight: '600', color: '#9CA3AF', textAlign: 'center', marginTop: 4 }}>
+                {t('visualization.xAxis')}
+              </Text>
+
+              {/* Y-axis labels */}
+              <View style={{ position: 'absolute', left: 0, top: CHART_PADDING.top, bottom: CHART_PADDING.bottom + 40, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 1 }}>
+                <Text style={{ fontSize: 8, color: '#9CA3AF', fontWeight: '600' }}>100%</Text>
+                <Text style={{ fontSize: 8, color: '#9CA3AF', fontWeight: '600' }}>50%</Text>
+                <Text style={{ fontSize: 8, color: '#9CA3AF', fontWeight: '600' }}>0%</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Project Detail Card */}
+          <View style={{ paddingHorizontal: 16, paddingBottom: 20 }}>
+            {selectedProject ? (
+              <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 4 }}>
+                      {selectedProject.name}
+                    </Text>
+                    {selectedProject.category && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: selectedProject.color, marginRight: 6 }} />
+                        <Text style={{ fontSize: 13, color: '#6B7280' }}>{selectedProject.category}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Pressable onPress={() => setSelectedProject(null)}>
+                    <X size={20} color="#9CA3AF" />
+                  </Pressable>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+                  <View style={{ flex: 1, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#6B7280', marginBottom: 4 }}>{t('visualization.timeSpent')}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>
+                      {Math.floor(selectedProject.durationHours)}h {Math.round((selectedProject.durationHours % 1) * 60)}m
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>
+                      {t('visualization.share')}: {Math.round(selectedProject.share * 100)}%
                     </Text>
                   </View>
-                  {/* 只在文字可能溢出时显示下方标签 */}
-                  {project.name.length > 6 && (
-                    <View
-                      style={{
-                        marginTop: 4,
-                        paddingHorizontal: 8,
-                        paddingVertical: 2,
-                        backgroundColor: 'transparent',
-                        borderRadius: 12,
-                        maxWidth: 100,
-                        alignSelf: 'center',
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 10,
-                          fontWeight: '700',
-                          color: '#6B7280',
-                          textAlign: 'center',
-                        }}
-                      >
-                        {project.name}
-                      </Text>
-                    </View>
-                  )}
-                </Pressable>
+                  <View style={{ flex: 1, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#6B7280', marginBottom: 4 }}>{t('projects.accumulation')}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>
+                      {Math.round(selectedProject.accumulation)}%
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>
+                      {getQuadrantLabel(selectedProject.share, selectedProject.accumulation)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={{ backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12, borderLeftWidth: 3, borderLeftColor: '#F59E0B' }}>
+                  <Text style={{ fontSize: 13, color: '#92400E', lineHeight: 18 }}>
+                    {getSuggestion(selectedProject.share, selectedProject.accumulation)}
+                  </Text>
+                </View>
+
+                {selectedProject.recentActivity > 0 && (
+                  <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 8, textAlign: 'center' }}>
+                    {t('visualization.lastActive')}: {selectedProject.recentActivity === 0 ? t('visualization.today') : `${selectedProject.recentActivity} ${t('visualization.daysAgo')}`}
+                  </Text>
+                )}
               </View>
-            );
-          });
-        })()
-        )}
+            ) : (
+              <View style={{ backgroundColor: '#F9FAFB', borderRadius: 16, padding: 16, alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, color: '#9CA3AF' }}>
+                  {t('visualization.tapToSelect')}
+                </Text>
+              </View>
+            )}
           </View>
         </ScrollView>
-      </ScrollView>
+      )}
 
-      {/* 编辑弹窗 - iOS Style Bottom Sheet */}
+      {/* Edit Project Modal */}
       {modalOpen && selectedNode && (
         <Modal
           visible={modalOpen}
@@ -2458,7 +3059,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     <X size={18} color="#6B7280" />
                   </Pressable>
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: '#6B7280' }}>Edit Details</Text>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: '#6B7280' }}>{t('projects.editDetails')}</Text>
               </View>
 
               <ScrollView 
@@ -2468,9 +3069,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
               >
                 {/* Section 1: Accumulation (Progress) */}
                 <View style={{ marginBottom: 32 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      Accumulation
+                      {t('projects.accumulation')}
                     </Text>
                     <View style={{ 
                       paddingHorizontal: 12, 
@@ -2488,9 +3089,14 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     </View>
                   </View>
 
+                  {/* Hint Text */}
+                  <Text style={{ fontSize: 12, color: '#6B7280', lineHeight: 18, marginBottom: 16 }}>
+                    {t('projects.accumulationHint')}
+                  </Text>
+
                   {/* Progress Bar - Draggable */}
                   <View 
-                    style={{ height: 48, justifyContent: 'center', marginBottom: 12 }}
+                    style={{ height: 48, justifyContent: 'center', marginBottom: 8 }}
                     onStartShouldSetResponder={() => true}
                     onResponderGrant={(e) => {
                       const locationX = e.nativeEvent.locationX;
@@ -2539,12 +3145,20 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       }}
                     />
                   </View>
+
+                  {/* Scale Labels */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 }}>
+                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
+                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
+                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
+                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
+                  </View>
                 </View>
 
                 {/* Section 2: Category */}
                 <View style={{ marginBottom: 32 }}>
                   <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
-                    Category
+                    {t('projects.category')}
                   </Text>
                   
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -2565,7 +3179,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                         fontWeight: '700', 
                         color: !selectedNode.category ? '#FFFFFF' : '#6B7280' 
                       }}>
-                        Uncategorized
+                        {t('projects.uncategorized')}
                       </Text>
                     </Pressable>
 
@@ -2607,7 +3221,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                   borderColor: '#E5E7EB' 
                 }}>
                   <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
-                    Create New Category
+                    {t('projects.createNewCategory')}
                   </Text>
 
                   <TextInput
@@ -2623,14 +3237,14 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       color: '#000000',
                       marginBottom: 16,
                     }}
-                    placeholder="Category name..."
+                    placeholder={t('projects.categoryNamePlaceholder')}
                     placeholderTextColor="#9CA3AF"
                     value={selectedNode.newCategoryName || ''}
                     onChangeText={(text) => setSelectedNode({ ...selectedNode, newCategoryName: text })}
                   />
 
                   <Text style={{ fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 12 }}>
-                    Color
+                    {t('common.color')}
                   </Text>
 
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
@@ -2686,7 +3300,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       fontWeight: '700', 
                       color: selectedNode.newCategoryName?.trim() ? '#FFFFFF' : '#9CA3AF' 
                     }}>
-                      Create & Assign
+                      {t('projects.createAndAssign')}
                     </Text>
                   </Pressable>
                 </View>
@@ -2714,7 +3328,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                   }}
                 >
                   <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>
-                    Save Changes
+                    {t('projects.saveChanges')}
                   </Text>
                 </Pressable>
               </View>
@@ -2769,11 +3383,10 @@ const VISUALIZATION_OPTIONS: VisualizationOption[] = [
 const App: React.FC = () => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>('calendar');
-  const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType | null>(null);
   const [selectedColorScheme, setSelectedColorScheme] = useState('default');
   const [projects, setProjects] = useState<Project[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
-  const [categories, setCategories] = useState<CategoryMap>({});
+  const [categories, setCategories] = useState<CategoryMap>(DEFAULT_CATEGORIES);
 
   // Initialize data persistence
   useAppData(projects, events, categories, setProjects, setEvents, setCategories);
@@ -2798,9 +3411,9 @@ const App: React.FC = () => {
       />
     );
   } else if (activeTab === 'analytics') {
-    content = <AnalyticsView projects={projects} events={events} selectedColorScheme={selectedColorScheme} />;
+    content = <AnalyticsView projects={projects} events={events} categories={categories} selectedColorScheme={selectedColorScheme} setProjects={setProjects} setCategories={setCategories} />;
   } else {
-    content = <ProjectsView projects={projects} events={events} categories={categories} setProjects={setProjects} setCategories={setCategories} setEvents={setEvents} selectedColorScheme={selectedColorScheme} setSelectedColorScheme={setSelectedColorScheme} />;
+    content = <ProjectsView projects={projects} events={events} categories={categories} setProjects={setProjects} setCategories={setCategories} setEvents={setEvents} selectedColorScheme={selectedColorScheme} setSelectedColorScheme={setSelectedColorScheme} onGoToCalendar={() => setActiveTab('calendar')} />;
   }
 
   return (
@@ -3421,7 +4034,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     minWidth: 200,
-    maxHeight: 200,
+    maxHeight: 132,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
