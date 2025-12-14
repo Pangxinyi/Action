@@ -2,7 +2,7 @@ export default {
   // Tab names
   tabs: {
     calendar: '日历',
-    analytics: '统计',
+    analytics: '分析',
     projects: '可视化',
   },
 
@@ -76,7 +76,7 @@ export default {
 
   // Analytics view
   analytics: {
-    title: '统计',
+    title: '分析',
     thisWeek: '本周',
     totalTime: '总时长',
     projects: '时间分布',
@@ -100,8 +100,15 @@ export default {
     language: '语言',
     settings: '设置',
     dataManagement: '数据管理',
-    importData: '导入数据 (JSON)',
-    clearAllData: '清除所有数据',
+    importData: '导入数据（JSON）',
+    exportData: '导出数据（JSON）',
+    clearAllData: '清空所有数据',
+    categoryManagement: '类别管理',
+    projectManagement: '项目管理',
+    noActiveProjects: '没有活跃项目',
+    archivedProjects: '已归档项目',
+    noArchivedProjects: '没有已归档项目',
+    deleteProjectConfirm: '确定要永久删除这个项目吗？',
     newProject: '新建项目',
     newCategory: '新建类别',
     noProjectsYet: '你还没有关联任何项目',
@@ -109,7 +116,7 @@ export default {
     goToCalendar: '去添加你的第一个事件',
     editDetails: '编辑详情',
     accumulation: '积累度',
-    accumulationHint: '为这个项目设置一个大致分值：「每投入1小时，对我3到5年后的帮助有多大？」',
+    accumulationHint: '为这个项目设置一个大致分值：「每投入 1 小时，对我 3–5 年后的帮助有多大？」',
     accumulationLevel0: '消耗',
     accumulationLevel30: '维持',
     accumulationLevel60: '成长',
@@ -145,37 +152,40 @@ export default {
     noData: '该时间段内没有项目数据',
     noDataHint: '添加关联项目的事件后，它们会出现在这张图上。',
     tapToSelect: '点击气泡查看详情',
+    longPressToEdit: '长按气泡编辑',
     lastActive: '最近活跃',
     daysAgo: '天前',
     today: '今天',
   },
 
+  // Common
+  common: {
+    save: '保存',
+    cancel: '取消',
+    delete: '删除',
+    confirm: '确认',
+    error: '错误',
+    color: '颜色',
+    close: '关闭',
+    hour: '小时',
+    minute: '分钟',
+    hours: '小时',
+    minutes: '分钟',
+  },
+
   // Color themes
   themes: {
     default: '默认',
-    matisseRed: '马蒂斯的红',
-    starryNight: '星夜',
-    persistence: '记忆的永恒',
-    giverny: '吉维尼的早晨',
-    california: '加州之梦',
+    seaside: '海滨',
+    twilight: '暮光',
+    garden: '花园',
+    vivid: '鲜艳',
+    mineral: '矿物',
   },
 
   // Languages
   languages: {
     english: 'English',
     chinese: '中文',
-  },
-
-  // Common
-  common: {
-    cancel: '取消',
-    save: '保存',
-    delete: '删除',
-    close: '关闭',
-    color: '颜色',
-    hour: '小时',
-    minute: '分钟',
-    hours: '小时',
-    minutes: '分钟',
   },
 };

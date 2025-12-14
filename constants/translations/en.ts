@@ -76,7 +76,7 @@ export default {
 
   // Analytics view
   analytics: {
-    title: 'Statistics',
+    title: 'Analytics',
     thisWeek: 'This Week',
     totalTime: 'Total Time',
     projects: 'Time Distribution',
@@ -101,7 +101,14 @@ export default {
     settings: 'Settings',
     dataManagement: 'Data Management',
     importData: 'Import Data (JSON)',
+    exportData: 'Export Data (JSON)',
     clearAllData: 'Clear All Data',
+    categoryManagement: 'Category Management',
+    projectManagement: 'Project Management',
+    noActiveProjects: 'No active projects',
+    archivedProjects: 'Archived Projects',
+    noArchivedProjects: 'No archived projects',
+    deleteProjectConfirm: 'Are you sure you want to permanently delete this project?',
     newProject: 'New Project',
     newCategory: 'New Category',
     noProjectsYet: "You don't have any projects yet.",
@@ -145,37 +152,40 @@ export default {
     noData: 'No project data in this period',
     noDataHint: 'Add events linked to projects and they will appear on the map.',
     tapToSelect: 'Tap a bubble to see details',
+    longPressToEdit: 'Long press to edit',
     lastActive: 'Last active',
     daysAgo: 'days ago',
     today: 'today',
   },
 
+  // Common
+  common: {
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    confirm: 'Confirm',
+    error: 'Error',
+    color: 'Color',
+    close: 'Close',
+    hour: 'h',
+    minute: 'm',
+    hours: 'h',
+    minutes: 'm',
+  },
+
   // Color themes
   themes: {
     default: 'Default',
-    matisseRed: 'Matisse Red',
-    starryNight: 'Starry Night',
-    persistence: 'Persistence of Memory',
-    giverny: 'Giverny Morning',
-    california: 'California Dreaming',
+    seaside: 'Seaside',
+    twilight: 'Twilight',
+    garden: 'Garden',
+    vivid: 'Vivid',
+    mineral: 'Mineral',
   },
 
   // Languages
   languages: {
     english: 'English',
     chinese: '中文',
-  },
-
-  // Common
-  common: {
-    cancel: 'Cancel',
-    save: 'Save',
-    delete: 'Delete',
-    close: 'Close',
-    color: 'Color',
-    hour: 'h',
-    minute: 'm',
-    hours: 'h',
-    minutes: 'm',
   },
 };

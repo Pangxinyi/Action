@@ -1,10 +1,11 @@
 import i18n from 'i18next';
 import {
+  Archive,
   Calendar as CalendarIcon,
   Network,
   PieChart,
   Plus,
-  Sliders,
+  Settings,
   Trash2,
   X
 } from 'lucide-react-native';
@@ -13,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 
 import '@constants/i18n'; // 初始化 i18n
 import { useAppData } from '@hooks/useAppData';
+import { AppThemeColors, useThemeColors } from '@hooks/useThemeColors';
 import {
   Alert,
   Modal,
@@ -31,16 +33,14 @@ import { clearAppData } from '../utils/storage';
 
 // --- CONSTANTS ---
 
-const APP_COLORS = ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7', '#E6C8DC', '#EFD9CE'] as const;
-
 // Color Theme Palettes
 const COLOR_THEMES = {
   default: ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7', '#E6C8DC', '#EFD9CE'],
-  matisse: ['#8B311E', '#B93057', '#CE934D', '#CF9F9D', '#A99C7C', '#6D5E34'],
-  starry: ['#436493', '#7FC5DC', '#708FB9', '#818837', '#E8E163', '#11275D'],
-  persistence: [ '#3698BF', '#D9D3B4', '#D97C2B', '#ac3c2dff', '#FADB85', '#8F9779','#441D0D',],
-  giverny: ['#9FA6C8', '#8DAA91', '#D9A6A1', '#4C8C94', '#7F7B99', '#E3C98D'],
-  california: ['#4BC4D5', '#F3989F', '#89C764', '#FCD45E', '#D98A69', '#446E9B'],
+  seaside: [ '#3698BF', '#D9D3B4', '#D97C2B', '#ac3c2dff', '#FADB85', '#8F9779'],
+  twilight: ['#9FA6C8', '#8DAA91', '#D9A6A1', '#4C8C94', '#7F7B99', '#E3C98D'],
+  garden: ['#4BC4D5', '#F3989F', '#89C764', '#FCD45E', '#D98A69', '#446E9B'],
+  vivid:["#3A86FF", "#F72545","#FFBE0B","#06D6A0","#8338EC","#FB5607"],
+  mineral: ["#C83C23", "#2E8B57", "#265C87","#D9A033","#9D7592","#E67E22"],
 } as const;
 
 const NODE_SIZE = 72;
@@ -49,7 +49,6 @@ const TIME_STEP_MIN = 1;
 type CategoryMap = {
   [categoryName: string]: string; // category name -> color
 };
-
 
 type Project = {
   id: number;
@@ -62,7 +61,7 @@ type Project = {
   y: number;
   vx?: number;
   vy?: number;
-  // Temporary state for modal editing
+  archived?: boolean;
   newCategoryName?: string;
   newCategoryColor?: string;
 };
@@ -70,26 +69,40 @@ type Project = {
 type EventItem = {
   id: number;
   title: string;
-  start: number; // minutes from 0:00
-  duration: number; // minutes
+  start: number;
+  duration: number;
   hexColor: string;
-  details?: string; // tag/details from import
-  category?: string; // category/type from import
-  date: string; // YYYY-MM-DD format for date tracking
-  projectId?: number; // link to project
+  details?: string;
+  category?: string;
+  date: string;
+  projectId?: number;
 };
 
-const DEFAULT_PROJECTS: Project[] = [];
-
-const DEFAULT_EVENTS: EventItem[] = [];
-
-const DEFAULT_CATEGORIES: CategoryMap = {
-  '工作': COLOR_THEMES.default[0],
-  '学习': COLOR_THEMES.default[1],
-  '运动': COLOR_THEMES.default[2],
+const getDefaultCategories = (language: string): CategoryMap => {
+  if (language === 'zh') {
+    return {
+      '工作': COLOR_THEMES.default[0],
+      '学习': COLOR_THEMES.default[1],
+      '运动': COLOR_THEMES.default[2],
+    };
+  }
+  return {
+    'Work': COLOR_THEMES.default[0],
+    'Study': COLOR_THEMES.default[1],
+    'Fitness': COLOR_THEMES.default[2],
+  };
 };
 
 // --- Shared small helpers ---
+
+const getContrastColor = (hexColor: string) => {
+  if (!hexColor || !hexColor.startsWith('#')) return '#000000';
+  const r = parseInt(hexColor.substr(1, 2), 16);
+  const g = parseInt(hexColor.substr(3, 2), 16);
+  const b = parseInt(hexColor.substr(5, 2), 16);
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  return (yiq >= 128) ? '#000000' : '#FFFFFF';
+};
 
 const formatMinutes = (total: number) => {
   const m = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
@@ -105,16 +118,17 @@ type HeaderProps = {
   subtitle?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  colors?: AppThemeColors;
 };
 
-const Header: React.FC<HeaderProps> = ({ title, subtitle, leftIcon, rightIcon }) => {
+const Header: React.FC<HeaderProps> = ({ title, subtitle, leftIcon, rightIcon, colors }) => {
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, colors && { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.headerLeft}>
         {leftIcon && <View style={{ marginRight: 8 }}>{leftIcon}</View>}
         <View>
-          <Text style={styles.headerTitle}>{title}</Text>
-          {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+          <Text style={[styles.headerTitle, colors && { color: colors.text }]}>{title}</Text>
+          {subtitle ? <Text style={[styles.headerSubtitle, colors && { color: colors.textTertiary }]}>{subtitle}</Text> : null}
         </View>
       </View>
       {rightIcon && <View>{rightIcon}</View>}
@@ -124,23 +138,24 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, leftIcon, rightIcon })
 
 type TabKey = 'calendar' | 'analytics' | 'projects';
 
-const TabBar: React.FC<{ activeTab: TabKey; setActiveTab: (t: TabKey) => void }> = ({
+const TabBar: React.FC<{ activeTab: TabKey; setActiveTab: (t: TabKey) => void; colors: AppThemeColors }> = ({
   activeTab,
   setActiveTab,
+  colors,
 }) => {
   const { t } = useTranslation();
   const mkTab = (key: TabKey, label: string, Icon: any) => {
     const active = activeTab === key;
     return (
       <Pressable style={styles.tabItem} onPress={() => setActiveTab(key)}>
-        <Icon size={24} strokeWidth={active ? 2.5 : 2} color={active ? '#000' : '#9CA3AF'} />
-        <Text style={[styles.tabLabel, { color: active ? '#000' : '#9CA3AF' }]}>{label}</Text>
+        <Icon size={24} strokeWidth={active ? 2.5 : 2} color={active ? colors.tabActive : colors.tabInactive} />
+        <Text style={[styles.tabLabel, { color: active ? colors.tabActive : colors.tabInactive }]}>{label}</Text>
       </Pressable>
     );
   };
 
   return (
-    <View style={styles.tabBar}>
+    <View style={[styles.tabBar, { backgroundColor: colors.tabBar, borderColor: colors.border }]}>
       {mkTab('calendar', t('tabs.calendar'), CalendarIcon)}
       {mkTab('analytics', t('tabs.analytics'), PieChart)}
       {mkTab('projects', t('tabs.projects'), Network)}
@@ -178,6 +193,7 @@ type CalendarViewProps = {
   categories: CategoryMap;
   setCategories: React.Dispatch<React.SetStateAction<CategoryMap>>;
   selectedColorScheme: string;
+  colors: AppThemeColors;
 };
 
 const CalendarView: React.FC<CalendarViewProps> = ({
@@ -188,6 +204,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   categories,
   setCategories,
   selectedColorScheme,
+  colors,
 }) => {
   const { t } = useTranslation();
   const [editingField, setEditingField] = useState<'start' | 'end' | null>(null);
@@ -568,17 +585,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const calendarDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }} {...panResponderRef.current?.panHandlers}>
-      <View style={styles.header}>
+    <View style={{ flex: 1, backgroundColor: colors.background }} {...panResponderRef.current?.panHandlers}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <Pressable 
           style={styles.headerLeft} 
           onPress={() => setIsCalendarOpen(!isCalendarOpen)}
         >
           <View>
-            <Text style={[styles.headerTitle, { fontWeight: 'bold' }]}>
+            <Text style={[styles.headerTitle, { fontWeight: 'bold', color: colors.text }]}>
               {formatMonthYear(selectedDate).split(' ')[0]}
             </Text>
-            <Text style={styles.headerSubtitle}>
+            <Text style={[styles.headerSubtitle, { color: colors.textTertiary }]}>
               {i18n.language === 'zh' 
                 ? `${selectedDate.getDate()}日 ${formatWeekday(selectedDate, false)}`
                 : `${String(selectedDate.getDate()).padStart(2, '0')} ${formatWeekday(selectedDate, false)}`
@@ -587,11 +604,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           </View>
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Pressable style={styles.todayButton} onPress={handleTodayClick}>
-            <Text style={styles.todayButtonText}>{t('calendar.today')}</Text>
+          <Pressable style={[styles.todayButton, { backgroundColor: colors.backgroundTertiary }]} onPress={handleTodayClick}>
+            <Text style={[styles.todayButtonText, { color: colors.text }]}>{t('calendar.today')}</Text>
           </Pressable>
-          <Pressable style={styles.fabSmall} onPress={handleAddNow}>
-            <Plus size={18} color="#FFFFFF" />
+          <Pressable style={[styles.fabSmall, { backgroundColor: colors.primary }]} onPress={handleAddNow}>
+            <Plus size={18} color={colors.primaryText} />
           </Pressable>
         </View>
       </View>
@@ -601,13 +618,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         <>
           {/* Overlay backdrop - closes calendar when tapped */}
           <Pressable
-            style={styles.calendarBackdrop}
+            style={[styles.calendarBackdrop, { backgroundColor: colors.modalBackdrop }]}
             onPress={() => setIsCalendarOpen(false)}
           />
           
           {/* Calendar dropdown */}
           <View 
-            style={styles.calendarDropdown}
+            style={[styles.calendarDropdown, { backgroundColor: colors.surface, shadowColor: colors.text }]}
           >
             <View style={styles.calendarHeader}>
               <Pressable onPress={() => {
@@ -615,9 +632,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 prev.setMonth(prev.getMonth() - 1);
                 setSelectedDate(prev);
               }}>
-                <Text style={styles.calendarNavText}>←</Text>
+                <Text style={[styles.calendarNavText, { color: colors.text }]}>←</Text>
               </Pressable>
-              <Text style={styles.calendarMonth}>
+              <Text style={[styles.calendarMonth, { color: colors.text }]}>
                 {formatMonthYear(selectedDate)}
               </Text>
               <Pressable onPress={() => {
@@ -625,14 +642,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 next.setMonth(next.getMonth() + 1);
                 setSelectedDate(next);
               }}>
-                <Text style={styles.calendarNavText}>→</Text>
+                <Text style={[styles.calendarNavText, { color: colors.text }]}>→</Text>
               </Pressable>
             </View>
 
             {/* Weekday labels */}
             <View style={styles.calendarWeekdays}>
               {['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((day) => (
-                <Text key={day} style={styles.calendarWeekdayLabel}>{t(`calendar.${day}`)}</Text>
+                <Text key={day} style={[styles.calendarWeekdayLabel, { color: colors.textTertiary }]}>{t(`calendar.${day}`)}</Text>
               ))}
             </View>
 
@@ -680,8 +697,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     key={day}
                     style={[
                       styles.calendarDay,
-                      isSelected && styles.calendarDaySelected,
-                      isToday && styles.calendarDayToday,
+                      isSelected && [styles.calendarDaySelected, { backgroundColor: colors.primary }],
+                      isToday && [styles.calendarDayToday, { borderColor: colors.primary }],
                     ]}
                     onPress={() => {
                       const newDate = new Date(selectedDate);
@@ -693,7 +710,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     <Text
                       style={[
                         styles.calendarDayText,
-                        isSelected && styles.calendarDayTextSelected,
+                        { color: colors.text },
+                        isSelected && [styles.calendarDayTextSelected, { color: colors.primaryText }],
                       ]}
                     >
                       {day}
@@ -716,13 +734,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               key={hour}
               style={[
                 styles.hourRow,
-                { height: 60 * pixelsPerMinute, borderColor: '#E5E7EB' },
+                { height: 60 * pixelsPerMinute, borderColor: colors.border },
               ]}
             >
               <View style={styles.hourLabelContainer}>
-                <Text style={styles.hourLabel}>{`${hour}:00`}</Text>
+                <Text style={[styles.hourLabel, { color: colors.textQuaternary }]}>{`${hour}:00`}</Text>
               </View>
-              <View style={styles.hourTrack}>
+              <View style={[styles.hourTrack, { borderTopColor: colors.border }]}>
                 <Pressable
                   style={{ flex: 1 }}
                   onPress={(e) => {
@@ -763,20 +781,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                   {
                     top,
                     height: Math.max(20, height),
-                    backgroundColor: `${eventColor}4D`,
+                    backgroundColor: `${eventColor}99`,
                     borderLeftColor: eventColor,
                   },
                 ]}
               >
                 {evt.details && (
-                  <Text style={styles.eventTitle} numberOfLines={1}>
+                  <Text style={[styles.eventTitle, { color: colors.text }]} numberOfLines={1}>
                     {evt.details}
                   </Text>
                 )}
-                <Text style={[styles.eventTime, { fontSize: 11, marginTop: 2 }]} numberOfLines={1}>
-                  {evt.projectId ? projects.find(p => p.id === evt.projectId)?.name : evt.title}
-                </Text>
-                <Text style={styles.eventTime}>
+                <Text style={[styles.eventTime, { color: colors.textSecondary }]}>
                   {formatMinutes(evt.start)} - {formatMinutes(evt.start + evt.duration)}
                 </Text>
               </Pressable>
@@ -792,7 +807,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       {/* Event Modal */}
       <Modal visible={isModalOpen && !!draftEvent} transparent animationType="slide">
         <Pressable 
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: colors.modalBackdrop }]}
           onPress={() => {
             setIsModalOpen(false);
             setDraftEvent(null);
@@ -800,19 +815,19 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           }}
         >
           <View 
-            style={styles.bottomSheetLarge}
+            style={[styles.bottomSheetLarge, { backgroundColor: colors.surface }]}
             onStartShouldSetResponder={() => true}
             onResponderRelease={() => {}}
           >
             {/* 顶部标题 + 删除 + 关闭 */}
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>
+            <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.sheetTitle, { color: colors.text }]}>
                 {draftEvent?.id ? t('calendar.editEvent') : t('calendar.addEvent')}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 {draftEvent?.id && (
                   <Pressable style={styles.iconDanger} onPress={handleDelete}>
-                    <Trash2 size={18} color="#DC2626" />
+                    <Trash2 size={18} color={colors.error} />
                   </Pressable>
                 )}
                 <Pressable
@@ -823,7 +838,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     setEditingField(null); 
                   }}
                 >
-                  <X size={20} color="#6B7280" />
+                  <X size={20} color={colors.textTertiary} />
                 </Pressable>
               </View>
             </View>
@@ -835,10 +850,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               >
                 {/* ---- 时间大卡片 ---- */}
                 {/* ---- 时间大卡片 ---- */}
-                <View style={[styles.card, styles.timeCard]}>
+                <View style={[styles.card, styles.timeCard, { backgroundColor: colors.backgroundSecondary }]}>
                   <View style={styles.timeHeaderRow}>
-                    <Text style={styles.timeHeaderLabel}>{t('calendar.start')}</Text>
-                    <Text style={styles.timeHeaderLabel}>{t('calendar.end')}</Text>
+                    <Text style={[styles.timeHeaderLabel, { color: colors.textTertiary }]}>{t('calendar.start')}</Text>
+                    <Text style={[styles.timeHeaderLabel, { color: colors.textTertiary }]}>{t('calendar.end')}</Text>
                   </View>
 
                   <View style={styles.timeMainRow}>
@@ -847,19 +862,19 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                       style={styles.timeBlock}
                       onPress={() => openTimeEditor('start')}
                     >
-                      <Text style={styles.timeBig}>
+                      <Text style={[styles.timeBig, { color: colors.text }]}>
                         {formatMinutes(draftEvent.start)}
                       </Text>
                     </Pressable>
 
-                    <Text style={styles.timeArrow}>→</Text>
+                    <Text style={[styles.timeArrow, { color: colors.textTertiary }]}>→</Text>
 
                     {/* END */}
                     <Pressable
                       style={styles.timeBlock}
                       onPress={() => openTimeEditor('end')}
                     >
-                      <Text style={styles.timeBig}>
+                      <Text style={[styles.timeBig, { color: colors.text }]}>
                         {formatMinutes(draftEvent.end)}
                       </Text>
                     </Pressable>
@@ -868,8 +883,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
                 {/* 👉 下拉时间选择器，类似 Google Calendar 的选择列表 */}
                 {editingField && (
-                  <View style={styles.timePickerContainer}>
-                    <Text style={styles.timePickerTitle}>
+                  <View style={[styles.timePickerContainer, { backgroundColor: colors.backgroundTertiary, borderColor: colors.border }]}>
+                    <Text style={[styles.timePickerTitle, { color: colors.textTertiary }]}>
                       {editingField === 'start'
                         ? t('calendar.startTime')
                         : t('calendar.duration')}
@@ -912,14 +927,16 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                             key={`${editingField}-${m}`}
                             style={[
                               styles.timeOptionRow,
-                              active && styles.timeOptionRowActive,
+                              { backgroundColor: colors.surface },
+                              active && [styles.timeOptionRowActive, { backgroundColor: colors.backgroundTertiary }],
                             ]}
                             onPress={() => handleSelectTime(editingField, m)}
                           >
                             <Text
                               style={[
                                 styles.timeOptionText,
-                                active && styles.timeOptionTextActive,
+                                { color: colors.textTertiary },
+                                active && [styles.timeOptionTextActive, { color: colors.text }],
                               ]}
                             >
                               {formatMinutes(m)}
@@ -935,11 +952,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
 
                 {/* ---- Event Details / Tag ---- */}
-                <View style={styles.card}>
-                  <Text style={styles.sectionLabel}>{t('calendar.details')}</Text>
+                <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
+                  <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('calendar.details')}</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                     placeholder={t('calendar.details')}
+                    placeholderTextColor={colors.textQuaternary}
                     value={draftEvent.details || ''}
                     onChangeText={(txt) =>
                       setDraftEvent({ ...draftEvent, details: txt })
@@ -949,8 +967,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 </View>
 
                 {/* ---- Event Category ---- */}
-                <View style={styles.card}>
-                  <Text style={styles.sectionLabel}>{t('calendar.category')}</Text>
+                <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
+                  <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('calendar.category')}</Text>
                   <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                     {Object.keys(categories).map((catName) => {
                       const catColor = categories[catName];
@@ -981,7 +999,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                           <Text
                             style={[
                               { color: catColor, fontWeight: '600', fontSize: 12 },
-                              isSelected && { color: '#FFFFFF' },
+                              isSelected && { color: colors.primaryText },
                             ]}
                           >
                             {catName}
@@ -993,7 +1011,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     <Pressable
                       style={[
                         styles.newProjectChip,
-                        draftEvent.isNewCategory && styles.newProjectChipActive,
+                        { borderColor: colors.border },
+                        draftEvent.isNewCategory && [styles.newProjectChipActive, { borderColor: colors.accent }],
                       ]}
                       onPress={() =>
                         setDraftEvent({ ...draftEvent, isNewCategory: true })
@@ -1002,13 +1021,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                       <Plus
                         size={14}
                         color={
-                          draftEvent.isNewCategory ? '#2563EB' : '#6B7280'
+                          draftEvent.isNewCategory ? colors.accent : colors.textTertiary
                         }
                       />
                       <Text
                         style={[
                           styles.newProjectText,
-                          draftEvent.isNewCategory && { color: '#2563EB' },
+                          { color: colors.textTertiary },
+                          draftEvent.isNewCategory && { color: colors.accent },
                         ]}
                       >
                         {t('projects.newCategory')}
@@ -1019,14 +1039,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                   {draftEvent.isNewCategory && (
                     <View style={{ marginTop: 12, gap: 8 }}>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                         placeholder={t('projects.categoryName')}
+                        placeholderTextColor={colors.textQuaternary}
                         value={draftEvent.newCategoryName || ''}
                         onChangeText={(txt) =>
                           setDraftEvent({ ...draftEvent, newCategoryName: txt })
                         }
                       />
-                      <Text style={{ fontSize: 12, color: '#6B7280', marginLeft: 4 }}>
+                      <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}>
                         {t('common.color')}
                       </Text>
                       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
@@ -1041,7 +1062,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                                 backgroundColor: color,
                               },
                               draftEvent.newCategoryColor === color && {
-                                borderColor: '#000000',
+                                borderColor: colors.primary,
                                 borderWidth: 3,
                               },
                             ]}
@@ -1056,9 +1077,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 </View>
 
                 {/* ---- Project 选择 ---- */}
-                <View style={styles.card}>
-                  <Text style={styles.sectionLabel}>{t('calendar.project')}</Text>
-                  <Text style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12, lineHeight: 16 }}>
+                <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
+                  <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('calendar.project')}</Text>
+                  <Text style={{ fontSize: 12, color: colors.textQuaternary, marginBottom: 12, lineHeight: 16 }}>
                     {t('calendar.projectHint')}
                   </Text>
                   <View style={styles.projectGrid}>
@@ -1071,7 +1092,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                           key={p.id}
                           style={[
                             styles.projectChip,
-                            active && styles.projectChipActive,
+                            { backgroundColor: colors.surface, borderColor: colors.border },
+                            active && [styles.projectChipActive, { borderColor: colors.accent, backgroundColor: colors.accentLight }],
                           ]}
                           onPress={() =>
                             setDraftEvent({
@@ -1089,7 +1111,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                           />
                           <Text
                             numberOfLines={1}
-                            style={styles.projectChipText}
+                            style={[styles.projectChipText, { color: colors.text }]}
                           >
                             {p.name}
                           </Text>
@@ -1100,7 +1122,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     <Pressable
                       style={[
                         styles.newProjectChip,
-                        draftEvent.isNewProject && styles.newProjectChipActive,
+                        { borderColor: colors.border },
+                        draftEvent.isNewProject && [styles.newProjectChipActive, { borderColor: colors.accent }],
                       ]}
                       onPress={() =>
                         setDraftEvent({ ...draftEvent, isNewProject: true })
@@ -1109,13 +1132,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                       <Plus
                         size={14}
                         color={
-                          draftEvent.isNewProject ? '#2563EB' : '#6B7280'
+                          draftEvent.isNewProject ? colors.accent : colors.textTertiary
                         }
                       />
                       <Text
                         style={[
                           styles.newProjectText,
-                          draftEvent.isNewProject && { color: '#2563EB' },
+                          { color: colors.textTertiary },
+                          draftEvent.isNewProject && { color: colors.accent },
                         ]}
                       >
                         {t('projects.newProject')}
@@ -1126,8 +1150,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                   {draftEvent.isNewProject && (
                     <>
                       <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                         placeholder={t('projects.projectName')}
+                        placeholderTextColor={colors.textQuaternary}
                         value={draftEvent.newProjectName}
                         onChangeText={(txt) =>
                           setDraftEvent({ ...draftEvent, newProjectName: txt })
@@ -1137,22 +1162,22 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                       {/* Accumulation Slider */}
                       <View style={{ marginTop: 16, paddingHorizontal: 4 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                             {t('projects.accumulation')}
                           </Text>
                           <View style={{ 
                             paddingHorizontal: 10, 
                             paddingVertical: 3, 
                             borderRadius: 10, 
-                            backgroundColor: '#F3F4F6' 
+                            backgroundColor: colors.backgroundTertiary 
                           }}>
-                            <Text style={{ fontSize: 16, fontWeight: '800', color: '#000000' }}>
+                            <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>
                               {Math.round(draftEvent.newProjectPercent)}%
                             </Text>
                           </View>
                         </View>
 
-                        <Text style={{ fontSize: 11, color: '#6B7280', lineHeight: 16, marginBottom: 12 }}>
+                        <Text style={{ fontSize: 11, color: colors.textTertiary, lineHeight: 16, marginBottom: 12 }}>
                           {t('projects.accumulationHint')}
                         </Text>
 
@@ -1175,14 +1200,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                         >
                           <View style={{ 
                             height: 6, 
-                            backgroundColor: '#E5E7EB', 
+                            backgroundColor: colors.border, 
                             borderRadius: 3,
                             overflow: 'hidden',
                           }}>
                             <View style={{ 
                               height: '100%', 
                               width: `${draftEvent.newProjectPercent}%`, 
-                              backgroundColor: '#3B82F6',
+                              backgroundColor: colors.accent,
                               borderRadius: 3,
                             }} />
                           </View>
@@ -1196,10 +1221,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                               width: 20,
                               height: 20,
                               borderRadius: 10,
-                              backgroundColor: '#FFFFFF',
+                              backgroundColor: colors.surface,
                               borderWidth: 2,
-                              borderColor: '#3B82F6',
-                              shadowColor: '#000',
+                              borderColor: colors.accent,
+                              shadowColor: colors.text,
                               shadowOffset: { width: 0, height: 1 },
                               shadowOpacity: 0.15,
                               shadowRadius: 3,
@@ -1210,10 +1235,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
                         {/* Scale Labels */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 1 }}>
-                          <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
-                          <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
-                          <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
-                          <Text style={{ fontSize: 9, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
+                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
+                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
+                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
+                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
                         </View>
                       </View>
                     </>
@@ -1223,8 +1248,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             )}
 
             {/* 底部主按钮 */}
-            <Pressable style={styles.primaryButton} onPress={handleSave}>
-              <Text style={styles.primaryButtonText}>
+            <Pressable style={[styles.primaryButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
+              <Text style={[styles.primaryButtonText, { color: colors.primaryText }]}>
                 {draftEvent?.id ? t('calendar.save') : t('calendar.addEvent')}
               </Text>
             </Pressable>
@@ -1245,9 +1270,10 @@ type AnalyticsViewProps = {
   selectedColorScheme: string;
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   setCategories: React.Dispatch<React.SetStateAction<CategoryMap>>;
+  colors: AppThemeColors;
 };
 
-const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categories, selectedColorScheme, setProjects, setCategories }) => {
+const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categories, selectedColorScheme, setProjects, setCategories, colors }) => {
   const { t, i18n } = useTranslation();
   const [timeRange, setTimeRange] = useState<'Week' | 'Month' | 'Year'>('Week');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
@@ -1257,6 +1283,16 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [showUnassignedEvents, setShowUnassignedEvents] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showCategoryEvents, setShowCategoryEvents] = useState(false);
+  
+  // Archive handlers
+  const handleArchiveProject = (projectId: number) => {
+    setProjects(prev => prev.map(p => 
+      p.id === projectId ? { ...p, archived: true } : p
+    ));
+    setModalOpen(false);
+  };
   
   const days = i18n.language === 'zh' 
     ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -1270,12 +1306,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
         t('calendar.sun')
       ];
 
-  // 获取当前主题的颜色数组
-  const themeColors = COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+  // Get current theme colors - use useMemo to ensure it updates
+  const themeColors = useMemo(() => {
+    return COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+  }, [selectedColorScheme]);
 
   // Get current theme colors
   const getCurrentThemeColors = () => {
-    return COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+    return themeColors;
   };
 
   // Get available months/years from events
@@ -1302,11 +1340,22 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
   const filteredEvents = (() => {
     if (timeRange === 'Week') {
       const today = new Date();
-      const startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 7);
+      const dayOfWeek = today.getDay(); // 0 (Sunday) to 6 (Saturday)
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 0
+      
+      // Get Monday of this week
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - daysFromMonday);
+      monday.setHours(0, 0, 0, 0);
+      
+      // Get Sunday of this week
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+      
       return events.filter((evt) => {
         const eventDate = new Date(evt.date);
-        return eventDate >= startDate && eventDate <= today;
+        return eventDate >= monday && eventDate <= sunday;
       });
     } else if (timeRange === 'Month') {
       return events.filter((evt) => {
@@ -1469,27 +1518,31 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <Header title={t('analytics.title')} />
+    <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}>
+      <Header title={t('analytics.title')} colors={colors} />
 
       <ScrollView
         style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}
         contentContainerStyle={{ paddingBottom: 24 }}
         onScrollBeginDrag={() => showPicker && setShowPicker(false)}
       >
-        <View style={styles.toggleContainer}>
+        <View style={[styles.toggleContainer, { backgroundColor: colors.backgroundTertiary }]}>
           {(['Week', 'Month', 'Year'] as const).map((range) => {
             const active = timeRange === range;
             return (
               <Pressable
                 key={range}
-                style={[styles.toggleItem, active && styles.toggleItemActive]}
+                style={[
+                  styles.toggleItem,
+                  active && [styles.toggleItemActive, { backgroundColor: colors.surface }],
+                ]}
                 onPress={() => setTimeRange(range)}
               >
                 <Text
                   style={[
                     styles.toggleText,
-                    active && styles.toggleTextActive,
+                    { color: colors.textTertiary },
+                    active && [styles.toggleTextActive, { color: colors.text }],
                   ]}
                 >
                   {t(`analytics.${range.toLowerCase()}` as any)}
@@ -1499,12 +1552,12 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
           })}
         </View>
 
-        <View style={styles.analyticsCard}>
+        <View style={[styles.analyticsCard, { backgroundColor: colors.surface }]}>
           <View style={styles.analyticsHeader}>
             <View style={{ position: 'relative' }}>
-              <Text style={styles.analyticsTitle}>{t('analytics.totalTime')}</Text>
+              <Text style={[styles.analyticsTitle, { color: colors.text }]}>{t('analytics.totalTime')}</Text>
               {timeRange === 'Week' ? (
-                <Text style={styles.analyticsSubtitle}>{getSubtitle()}</Text>
+                <Text style={[styles.analyticsSubtitle, { color: colors.textTertiary }]}>{getSubtitle()}</Text>
               ) : (
                 <>
                   {(timeRange === 'Month' && availableMonths.length > 1) || 
@@ -1529,7 +1582,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                             style={{ position: 'absolute', top: -200, left: -200, right: -200, bottom: -500, zIndex: 999 }} 
                             onPress={() => setShowPicker(false)} 
                           />
-                          <View style={[styles.pickerDropdown, { zIndex: 1000 }]}>
+                          <View style={[styles.pickerDropdown, { zIndex: 1000, backgroundColor: colors.surface, borderColor: colors.border }]}>
                             <ScrollView style={{ maxHeight: 132 }} nestedScrollEnabled={true}>
                             {timeRange === 'Month' 
                               ? availableMonths.map((month) => {
@@ -1539,14 +1592,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                                   return (
                                     <Pressable
                                       key={month}
-                                      style={styles.pickerItem}
+                                      style={[styles.pickerItem, { borderBottomColor: colors.border }]}
                                       onPress={() => {
                                         setSelectedMonth(month);
                                         setShowPicker(false);
                                       }}
                                     >
-                                      <Text style={styles.pickerCheck}>{isSelected ? '✓' : ''}</Text>
-                                      <Text style={[styles.pickerItemText, isSelected && styles.pickerItemSelected]}>
+                                      <Text style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</Text>
+                                      <Text style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
                                         {i18n.language === 'zh' 
                                           ? `${selectedYear}年${t(`months.${monthNames[month]}`)}`
                                           : `${t(`months.${monthNames[month]}`)} ${selectedYear}`
@@ -1560,14 +1613,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                                   return (
                                     <Pressable
                                       key={year}
-                                      style={styles.pickerItem}
+                                      style={[styles.pickerItem, { borderBottomColor: colors.border }]}
                                       onPress={() => {
                                         setSelectedYear(year);
                                         setShowPicker(false);
                                       }}
                                     >
-                                      <Text style={styles.pickerCheck}>{isSelected ? '✓' : ''}</Text>
-                                      <Text style={[styles.pickerItemText, isSelected && styles.pickerItemSelected]}>
+                                      <Text style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</Text>
+                                      <Text style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
                                         {year}
                                       </Text>
                                     </Pressable>
@@ -1580,14 +1633,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       )}
                     </>
                   ) : (
-                    <Text style={styles.analyticsSubtitle}>{getSubtitle()}</Text>
+                    <Text style={[styles.analyticsSubtitle, { color: colors.textTertiary }]}>{getSubtitle()}</Text>
                   )}
                 </>
               )}
             </View>
-            <Text style={styles.analyticsValue}>
-              {totalHours}<Text style={styles.analyticsValueUnit}>{t('common.hours')}</Text> {totalMins}
-              <Text style={styles.analyticsValueUnit}>{t('common.minutes')}</Text>
+            <Text style={[styles.analyticsValue, { color: colors.text }]}>
+              {totalHours}<Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.hours')}</Text> {totalMins}
+              <Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.minutes')}</Text>
             </Text>
           </View>
           <View style={styles.barChartRow}>
@@ -1602,7 +1655,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                     timeRange === 'Month' && { alignItems: 'flex-start' }
                   ]}
                 >
-                  <View style={styles.barBackground}>
+                  <View style={[styles.barBackground, { backgroundColor: colors.backgroundTertiary }]}>
                     <View style={{ height: `${barHeight}%`, width: '100%', flexDirection: 'column-reverse', borderRadius: 4, overflow: 'hidden' }}>
                       {barSegments.map((segment, segIdx) => {
                         const segmentPercent = barTotal > 0 ? (segment.duration / barTotal) * 100 : 0;
@@ -1619,7 +1672,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       })}
                     </View>
                   </View>
-                  <Text style={styles.barLabel}>{chartLabels[idx]}</Text>
+                  <Text style={[styles.barLabel, { color: colors.textQuaternary }]}>{chartLabels[idx]}</Text>
                 </View>
               );
             })}
@@ -1628,21 +1681,21 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
 
         {/* Distribution Mode Toggle */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <Text style={styles.sectionTitle}>{t('analytics.projects')}</Text>
-          <View style={{ flexDirection: 'row', gap: 4, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 2 }}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('analytics.projects')}</Text>
+          <View style={{ flexDirection: 'row', gap: 4, backgroundColor: colors.backgroundTertiary, borderRadius: 8, padding: 2 }}>
             <Pressable
               onPress={() => setDistributionMode('category')}
               style={{
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 6,
-                backgroundColor: distributionMode === 'category' ? '#FFFFFF' : 'transparent',
+                backgroundColor: distributionMode === 'category' ? colors.surface : 'transparent',
               }}
             >
               <Text style={{
                 fontSize: 12,
                 fontWeight: '600',
-                color: distributionMode === 'category' ? '#000000' : '#6B7280',
+                color: distributionMode === 'category' ? colors.text : colors.textTertiary,
               }}>
                 {t('analytics.byCategory')}
               </Text>
@@ -1653,13 +1706,13 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 borderRadius: 6,
-                backgroundColor: distributionMode === 'project' ? '#FFFFFF' : 'transparent',
+                backgroundColor: distributionMode === 'project' ? colors.surface : 'transparent',
               }}
             >
               <Text style={{
                 fontSize: 12,
                 fontWeight: '600',
-                color: distributionMode === 'project' ? '#000000' : '#6B7280',
+                color: distributionMode === 'project' ? colors.text : colors.textTertiary,
               }}>
                 {t('analytics.byProject')}
               </Text>
@@ -1674,7 +1727,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
           return (
             <Pressable 
               key={p.id} 
-              style={styles.projectRow}
+              style={[styles.projectRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={() => {
                 setEditingProject(p);
                 setModalOpen(true);
@@ -1688,13 +1741,13 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       { backgroundColor: p.hexColor },
                     ]}
                   />
-                  <Text style={styles.projectRowName} numberOfLines={1} ellipsizeMode="tail">{p.name}</Text>
+                  <Text style={[styles.projectRowName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{p.name}</Text>
                 </View>
-                <Text style={styles.projectRowTime}>
+                <Text style={[styles.projectRowTime, { color: colors.textSecondary }]}>
                   {hours}{t('common.hours')} {mins}{t('common.minutes')}
                 </Text>
               </View>
-              <View style={styles.progressTrack}>
+              <View style={[styles.progressTrack, { backgroundColor: colors.backgroundTertiary }]}>
                 <View
                   style={[
                     styles.progressFill,
@@ -1713,7 +1766,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
           return (
             <Pressable 
               key="unassigned" 
-              style={styles.projectRow}
+              style={[styles.projectRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={() => setShowUnassignedEvents(true)}
             >
               <View style={styles.projectRowHeader}>
@@ -1724,13 +1777,13 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       { backgroundColor: unassignedProject.hexColor },
                     ]}
                   />
-                  <Text style={styles.projectRowName} numberOfLines={1} ellipsizeMode="tail">{unassignedProject.name}</Text>
+                  <Text style={[styles.projectRowName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{unassignedProject.name}</Text>
                 </View>
-                <Text style={styles.projectRowTime}>
+                <Text style={[styles.projectRowTime, { color: colors.textSecondary }]}>
                   {hours}{t('common.hours')} {mins}{t('common.minutes')}
                 </Text>
               </View>
-              <View style={styles.progressTrack}>
+              <View style={[styles.progressTrack, { backgroundColor: colors.backgroundTertiary }]}>
                 <View
                   style={[
                     styles.progressFill,
@@ -1747,7 +1800,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
           const hours = Math.floor(c.duration / 60);
           const mins = c.duration % 60;
           return (
-            <View key={c.name} style={styles.projectRow}>
+            <Pressable 
+              key={c.name} 
+              style={[styles.projectRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={() => {
+                setSelectedCategory(c.name);
+                setShowCategoryEvents(true);
+              }}
+            >
               <View style={styles.projectRowHeader}>
                 <View style={styles.projectRowLeft}>
                   <View
@@ -1756,15 +1816,15 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       { backgroundColor: c.color },
                     ]}
                   />
-                  <Text style={styles.projectRowName} numberOfLines={1} ellipsizeMode="tail">
+                  <Text style={[styles.projectRowName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
                     {c.name === 'uncategorized' ? t('calendar.uncategorized') : c.name}
                   </Text>
                 </View>
-                <Text style={styles.projectRowTime}>
+                <Text style={[styles.projectRowTime, { color: colors.textSecondary }]}>
                   {hours}{t('common.hours')} {mins}{t('common.minutes')}
                 </Text>
               </View>
-              <View style={styles.progressTrack}>
+              <View style={[styles.progressTrack, { backgroundColor: colors.backgroundTertiary }]}>
                 <View
                   style={[
                     styles.progressFill,
@@ -1772,7 +1832,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                   ]}
                 />
               </View>
-            </View>
+            </Pressable>
           );
         })}
       </ScrollView>
@@ -1785,13 +1845,17 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
           animationType="slide"
           onRequestClose={() => setModalOpen(false)}
         >
-          <Pressable 
-            style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'flex-end' }}
-            onPress={() => setModalOpen(false)}
-          >
+          <View style={{ flex: 1, backgroundColor: colors.modalBackdrop, justifyContent: 'flex-end' }}>
+            {/* Backdrop */}
+            <Pressable 
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+              onPress={() => setModalOpen(false)}
+            />
+            
+            {/* Content */}
             <View 
               style={{ 
-                backgroundColor: '#FFFFFF', 
+                backgroundColor: colors.surface, 
                 borderTopLeftRadius: 24, 
                 borderTopRightRadius: 24, 
                 paddingTop: 20,
@@ -1800,22 +1864,18 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
               }}
             >
               {/* Header */}
-              <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                  <View style={{ flex: 1, marginRight: 16 }}>
-                    <TextInput
-                      style={{ 
-                        fontSize: 28, 
-                        fontWeight: '700', 
-                        color: '#000000',
-                        padding: 0,
-                        margin: 0,
-                      }}
-                      value={editingProject.name}
-                      onChangeText={(text) => setEditingProject({ ...editingProject, name: text })}
-                      placeholder="Project Name"
-                      placeholderTextColor="#9CA3AF"
-                    />
+              <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View>
+                    <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
+                      {editingProject.name}
+                    </Text>
+                    <Text style={{ fontSize: 14, color: colors.textTertiary, marginTop: 4 }}>
+                      {(() => {
+                        const projectEvents = filteredEvents.filter(evt => evt.projectId === editingProject.id);
+                        return `${projectEvents.length} ${projectEvents.length === 1 ? 'event' : 'events'}`;
+                      })()}
+                    </Text>
                   </View>
                   <Pressable 
                     onPress={() => setModalOpen(false)}
@@ -1823,289 +1883,106 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       width: 32, 
                       height: 32, 
                       borderRadius: 16, 
-                      backgroundColor: '#F3F4F6', 
+                      backgroundColor: colors.backgroundTertiary, 
                       justifyContent: 'center', 
                       alignItems: 'center' 
                     }}
                   >
-                    <X size={18} color="#6B7280" />
+                    <X size={18} color={colors.textTertiary} />
                   </Pressable>
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: '#6B7280' }}>{t('projects.editDetails')}</Text>
               </View>
 
+              {/* Events List */}
               <ScrollView 
                 style={{ flexGrow: 1 }}
                 contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
                 showsVerticalScrollIndicator={false}
               >
-                {/* Section 1: Accumulation (Progress) */}
-                <View style={{ marginBottom: 32 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      {t('projects.accumulation')}
-                    </Text>
-                    <View style={{ 
-                      paddingHorizontal: 12, 
-                      paddingVertical: 4, 
-                      borderRadius: 12, 
-                      backgroundColor: editingProject.percent >= 100 ? '#10B981' : '#F3F4F6' 
-                    }}>
-                      <Text style={{ 
-                        fontSize: 18, 
-                        fontWeight: '800', 
-                        color: editingProject.percent >= 100 ? '#FFFFFF' : '#000000' 
-                      }}>
-                        {Math.round(editingProject.percent)}%
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Hint Text */}
-                  <Text style={{ fontSize: 12, color: '#6B7280', lineHeight: 18, marginBottom: 16 }}>
-                    {t('projects.accumulationHint')}
-                  </Text>
-
-                  {/* Progress Bar - Draggable */}
-                  <View 
-                    style={{ height: 48, justifyContent: 'center', marginBottom: 8 }}
-                    onStartShouldSetResponder={() => true}
-                    onResponderGrant={(e) => {
-                      const locationX = e.nativeEvent.locationX;
-                      const containerWidth = 327; // Approximate width (screen width - 48px padding)
-                      const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
-                      setEditingProject({ ...editingProject, percent: Math.round(newPercent) });
-                    }}
-                    onResponderMove={(e) => {
-                      const locationX = e.nativeEvent.locationX;
-                      const containerWidth = 327;
-                      const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
-                      setEditingProject({ ...editingProject, percent: Math.round(newPercent) });
-                    }}
-                  >
-                    <View style={{ 
-                      height: 8, 
-                      backgroundColor: '#F3F4F6', 
-                      borderRadius: 4,
-                      overflow: 'hidden',
-                    }}>
-                      <View style={{ 
-                        height: '100%', 
-                        width: `${editingProject.percent}%`, 
-                        backgroundColor: editingProject.hexColor,
-                        borderRadius: 4,
-                      }} />
-                    </View>
-                    
-                    {/* Draggable Handle */}
-                    <View 
-                      style={{ 
-                        position: 'absolute',
-                        left: `${editingProject.percent}%`,
-                        transform: [{ translateX: -12 }],
-                        width: 24,
-                        height: 24,
-                        borderRadius: 12,
-                        backgroundColor: '#FFFFFF',
-                        borderWidth: 3,
-                        borderColor: editingProject.hexColor,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 4,
-                        elevation: 4,
-                      }}
-                    />
-                  </View>
-
-                  {/* Scale Labels */}
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 }}>
-                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
-                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
-                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
-                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
-                  </View>
-                </View>
-
-                {/* Section 2: Category */}
-                <View style={{ marginBottom: 32 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
-                    {t('projects.category')}
-                  </Text>
+                {(() => {
+                  const projectEvents = filteredEvents.filter(evt => evt.projectId === editingProject.id);
                   
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    {/* Uncategorized Option */}
-                    <Pressable
-                      onPress={() => setEditingProject({ ...editingProject, category: null, hexColor: '#9CA3AF' })}
-                      style={{
-                        paddingHorizontal: 16,
-                        paddingVertical: 10,
-                        borderRadius: 20,
-                        backgroundColor: !editingProject.category ? '#1F2937' : '#F9FAFB',
-                        borderWidth: 2,
-                        borderColor: !editingProject.category ? '#1F2937' : '#E5E7EB',
-                      }}
-                    >
-                      <Text style={{ 
-                        fontSize: 13, 
-                        fontWeight: '700', 
-                        color: !editingProject.category ? '#FFFFFF' : '#6B7280' 
-                      }}>
-                        {t('projects.uncategorized')}
-                      </Text>
-                    </Pressable>
-
-                    {/* Existing Categories */}
-                    {Object.entries(categories).map(([catName, catColor]) => {
-                      const isSelected = editingProject.category === catName;
-                      return (
-                        <Pressable
-                          key={catName}
-                          onPress={() => setEditingProject({ ...editingProject, category: catName, hexColor: catColor })}
-                          style={{
-                            paddingHorizontal: 16,
-                            paddingVertical: 10,
-                            borderRadius: 20,
-                            backgroundColor: isSelected ? catColor : '#FFFFFF',
-                            borderWidth: 2,
-                            borderColor: catColor,
-                          }}
-                        >
-                          <Text style={{ 
-                            fontSize: 13, 
-                            fontWeight: '700', 
-                            color: isSelected ? '#FFFFFF' : catColor 
-                          }}>
-                            {catName}
+                  if (projectEvents.length === 0) {
+                    return (
+                      <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
+                          No events for this project
+                        </Text>
+                      </View>
+                    );
+                  }
+                  
+                  return projectEvents.map((evt, index) => {
+                    const eventDate = new Date(evt.date);
+                    const hours = Math.floor(evt.duration / 60);
+                    const mins = evt.duration % 60;
+                    const categoryColor = evt.category ? (categories[evt.category] || editingProject.hexColor) : editingProject.hexColor;
+                    
+                    // Format time range
+                    const formatMinutes = (totalMins: number) => {
+                      const h = Math.floor(totalMins / 60);
+                      const m = totalMins % 60;
+                      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                    };
+                    const startTime = formatMinutes(evt.start);
+                    const endTime = formatMinutes(evt.start + evt.duration);
+                    
+                    return (
+                      <View 
+                        key={`${evt.date}-${evt.start}-${index}`}
+                        style={{
+                          backgroundColor: colors.backgroundSecondary,
+                          borderRadius: 12,
+                          padding: 16,
+                          marginBottom: 12,
+                          borderLeftWidth: 4,
+                          borderLeftColor: editingProject.hexColor,
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                          <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, flex: 1 }}>
+                            {evt.details || evt.title || t('calendar.newEvent')}
                           </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
+                          <View style={{ 
+                            paddingHorizontal: 8, 
+                            paddingVertical: 4, 
+                            backgroundColor: colors.surface,
+                            borderRadius: 6,
+                          }}>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>
+                              {hours > 0 && `${hours}${t('common.hours')} `}{mins}{t('common.minutes')}
+                            </Text>
+                          </View>
+                        </View>
 
-                {/* Section 3: Create New Category */}
-                <View style={{ 
-                  backgroundColor: '#F9FAFB', 
-                  padding: 16, 
-                  borderRadius: 16, 
-                  borderWidth: 1, 
-                  borderColor: '#E5E7EB' 
-                }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
-                    {t('projects.createNewCategory')}
-                  </Text>
+                        {evt.category && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: categoryColor }} />
+                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                              {evt.category}
+                            </Text>
+                          </View>
+                        )}
 
-                  <TextInput
-                    style={{
-                      backgroundColor: '#FFFFFF',
-                      borderWidth: 1,
-                      borderColor: '#E5E7EB',
-                      borderRadius: 12,
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      fontSize: 15,
-                      fontWeight: '500',
-                      color: '#000000',
-                      marginBottom: 16,
-                    }}
-                    placeholder={t('projects.categoryNamePlaceholder')}
-                    placeholderTextColor="#9CA3AF"
-                    value={(editingProject as any).newCategoryName || ''}
-                    onChangeText={(text) => setEditingProject({ ...editingProject, newCategoryName: text } as any)}
-                  />
-
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 12 }}>
-                    {t('common.color')}
-                  </Text>
-
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                    {getCurrentThemeColors().map((color) => {
-                      const isSelected = ((editingProject as any).newCategoryColor || getCurrentThemeColors()[0]) === color;
-                      return (
-                        <Pressable
-                          key={color}
-                          onPress={() => setEditingProject({ ...editingProject, newCategoryColor: color } as any)}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 20,
-                            backgroundColor: color,
-                            borderWidth: isSelected ? 3 : 2,
-                            borderColor: isSelected ? '#000000' : '#FFFFFF',
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 4,
-                            elevation: 3,
-                          }}
-                        />
-                      );
-                    })}
-                  </View>
-
-                  <Pressable
-                    onPress={() => {
-                      if ((editingProject as any).newCategoryName?.trim()) {
-                        const newCatName = (editingProject as any).newCategoryName.trim();
-                        const newCatColor = (editingProject as any).newCategoryColor || getCurrentThemeColors()[0];
-                        setCategories(prev => ({ ...prev, [newCatName]: newCatColor }));
-                        setEditingProject({ 
-                          ...editingProject, 
-                          category: newCatName, 
-                          hexColor: newCatColor,
-                          newCategoryName: '',
-                          newCategoryColor: undefined,
-                        } as any);
-                      }
-                    }}
-                    style={{
-                      backgroundColor: (editingProject as any).newCategoryName?.trim() ? '#3B82F6' : '#E5E7EB',
-                      paddingVertical: 14,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                    }}
-                    disabled={!(editingProject as any).newCategoryName?.trim()}
-                  >
-                    <Text style={{ 
-                      fontSize: 15, 
-                      fontWeight: '700', 
-                      color: (editingProject as any).newCategoryName?.trim() ? '#FFFFFF' : '#9CA3AF' 
-                    }}>
-                      {t('projects.createAndAssign')}
-                    </Text>
-                  </Pressable>
-                </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                          <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                            {eventDate.toLocaleDateString(i18n.language === 'zh' ? 'zh-CN' : 'en-US', { 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </Text>
+                          <Text style={{ fontSize: 13, color: colors.textQuaternary }}>•</Text>
+                          <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                            {startTime} - {endTime}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  });
+                })()}
               </ScrollView>
-
-              {/* Save Button */}
-              <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                <Pressable
-                  onPress={() => {
-                    setProjects(prev => prev.map(p => 
-                      p.id === editingProject.id ? editingProject : p
-                    ));
-                    setModalOpen(false);
-                  }}
-                  style={{
-                    backgroundColor: '#000000',
-                    paddingVertical: 16,
-                    borderRadius: 16,
-                    alignItems: 'center',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 8,
-                    elevation: 4,
-                  }}
-                >
-                  <Text style={{ fontSize: 17, fontWeight: '700', color: '#FFFFFF' }}>
-                    {t('common.save')}
-                  </Text>
-                </Pressable>
-              </View>
             </View>
-          </Pressable>
+          </View>
         </Modal>
       )}
 
@@ -2119,7 +1996,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
             animationType="slide"
             onRequestClose={() => setShowUnassignedEvents(false)}
           >
-            <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'flex-end' }}>
+            <View style={{ flex: 1, backgroundColor: colors.modalBackdrop, justifyContent: 'flex-end' }}>
               {/* Backdrop */}
               <Pressable 
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
@@ -2129,7 +2006,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
               {/* Content */}
               <View 
                 style={{ 
-                  backgroundColor: '#FFFFFF', 
+                  backgroundColor: colors.surface, 
                   borderTopLeftRadius: 24, 
                   borderTopRightRadius: 24, 
                   paddingTop: 20,
@@ -2141,10 +2018,10 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View>
-                      <Text style={{ fontSize: 24, fontWeight: '700', color: '#000000' }}>
+                      <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
                         {t('calendar.uncategorized')}
                       </Text>
-                      <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>
+                      <Text style={{ fontSize: 14, color: colors.textTertiary, marginTop: 4 }}>
                         {unassignedEvents.length} {unassignedEvents.length === 1 ? t('calendar.eventTitle') : t('calendar.eventTitle')}
                       </Text>
                     </View>
@@ -2154,12 +2031,12 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                         width: 32, 
                         height: 32, 
                         borderRadius: 16, 
-                        backgroundColor: '#F3F4F6', 
+                        backgroundColor: colors.backgroundTertiary, 
                         justifyContent: 'center', 
                         alignItems: 'center' 
                       }}
                     >
-                      <X size={18} color="#6B7280" />
+                      <X size={18} color={colors.textTertiary} />
                     </Pressable>
                   </View>
                 </View>
@@ -2172,7 +2049,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 >
                   {unassignedEvents.length === 0 ? (
                     <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 15, color: '#9CA3AF', textAlign: 'center' }}>
+                      <Text style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
                         {t('projects.noProjectsYet')}
                       </Text>
                     </View>
@@ -2183,11 +2060,20 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       const mins = evt.duration % 60;
                       const categoryColor = evt.category ? (categories[evt.category] || '#9CA3AF') : '#9CA3AF';
                       
+                      // Format time range
+                      const formatMinutes = (totalMins: number) => {
+                        const h = Math.floor(totalMins / 60);
+                        const m = totalMins % 60;
+                        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                      };
+                      const startTime = formatMinutes(evt.start);
+                      const endTime = formatMinutes(evt.start + evt.duration);
+                      
                       return (
                         <View 
                           key={`${evt.date}-${evt.start}-${index}`}
                           style={{
-                            backgroundColor: '#F9FAFB',
+                            backgroundColor: colors.backgroundSecondary,
                             borderRadius: 12,
                             padding: 16,
                             marginBottom: 12,
@@ -2195,43 +2081,191 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                             borderLeftColor: categoryColor,
                           }}
                         >
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                            <Text style={{ fontSize: 16, fontWeight: '600', color: '#000000', flex: 1 }}>
-                              {evt.title || t('calendar.newEvent')}
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, flex: 1 }}>
+                              {evt.details || evt.title || t('calendar.newEvent')}
                             </Text>
                             <View style={{ 
                               paddingHorizontal: 8, 
                               paddingVertical: 4, 
-                              backgroundColor: '#FFFFFF',
+                              backgroundColor: colors.surface,
                               borderRadius: 6,
                             }}>
-                              <Text style={{ fontSize: 12, fontWeight: '600', color: '#6B7280' }}>
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>
                                 {hours > 0 && `${hours}${t('common.hours')} `}{mins}{t('common.minutes')}
                               </Text>
                             </View>
                           </View>
 
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: categoryColor }} />
+                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                              {evt.category || t('calendar.uncategorized')}
+                            </Text>
+                          </View>
+
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: categoryColor }} />
-                              <Text style={{ fontSize: 13, color: '#6B7280' }}>
-                                {evt.category || t('calendar.uncategorized')}
-                              </Text>
-                            </View>
-                            <Text style={{ fontSize: 13, color: '#9CA3AF' }}>•</Text>
-                            <Text style={{ fontSize: 13, color: '#6B7280' }}>
+                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
                               {eventDate.toLocaleDateString(i18n.language === 'zh' ? 'zh-CN' : 'en-US', { 
                                 month: 'short', 
                                 day: 'numeric' 
                               })}
                             </Text>
+                            <Text style={{ fontSize: 13, color: colors.textQuaternary }}>•</Text>
+                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                              {startTime} - {endTime}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+        );
+      })()}
+
+      {/* Category Events Modal */}
+      {showCategoryEvents && selectedCategory && (() => {
+        const categoryEvents = filteredEvents.filter(evt => {
+          const evtCategory = evt.category || 'uncategorized';
+          return evtCategory === selectedCategory;
+        });
+        const categoryColor = categories[selectedCategory] || '#9CA3AF';
+        
+        return (
+          <Modal
+            visible={showCategoryEvents}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowCategoryEvents(false)}
+          >
+            <View style={{ flex: 1, backgroundColor: colors.modalBackdrop, justifyContent: 'flex-end' }}>
+              {/* Backdrop */}
+              <Pressable 
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                onPress={() => setShowCategoryEvents(false)}
+              />
+              
+              {/* Content */}
+              <View 
+                style={{ 
+                  backgroundColor: colors.surface, 
+                  borderTopLeftRadius: 24, 
+                  borderTopRightRadius: 24, 
+                  paddingTop: 20,
+                  paddingBottom: 40,
+                  maxHeight: '80%',
+                }}
+              >
+                {/* Header */}
+                <View style={{ paddingHorizontal: 24, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: categoryColor }} />
+                    <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
+                      {selectedCategory === 'uncategorized' ? t('calendar.uncategorized') : selectedCategory}
+                    </Text>
+                  </View>
+                  <Pressable 
+                    onPress={() => setShowCategoryEvents(false)}
+                    style={{ 
+                      width: 32, 
+                      height: 32, 
+                      borderRadius: 16, 
+                      backgroundColor: colors.backgroundTertiary, 
+                      justifyContent: 'center', 
+                      alignItems: 'center' 
+                    }}
+                  >
+                    <X size={18} color={colors.textTertiary} />
+                  </Pressable>
+                </View>
+
+                {/* Events List */}
+                <ScrollView 
+                  style={{ flexGrow: 1 }}
+                  contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {categoryEvents.length === 0 ? (
+                    <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
+                        {t('projects.noProjectsYet')}
+                      </Text>
+                    </View>
+                  ) : (
+                    categoryEvents.map((evt, index) => {
+                      const eventDate = new Date(evt.date);
+                      const hours = Math.floor(evt.duration / 60);
+                      const mins = evt.duration % 60;
+                      
+                      // Format time range
+                      const formatMinutes = (totalMins: number) => {
+                        const h = Math.floor(totalMins / 60);
+                        const m = totalMins % 60;
+                        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                      };
+                      const startTime = formatMinutes(evt.start);
+                      const endTime = formatMinutes(evt.start + evt.duration);
+                      
+                      return (
+                        <View 
+                          key={`${evt.date}-${evt.start}-${index}`}
+                          style={{
+                            backgroundColor: colors.backgroundSecondary,
+                            borderRadius: 12,
+                            padding: 16,
+                            marginBottom: 12,
+                            borderLeftWidth: 4,
+                            borderLeftColor: categoryColor,
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, flex: 1 }}>
+                              {evt.details || evt.title || t('calendar.newEvent')}
+                            </Text>
+                            <View style={{ 
+                              paddingHorizontal: 8, 
+                              paddingVertical: 4, 
+                              backgroundColor: colors.surface,
+                              borderRadius: 6,
+                            }}>
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>
+                                {hours > 0 && `${hours}${t('common.hours')} `}{mins}{t('common.minutes')}
+                              </Text>
+                            </View>
                           </View>
 
-                          {evt.details && (
-                            <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 8, lineHeight: 18 }}>
-                              {evt.details}
+                          {/* Linked Project */}
+                          {evt.projectId && (() => {
+                            const linkedProject = projects.find(p => p.id === evt.projectId);
+                            if (linkedProject) {
+                              return (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: linkedProject.hexColor }} />
+                                  <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textSecondary }}>
+                                    {linkedProject.name}
+                                  </Text>
+                                </View>
+                              );
+                            }
+                            return null;
+                          })()}
+
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                              {eventDate.toLocaleDateString(i18n.language === 'zh' ? 'zh-CN' : 'en-US', { 
+                                month: 'short', 
+                                day: 'numeric' 
+                              })}
                             </Text>
-                          )}
+                            <Text style={{ fontSize: 13, color: colors.textQuaternary }}>•</Text>
+                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                              {startTime} - {endTime}
+                            </Text>
+                          </View>
                         </View>
                       );
                     })
@@ -2273,15 +2307,21 @@ type ProjectsViewProps = {
   selectedColorScheme: string;
   setSelectedColorScheme: React.Dispatch<React.SetStateAction<string>>;
   onGoToCalendar?: () => void;
+  colors: AppThemeColors;
 };
 
-const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categories, setProjects, setCategories, setEvents, selectedColorScheme, setSelectedColorScheme, onGoToCalendar }) => {
+const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categories, setProjects, setCategories, setEvents, selectedColorScheme, setSelectedColorScheme, onGoToCalendar, colors }) => {
   const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
   const [timeRange, setTimeRange] = useState<TimeRangeType>('30d');
   const [selectedProject, setSelectedProject] = useState<ProjectDataPoint | null>(null);
   const [showColorTheme, setShowColorTheme] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
+  const [showManageCategories, setShowManageCategories] = useState(false);
+  const [showArchivedProjects, setShowArchivedProjects] = useState(false);
+  const [showProjectManagement, setShowProjectManagement] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<{ oldName: string; newName: string; color: string } | null>(null);
+  const [editingProject, setEditingProject] = useState<{ id: number; name: string; category: string | null; hexColor: string; percent: number } | null>(null);
   const [selectedNode, setSelectedNode] = useState<Project | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [chartWidth, setChartWidth] = useState(320);
@@ -2296,9 +2336,14 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
   const SHARE_THRESHOLD = 0.10; // 10% time share
   const ACCUMULATION_THRESHOLD = 60; // 60% accumulation
 
+  // Get current theme colors - use useMemo to ensure it updates
+  const themeColors = useMemo(() => {
+    return COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+  }, [selectedColorScheme]);
+
   // Get current theme colors
   const getCurrentThemeColors = () => {
-    return COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+    return themeColors;
   };
 
   // Get category color
@@ -2352,6 +2397,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     const dataPoints: ProjectDataPoint[] = [];
 
     projects.forEach(project => {
+      // Skip archived projects
+      if (project.archived) return;
+      
       const metrics = projectMetrics.get(project.id);
       if (!metrics || metrics.duration === 0) return; // Skip projects with no time in range
 
@@ -2426,6 +2474,50 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     if (project) {
       setSelectedNode({ ...project });
       setModalOpen(true);
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      const { writeAsStringAsync } = require('expo-file-system/legacy');
+      const { shareAsync } = require('expo-sharing');
+      const FileSystem = require('expo-file-system');
+
+      const exportData = events.map(event => {
+        const project = projects.find(p => p.id === event.projectId);
+        
+        // Format time range
+        const startHour = Math.floor(event.start / 60);
+        const startMinute = event.start % 60;
+        const endTotal = event.start + event.duration;
+        const endHour = Math.floor(endTotal / 60);
+        const endMinute = endTotal % 60;
+        
+        const formatTime = (h: number, m: number) => 
+          `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+          
+        const timeStr = `${formatTime(startHour, startMinute)}-${formatTime(endHour, endMinute)}`;
+
+        return {
+          date: event.date,
+          time: timeStr,
+          type: event.category,
+          project: project ? [project.name] : [],
+          tag: event.title
+        };
+      });
+
+      const fileName = `action_export_${new Date().toISOString().split('T')[0]}.json`;
+      const filePath = FileSystem.documentDirectory + fileName;
+
+      await writeAsStringAsync(filePath, JSON.stringify(exportData, null, 2));
+      await shareAsync(filePath, {
+        mimeType: 'application/json',
+        dialogTitle: 'Export Data'
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      Alert.alert('Error', 'Failed to export data');
     }
   };
 
@@ -2599,6 +2691,101 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     );
   };
 
+  const handleDeleteCategory = (categoryName: string) => {
+    Alert.alert(
+      t('common.confirm'),
+      `${t('common.delete')} "${categoryName}"?`,
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            // Remove category
+            const newCategories = { ...categories };
+            delete newCategories[categoryName];
+            setCategories(newCategories);
+            
+            // Update projects using this category
+            setProjects(prev => prev.map(p => 
+              p.category === categoryName ? { ...p, category: null, hexColor: '#9CA3AF' } : p
+            ));
+            
+            // Update events using this category
+            setEvents(prev => prev.map(e => 
+              e.category === categoryName ? { ...e, category: undefined } : e
+            ));
+          }
+        }
+      ]
+    );
+  };
+
+  const handleArchiveProject = (projectId: number) => {
+    setProjects(prev => prev.map(p => 
+      p.id === projectId ? { ...p, archived: true } : p
+    ));
+    setModalOpen(false);
+  };
+
+  const handleUnarchiveProject = (projectId: number) => {
+    setProjects(prev => prev.map(p => 
+      p.id === projectId ? { ...p, archived: false } : p
+    ));
+  };
+
+  const handleDeleteProject = (projectId: number) => {
+    Alert.alert(
+      t('common.confirm'),
+      t('projects.deleteProjectConfirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            setProjects(prev => prev.filter(p => p.id !== projectId));
+            // Unlink events from this project
+            setEvents(prev => prev.map(e => 
+              e.projectId === projectId ? { ...e, projectId: undefined } : e
+            ));
+          }
+        }
+      ]
+    );
+  };
+
+  const handleUpdateCategory = () => {
+    if (!editingCategory || !editingCategory.newName.trim()) return;
+    
+    const { oldName, newName, color } = editingCategory;
+    const trimmedNewName = newName.trim();
+    
+    // Check if new name conflicts with existing category (except itself)
+    if (trimmedNewName !== oldName && categories[trimmedNewName]) {
+      Alert.alert(t('common.error'), 'Category name already exists');
+      return;
+    }
+    
+    // Update categories
+    const newCategories = { ...categories };
+    delete newCategories[oldName];
+    newCategories[trimmedNewName] = color;
+    setCategories(newCategories);
+    
+    // Update projects
+    setProjects(prev => prev.map(p => 
+      p.category === oldName ? { ...p, category: trimmedNewName, hexColor: color } : p
+    ));
+    
+    // Update events
+    setEvents(prev => prev.map(e => 
+      e.category === oldName ? { ...e, category: trimmedNewName } : e
+    ));
+    
+    setEditingCategory(null);
+  };
+
   const handleSelectColorScheme = (scheme: string) => {
     setSelectedColorScheme(scheme);
     
@@ -2630,49 +2817,338 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
   // Settings panel
   if (showSettings) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#000000AA' }}>
+      <View style={{ flex: 1, backgroundColor: colors.modalBackdrop }}>
         <Pressable style={{ flex: 1 }} onPress={() => setShowSettings(false)} />
-        <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 24, paddingHorizontal: 16, maxHeight: '80%' }}>
+        <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 24, paddingHorizontal: 16, maxHeight: '80%' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: '#000000' }}>{t('projects.settings')}</Text>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{t('projects.settings')}</Text>
             <Pressable onPress={() => setShowSettings(false)}>
-              <X size={24} color="#6B7280" />
+              <X size={24} color={colors.textTertiary} />
             </Pressable>
           </View>
           
           <ScrollView contentContainerStyle={{ gap: 20 }}>
+            {/* Manage Categories */}
+            <View>
+              <Pressable 
+                onPress={() => setShowManageCategories(!showManageCategories)}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showManageCategories ? 12 : 0 }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.categoryManagement')}</Text>
+                <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showManageCategories ? '▼' : '▶'}</Text>
+              </Pressable>
+              {showManageCategories && (
+                <View style={{ gap: 8 }}>
+                  {Object.entries(categories).map(([catName, catColor]) => (
+                    <View key={catName} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      {editingCategory?.oldName === catName ? (
+                        <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary, padding: 12, borderRadius: 12, gap: 8 }}>
+                          <TextInput
+                            style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: colors.text }}
+                            value={editingCategory.newName}
+                            onChangeText={(text) => setEditingCategory({ ...editingCategory, newName: text })}
+                            placeholder={t('projects.categoryName')}
+                            placeholderTextColor={colors.textQuaternary}
+                          />
+                          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                            {getCurrentThemeColors().map((color) => (
+                              <Pressable
+                                key={color}
+                                onPress={() => setEditingCategory({ ...editingCategory, color })}
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 16,
+                                  backgroundColor: color,
+                                  borderWidth: editingCategory.color === color ? 3 : 0,
+                                  borderColor: colors.primary,
+                                }}
+                              />
+                            ))}
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <Pressable
+                              onPress={handleUpdateCategory}
+                              style={{ flex: 1, backgroundColor: colors.accent, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
+                            >
+                              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accentText }}>{t('common.save')}</Text>
+                            </Pressable>
+                            <Pressable
+                              onPress={() => setEditingCategory(null)}
+                              style={{ flex: 1, backgroundColor: colors.backgroundTertiary, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
+                            >
+                              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textTertiary }}>{t('common.cancel')}</Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      ) : (
+                        <>
+                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.backgroundSecondary, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12 }}>
+                            <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: catColor }} />
+                            <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.text }}>{catName}</Text>
+                          </View>
+                          <Pressable
+                            onPress={() => setEditingCategory({ oldName: catName, newName: catName, color: catColor })}
+                            style={{ padding: 8, backgroundColor: colors.backgroundTertiary, borderRadius: 8 }}
+                          >
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>✎</Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => handleDeleteCategory(catName)}
+                            style={{ padding: 8, backgroundColor: colors.errorLight, borderRadius: 8 }}
+                          >
+                            <Trash2 size={14} color={colors.error} />
+                          </Pressable>
+                        </>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Project Management */}
+            <View>
+              <Pressable 
+                onPress={() => setShowProjectManagement(!showProjectManagement)}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showProjectManagement ? 12 : 0 }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.projectManagement')}</Text>
+                <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showProjectManagement ? '▼' : '▶'}</Text>
+              </Pressable>
+              {showProjectManagement && (
+                <View style={{ gap: 8 }}>
+                  {projects.filter(p => !p.archived).length === 0 ? (
+                    <Text style={{ fontSize: 13, color: colors.textQuaternary, textAlign: 'center', paddingVertical: 16 }}>
+                      {t('projects.noActiveProjects')}
+                    </Text>
+                  ) : (
+                    projects.filter(p => !p.archived).map((project) => (
+                      <View key={project.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {editingProject?.id === project.id ? (
+                          <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary, padding: 12, borderRadius: 12, gap: 8 }}>
+                            <TextInput
+                              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: colors.text }}
+                              value={editingProject.name}
+                              onChangeText={(text) => setEditingProject({ ...editingProject, name: text })}
+                              placeholder={t('projects.projectName')}
+                              placeholderTextColor={colors.textQuaternary}
+                            />
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                              <Pressable
+                                onPress={() => setEditingProject({ ...editingProject, category: null, hexColor: '#9CA3AF' })}
+                                style={{
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 8,
+                                  borderRadius: 8,
+                                  backgroundColor: !editingProject.category ? colors.text : colors.surface,
+                                  borderWidth: 1,
+                                  borderColor: !editingProject.category ? colors.text : colors.border,
+                                }}
+                              >
+                                <Text style={{ fontSize: 12, fontWeight: '600', color: !editingProject.category ? colors.textInverse : colors.textTertiary }}>
+                                  {t('projects.uncategorized')}
+                                </Text>
+                              </Pressable>
+                              {Object.entries(categories).map(([catName, catColor]) => {
+                                const isSelected = editingProject.category === catName;
+                                return (
+                                  <Pressable
+                                    key={catName}
+                                    onPress={() => setEditingProject({ ...editingProject, category: catName, hexColor: catColor })}
+                                    style={{
+                                      paddingHorizontal: 12,
+                                      paddingVertical: 8,
+                                      borderRadius: 8,
+                                      backgroundColor: isSelected ? catColor : colors.surface,
+                                      borderWidth: 1,
+                                      borderColor: catColor,
+                                    }}
+                                  >
+                                    <Text style={{ fontSize: 12, fontWeight: '600', color: isSelected ? colors.accentText : catColor }}>
+                                      {catName}
+                                    </Text>
+                                  </Pressable>
+                                );
+                              })}
+                            </View>
+                            {/* Accumulation Slider */}
+                            <View>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, textTransform: 'uppercase' }}>
+                                  {t('projects.accumulation')}
+                                </Text>
+                                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                                  {Math.round(editingProject.percent)}%
+                                </Text>
+                              </View>
+                              <View 
+                                style={{ height: 32, justifyContent: 'center' }}
+                                onStartShouldSetResponder={() => true}
+                                onResponderGrant={(e) => {
+                                  const locationX = e.nativeEvent.locationX;
+                                  const containerWidth = 280;
+                                  const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
+                                  setEditingProject({ ...editingProject, percent: Math.round(newPercent) });
+                                }}
+                                onResponderMove={(e) => {
+                                  const locationX = e.nativeEvent.locationX;
+                                  const containerWidth = 280;
+                                  const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
+                                  setEditingProject({ ...editingProject, percent: Math.round(newPercent) });
+                                }}
+                              >
+                                <View style={{ height: 6, backgroundColor: colors.backgroundTertiary, borderRadius: 3, overflow: 'hidden' }}>
+                                  <View style={{ height: '100%', width: `${editingProject.percent}%`, backgroundColor: editingProject.hexColor, borderRadius: 3 }} />
+                                </View>
+                                <View style={{ position: 'absolute', left: `${editingProject.percent}%`, transform: [{ translateX: -8 }], width: 16, height: 16, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 2, borderColor: editingProject.hexColor }} />
+                              </View>
+                            </View>
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                              <Pressable
+                                onPress={() => {
+                                  if (editingProject.name.trim()) {
+                                    setProjects(prev => prev.map(p => 
+                                      p.id === editingProject.id ? { ...p, name: editingProject.name.trim(), category: editingProject.category, hexColor: editingProject.hexColor, percent: editingProject.percent } : p
+                                    ));
+                                  }
+                                  setEditingProject(null);
+                                }}
+                                style={{ flex: 1, backgroundColor: colors.accent, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
+                              >
+                                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accentText }}>{t('common.save')}</Text>
+                              </Pressable>
+                              <Pressable
+                                onPress={() => setEditingProject(null)}
+                                style={{ flex: 1, backgroundColor: colors.backgroundTertiary, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
+                              >
+                                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textTertiary }}>{t('common.cancel')}</Text>
+                              </Pressable>
+                            </View>
+                          </View>
+                        ) : (
+                          <>
+                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.backgroundSecondary, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12 }}>
+                              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: project.hexColor }} />
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{project.name}</Text>
+                                {project.category && (
+                                  <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }}>{project.category}</Text>
+                                )}
+                              </View>
+                            </View>
+                            <Pressable
+                              onPress={() => setEditingProject({ id: project.id, name: project.name, category: project.category, hexColor: project.hexColor, percent: project.percent })}
+                              style={{ padding: 8, backgroundColor: colors.backgroundTertiary, borderRadius: 8 }}
+                            >
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>✎</Text>
+                            </Pressable>
+                            <Pressable
+                              onPress={() => handleArchiveProject(project.id)}
+                              style={{ padding: 8, backgroundColor: colors.warningLight, borderRadius: 8 }}
+                            >
+                              <Archive size={14} color={colors.warning} />
+                            </Pressable>
+                          </>
+                        )}
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
+            </View>
+
+            {/* Archived Projects */}
+            <View>
+              <Pressable 
+                onPress={() => setShowArchivedProjects(!showArchivedProjects)}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showArchivedProjects ? 12 : 0 }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.archivedProjects')}</Text>
+                <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showArchivedProjects ? '▼' : '▶'}</Text>
+              </Pressable>
+              {showArchivedProjects && (
+                <View style={{ gap: 8 }}>
+                  {projects.filter(p => p.archived).length === 0 ? (
+                    <Text style={{ fontSize: 13, color: colors.textQuaternary, textAlign: 'center', paddingVertical: 16 }}>
+                      {t('projects.noArchivedProjects')}
+                    </Text>
+                  ) : (
+                    projects.filter(p => p.archived).map((project) => (
+                      <View key={project.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.backgroundSecondary, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12 }}>
+                          <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: project.hexColor }} />
+                          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.text }}>{project.name}</Text>
+                        </View>
+                        <Pressable
+                          onPress={() => handleUnarchiveProject(project.id)}
+                          style={{ padding: 8, backgroundColor: colors.accentLight, borderRadius: 8 }}
+                        >
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.accent }}>↻</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => handleDeleteProject(project.id)}
+                          style={{ padding: 8, backgroundColor: colors.errorLight, borderRadius: 8 }}
+                        >
+                          <Trash2 size={14} color={colors.error} />
+                        </Pressable>
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
+            </View>
+
             {/* Color Theme */}
             <View>
               <Pressable 
                 onPress={() => setShowColorTheme(!showColorTheme)}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showColorTheme ? 12 : 0 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.colorTheme')}</Text>
-                <Text style={{ fontSize: 12, color: '#6B7280' }}>{showColorTheme ? '▼' : '▶'}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.colorTheme')}</Text>
+                <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showColorTheme ? '▼' : '▶'}</Text>
               </Pressable>
               {showColorTheme && (
                 <View style={{ gap: 8 }}>
                   {[
                     { id: 'default', title: t('themes.default') },
-                    { id: 'giverny', title: t('themes.giverny') },
-                    { id: 'matisse', title: t('themes.matisseRed') },
-                    { id: 'starry', title: t('themes.starryNight') },
-                    { id: 'persistence', title: t('themes.persistence') },
-                    { id: 'california', title: t('themes.california') },
-                  ].map((option) => (
-                    <Pressable
-                      key={option.id}
-                      onPress={() => handleSelectColorScheme(option.id)}
-                      style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, borderWidth: selectedColorScheme === option.id ? 2 : 1, borderColor: selectedColorScheme === option.id ? '#3B82F6' : '#E5E7EB', backgroundColor: selectedColorScheme === option.id ? '#F0F9FF' : '#FAFAFA' }}
-                    >
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#1F2937', flex: 1 }}>{option.title}</Text>
-                      {selectedColorScheme === option.id && (
-                        <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', marginLeft: 8 }}>
-                          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>✓</Text>
+                    { id: 'vivid', title: t('themes.vivid') },
+                    { id: 'seaside', title: t('themes.seaside') },
+                    { id: 'twilight', title: t('themes.twilight') },
+                    { id: 'garden', title: t('themes.garden') },
+                    
+                    { id: 'mineral', title: t('themes.mineral') },
+                  ].map((option) => {
+                    const themeColors = COLOR_THEMES[option.id as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
+                    return (
+                      <Pressable
+                        key={option.id}
+                        onPress={() => handleSelectColorScheme(option.id)}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, borderWidth: selectedColorScheme === option.id ? 2 : 1, borderColor: selectedColorScheme === option.id ? colors.accent : colors.border, backgroundColor: selectedColorScheme === option.id ? colors.accentLight : colors.backgroundSecondary }}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{option.title}</Text>
+                        <View style={{ flexDirection: 'row', marginLeft: 'auto' }}>
+                          {themeColors.map((color, index) => (
+                            <View 
+                              key={index} 
+                              style={{ 
+                                width: 24, 
+                                height: 24, 
+                                borderRadius: 12, 
+                                backgroundColor: color,
+                                marginLeft: index === 0 ? 0 : -10,
+                                borderWidth: 2,
+                                borderColor: selectedColorScheme === option.id ? colors.accentLight : colors.backgroundSecondary
+                              }} 
+                            />
+                          ))}
                         </View>
-                      )}
-                    </Pressable>
-                  ))}
+                        <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: selectedColorScheme === option.id ? colors.accent : 'transparent', justifyContent: 'center', alignItems: 'center', marginLeft: 12 }}>
+                          {selectedColorScheme === option.id && <Text style={{ color: colors.accentText, fontWeight: '700', fontSize: 12 }}>✓</Text>}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -2685,24 +3161,31 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                 onPress={() => setShowDataManagement(!showDataManagement)}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showDataManagement ? 12 : 0 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.dataManagement')}</Text>
-                <Text style={{ fontSize: 12, color: '#6B7280' }}>{showDataManagement ? '▼' : '▶'}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.dataManagement')}</Text>
+                <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showDataManagement ? '▼' : '▶'}</Text>
               </Pressable>
               {showDataManagement && (
                 <View style={{ gap: 8 }}>
                   <Pressable
                     onPress={handleImportData}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: '#3B82F6' }}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
                   >
-                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#FFFFFF' }}>{t('projects.importData')}</Text>
-                    <Text style={{ fontSize: 20, color: '#FFFFFF' }}>↑</Text>
+                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.text }}>{t('projects.importData')}</Text>
+                    <Text style={{ fontSize: 20, color: colors.text }}>↑</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleExportData}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                  >
+                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.text }}>{t('projects.exportData')}</Text>
+                    <Text style={{ fontSize: 20, color: colors.text }}>↓</Text>
                   </Pressable>
                   <Pressable
                     onPress={handleClearData}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: '#EF4444' }}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.error }}
                   >
-                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#FFFFFF' }}>{t('projects.clearAllData')}</Text>
-                    <Trash2 size={18} color="#FFFFFF" />
+                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.accentText }}>{t('projects.clearAllData')}</Text>
+                    <Trash2 size={18} color={colors.accentText} />
                   </Pressable>
                 </View>
               )}
@@ -2715,35 +3198,35 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
   // Main quadrant map view
   return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
+    <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}>
       {/* Header */}
-      <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
-        <Text style={{ fontSize: 18, fontWeight: '700', color: '#000000' }}>{t('visualization.title')}</Text>
-        <Pressable onPress={() => setShowSettings(true)} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}>
-          <Sliders size={18} color="#6B7280" />
+      <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>{t('visualization.title')}</Text>
+        <Pressable onPress={() => setShowSettings(true)} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.backgroundTertiary, justifyContent: 'center', alignItems: 'center' }}>
+          <Settings size={18} color={colors.textTertiary} />
         </Pressable>
       </View>
 
       {/* Empty state or Chart + Detail Card */}
       {projectDataPoints.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 8, textAlign: 'center' }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, textAlign: 'center' }}>
             {t('projects.noProjectsYet')}
           </Text>
-          <Text style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', lineHeight: 20, marginBottom: 24 }}>
+          <Text style={{ fontSize: 14, color: colors.textQuaternary, textAlign: 'center', lineHeight: 20, marginBottom: 24 }}>
             {t('projects.noProjectsHint')}
           </Text>
           {onGoToCalendar && (
             <Pressable
               onPress={onGoToCalendar}
               style={{
-                backgroundColor: '#3B82F6',
+                backgroundColor: colors.accent,
                 paddingHorizontal: 20,
                 paddingVertical: 12,
                 borderRadius: 12,
               }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentText }}>
                 {t('projects.goToCalendar')}
               </Text>
             </Pressable>
@@ -2756,8 +3239,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
           showsVerticalScrollIndicator={false}
         >
           {/* Time Range Selector */}
-          <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, backgroundColor: '#FFFFFF' }}>
-            <View style={styles.toggleContainer}>
+          <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, backgroundColor: colors.surface }}>
+            <View style={[styles.toggleContainer, { backgroundColor: colors.backgroundTertiary }]}>
               {(['30d', '90d', 'year'] as TimeRangeType[]).map((range) => (
                 <Pressable
                   key={range}
@@ -2765,9 +3248,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     setTimeRange(range);
                     setSelectedProject(null);
                   }}
-                  style={[styles.toggleItem, timeRange === range && styles.toggleItemActive]}
+                  style={[styles.toggleItem, timeRange === range && [styles.toggleItemActive, { backgroundColor: colors.surface }]]}
                 >
-                  <Text style={[styles.toggleText, timeRange === range && styles.toggleTextActive]}>
+                  <Text style={[styles.toggleText, { color: colors.textTertiary }, timeRange === range && [styles.toggleTextActive, { color: colors.text }]]}>
                     {range === '30d' ? t('visualization.timeRange30') : range === '90d' ? t('visualization.timeRange90') : t('visualization.timeRangeYear')}
                   </Text>
                 </Pressable>
@@ -2780,10 +3263,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
             style={{ paddingHorizontal: 12, paddingTop: 20, paddingBottom: 16 }}
             onLayout={(e) => setChartWidth(e.nativeEvent.layout.width - 24)}
           >
-            <View style={{ width: '100%', height: CHART_HEIGHT, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 10 }}>
+            <View style={{ width: '100%', height: CHART_HEIGHT, backgroundColor: colors.surface, borderRadius: 16, padding: 10 }}>
               {/* Y-axis label */}
               <View style={{ position: 'absolute', left: 0, top: CHART_HEIGHT / 2, transform: [{ rotate: '-90deg' }] }}>
-                <Text style={{ fontSize: 9, fontWeight: '600', color: '#9CA3AF' }}>{t('visualization.yAxis')}</Text>
+                <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textQuaternary }}>{t('visualization.yAxis')}</Text>
               </View>
 
               {/* Chart area */}
@@ -2798,7 +3281,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       top: 0, 
                       width: 1, 
                       height: chartInnerHeight, 
-                      backgroundColor: '#E5E7EB' 
+                      backgroundColor: colors.chartGrid 
                     }} 
                   />
                 ))}
@@ -2811,7 +3294,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       top: (1 - val) * chartInnerHeight, 
                       width: chartInnerWidth, 
                       height: 1, 
-                      backgroundColor: '#E5E7EB' 
+                      backgroundColor: colors.chartGrid 
                     }} 
                   />
                 ))}
@@ -2824,7 +3307,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     top: 0, 
                     width: 2, 
                     height: chartInnerHeight, 
-                    backgroundColor: '#9CA3AF',
+                    backgroundColor: colors.textQuaternary,
                     opacity: 0.5
                   }} 
                 />
@@ -2835,29 +3318,29 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     top: (1 - ACCUMULATION_THRESHOLD / 100) * chartInnerHeight, 
                     width: chartInnerWidth, 
                     height: 2, 
-                    backgroundColor: '#9CA3AF',
+                    backgroundColor: colors.textQuaternary,
                     opacity: 0.5
                   }} 
                 />
 
                 {/* Quadrant labels */}
                 <View style={{ position: 'absolute', right: 4, top: 4 }}>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: '#6B7280', textAlign: 'right' }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, textAlign: 'right' }}>
                     {t('visualization.quadrantTopRight')}
                   </Text>
                 </View>
                 <View style={{ position: 'absolute', left: 4, top: 4 }}>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: '#6B7280' }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary }}>
                     {t('visualization.quadrantTopLeft')}
                   </Text>
                 </View>
                 <View style={{ position: 'absolute', right: 4, bottom: 4 }}>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: '#6B7280', textAlign: 'right' }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, textAlign: 'right' }}>
                     {t('visualization.quadrantBottomRight')}
                   </Text>
                 </View>
                 <View style={{ position: 'absolute', left: 4, bottom: 4 }}>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: '#6B7280' }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary }}>
                     {t('visualization.quadrantBottomLeft')}
                   </Text>
                 </View>
@@ -2901,13 +3384,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       {radius > 20 && (
                         <Text
                           style={{
-                            fontSize: radius > 30 ? 9 : 7,
+                            fontSize: radius > 30 ? 10 : 8,
                             fontWeight: '700',
-                            color: '#FFFFFF',
+                            color: getContrastColor(point.color),
                             textAlign: 'center',
                             paddingHorizontal: 2,
                           }}
-                          numberOfLines={1}
                         >
                           {point.name}
                         </Text>
@@ -2919,23 +3401,23 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
               {/* X-axis labels */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginLeft: CHART_PADDING.left, marginTop: 8, width: chartInnerWidth }}>
-                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>0%</Text>
-                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>25%</Text>
-                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>50%</Text>
-                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>75%</Text>
-                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>100%</Text>
+                <Text style={{ fontSize: 10, color: colors.chartLabel }}>0%</Text>
+                <Text style={{ fontSize: 10, color: colors.chartLabel }}>25%</Text>
+                <Text style={{ fontSize: 10, color: colors.chartLabel }}>50%</Text>
+                <Text style={{ fontSize: 10, color: colors.chartLabel }}>75%</Text>
+                <Text style={{ fontSize: 10, color: colors.chartLabel }}>100%</Text>
               </View>
               
               {/* X-axis label */}
-              <Text style={{ fontSize: 11, fontWeight: '600', color: '#9CA3AF', textAlign: 'center', marginTop: 4 }}>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.chartLabel, textAlign: 'center', marginTop: 4 }}>
                 {t('visualization.xAxis')}
               </Text>
 
               {/* Y-axis labels */}
               <View style={{ position: 'absolute', left: 0, top: CHART_PADDING.top, bottom: CHART_PADDING.bottom + 40, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 1 }}>
-                <Text style={{ fontSize: 8, color: '#9CA3AF', fontWeight: '600' }}>100%</Text>
-                <Text style={{ fontSize: 8, color: '#9CA3AF', fontWeight: '600' }}>50%</Text>
-                <Text style={{ fontSize: 8, color: '#9CA3AF', fontWeight: '600' }}>0%</Text>
+                <Text style={{ fontSize: 8, color: colors.chartLabel, fontWeight: '600' }}>100%</Text>
+                <Text style={{ fontSize: 8, color: colors.chartLabel, fontWeight: '600' }}>50%</Text>
+                <Text style={{ fontSize: 8, color: colors.chartLabel, fontWeight: '600' }}>0%</Text>
               </View>
             </View>
           </View>
@@ -2943,61 +3425,64 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
           {/* Project Detail Card */}
           <View style={{ paddingHorizontal: 16, paddingBottom: 20 }}>
             {selectedProject ? (
-              <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+              <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 16, shadowColor: colors.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <View style={{ flex: 1, marginRight: 12 }}>
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
                       {selectedProject.name}
                     </Text>
                     {selectedProject.category && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: selectedProject.color, marginRight: 6 }} />
-                        <Text style={{ fontSize: 13, color: '#6B7280' }}>{selectedProject.category}</Text>
+                        <Text style={{ fontSize: 13, color: colors.textTertiary }}>{selectedProject.category}</Text>
                       </View>
                     )}
                   </View>
                   <Pressable onPress={() => setSelectedProject(null)}>
-                    <X size={20} color="#9CA3AF" />
+                    <X size={20} color={colors.textQuaternary} />
                   </Pressable>
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-                  <View style={{ flex: 1, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#6B7280', marginBottom: 4 }}>{t('visualization.timeSpent')}</Text>
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>
+                  <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary, borderRadius: 12, padding: 12 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, marginBottom: 4 }}>{t('visualization.timeSpent')}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                       {Math.floor(selectedProject.durationHours)}h {Math.round((selectedProject.durationHours % 1) * 60)}m
                     </Text>
-                    <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>
+                    <Text style={{ fontSize: 11, color: colors.textQuaternary, marginTop: 2 }}>
                       {t('visualization.share')}: {Math.round(selectedProject.share * 100)}%
                     </Text>
                   </View>
-                  <View style={{ flex: 1, backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#6B7280', marginBottom: 4 }}>{t('projects.accumulation')}</Text>
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>
+                  <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary, borderRadius: 12, padding: 12 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, marginBottom: 4 }}>{t('projects.accumulation')}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                       {Math.round(selectedProject.accumulation)}%
                     </Text>
-                    <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>
+                    <Text style={{ fontSize: 11, color: colors.textQuaternary, marginTop: 2 }}>
                       {getQuadrantLabel(selectedProject.share, selectedProject.accumulation)}
                     </Text>
                   </View>
                 </View>
 
-                <View style={{ backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12, borderLeftWidth: 3, borderLeftColor: '#F59E0B' }}>
-                  <Text style={{ fontSize: 13, color: '#92400E', lineHeight: 18 }}>
+                <View style={{ backgroundColor: colors.warningLight, borderRadius: 12, padding: 12, borderLeftWidth: 3, borderLeftColor: colors.warning }}>
+                  <Text style={{ fontSize: 13, color: colors.text, lineHeight: 18 }}>
                     {getSuggestion(selectedProject.share, selectedProject.accumulation)}
                   </Text>
                 </View>
 
                 {selectedProject.recentActivity > 0 && (
-                  <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 8, textAlign: 'center' }}>
+                  <Text style={{ fontSize: 11, color: colors.textQuaternary, marginTop: 8, textAlign: 'center' }}>
                     {t('visualization.lastActive')}: {selectedProject.recentActivity === 0 ? t('visualization.today') : `${selectedProject.recentActivity} ${t('visualization.daysAgo')}`}
                   </Text>
                 )}
               </View>
             ) : (
-              <View style={{ backgroundColor: '#F9FAFB', borderRadius: 16, padding: 16, alignItems: 'center' }}>
-                <Text style={{ fontSize: 13, color: '#9CA3AF' }}>
+              <View style={{ backgroundColor: colors.backgroundSecondary, borderRadius: 16, padding: 16, alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: 13, color: colors.textQuaternary }}>
                   {t('visualization.tapToSelect')}
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.textQuaternary, opacity: 0.7 }}>
+                  {t('visualization.longPressToEdit')}
                 </Text>
               </View>
             )}
@@ -3014,12 +3499,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
           onRequestClose={() => setModalOpen(false)}
         >
           <Pressable 
-            style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'flex-end' }}
+            style={{ flex: 1, backgroundColor: colors.modalBackdrop, justifyContent: 'flex-end' }}
             onPress={() => setModalOpen(false)}
           >
             <View 
               style={{ 
-                backgroundColor: '#FFFFFF', 
+                backgroundColor: colors.surface, 
                 borderTopLeftRadius: 24, 
                 borderTopRightRadius: 24, 
                 paddingTop: 20,
@@ -3035,31 +3520,46 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       style={{ 
                         fontSize: 28, 
                         fontWeight: '700', 
-                        color: '#000000',
+                        color: colors.text,
                         padding: 0,
                         margin: 0,
                       }}
                       value={selectedNode.name}
                       onChangeText={(text) => setSelectedNode({ ...selectedNode, name: text })}
                       placeholder="Project Name"
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={colors.textQuaternary}
                     />
                   </View>
-                  <Pressable 
-                    onPress={() => setModalOpen(false)}
-                    style={{ 
-                      width: 32, 
-                      height: 32, 
-                      borderRadius: 16, 
-                      backgroundColor: '#F3F4F6', 
-                      justifyContent: 'center', 
-                      alignItems: 'center' 
-                    }}
-                  >
-                    <X size={18} color="#6B7280" />
-                  </Pressable>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Pressable 
+                      onPress={() => handleArchiveProject(selectedNode.id)}
+                      style={{ 
+                        width: 32, 
+                        height: 32, 
+                        borderRadius: 16, 
+                        backgroundColor: colors.warningLight, 
+                        justifyContent: 'center', 
+                        alignItems: 'center' 
+                      }}
+                    >
+                      <Archive size={18} color={colors.warning} />
+                    </Pressable>
+                    <Pressable 
+                      onPress={() => setModalOpen(false)}
+                      style={{ 
+                        width: 32, 
+                        height: 32, 
+                        borderRadius: 16, 
+                        backgroundColor: colors.backgroundTertiary, 
+                        justifyContent: 'center', 
+                        alignItems: 'center' 
+                      }}
+                    >
+                      <X size={18} color={colors.textTertiary} />
+                    </Pressable>
+                  </View>
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: '#6B7280' }}>{t('projects.editDetails')}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textTertiary }}>{t('projects.editDetails')}</Text>
               </View>
 
               <ScrollView 
@@ -3067,22 +3567,22 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                 contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
                 showsVerticalScrollIndicator={false}
               >
-                {/* Section 1: Accumulation (Progress) */}
+                {/* Accumulation (Progress) */}
                 <View style={{ marginBottom: 32 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                       {t('projects.accumulation')}
                     </Text>
                     <View style={{ 
                       paddingHorizontal: 12, 
                       paddingVertical: 4, 
                       borderRadius: 12, 
-                      backgroundColor: selectedNode.percent >= 100 ? '#10B981' : '#F3F4F6' 
+                      backgroundColor: selectedNode.percent >= 100 ? colors.success : colors.backgroundTertiary 
                     }}>
                       <Text style={{ 
                         fontSize: 18, 
                         fontWeight: '800', 
-                        color: selectedNode.percent >= 100 ? '#FFFFFF' : '#000000' 
+                        color: selectedNode.percent >= 100 ? colors.accentText : colors.text 
                       }}>
                         {Math.round(selectedNode.percent)}%
                       </Text>
@@ -3090,7 +3590,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                   </View>
 
                   {/* Hint Text */}
-                  <Text style={{ fontSize: 12, color: '#6B7280', lineHeight: 18, marginBottom: 16 }}>
+                  <Text style={{ fontSize: 12, color: colors.textTertiary, lineHeight: 18, marginBottom: 16 }}>
                     {t('projects.accumulationHint')}
                   </Text>
 
@@ -3113,7 +3613,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                   >
                     <View style={{ 
                       height: 8, 
-                      backgroundColor: '#F3F4F6', 
+                      backgroundColor: colors.backgroundTertiary, 
                       borderRadius: 4,
                       overflow: 'hidden',
                     }}>
@@ -3134,7 +3634,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                         width: 24,
                         height: 24,
                         borderRadius: 12,
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: colors.surface,
                         borderWidth: 3,
                         borderColor: selectedNode.hexColor,
                         shadowColor: '#000',
@@ -3148,16 +3648,16 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
                   {/* Scale Labels */}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 }}>
-                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
-                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
-                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
-                    <Text style={{ fontSize: 10, color: '#9CA3AF', fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
+                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
+                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
+                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
+                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
                   </View>
                 </View>
 
-                {/* Section 2: Category */}
+                {/* Category Selection */}
                 <View style={{ marginBottom: 32 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
                     {t('projects.category')}
                   </Text>
                   
@@ -3169,15 +3669,15 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                         paddingHorizontal: 16,
                         paddingVertical: 10,
                         borderRadius: 20,
-                        backgroundColor: !selectedNode.category ? '#1F2937' : '#F9FAFB',
+                        backgroundColor: !selectedNode.category ? colors.text : colors.backgroundSecondary,
                         borderWidth: 2,
-                        borderColor: !selectedNode.category ? '#1F2937' : '#E5E7EB',
+                        borderColor: !selectedNode.category ? colors.text : colors.border,
                       }}
                     >
                       <Text style={{ 
                         fontSize: 13, 
                         fontWeight: '700', 
-                        color: !selectedNode.category ? '#FFFFFF' : '#6B7280' 
+                        color: !selectedNode.category ? colors.textInverse : colors.textTertiary 
                       }}>
                         {t('projects.uncategorized')}
                       </Text>
@@ -3194,7 +3694,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             paddingHorizontal: 16,
                             paddingVertical: 10,
                             borderRadius: 20,
-                            backgroundColor: isSelected ? catColor : '#FFFFFF',
+                            backgroundColor: isSelected ? catColor : colors.surface,
                             borderWidth: 2,
                             borderColor: catColor,
                           }}
@@ -3202,7 +3702,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                           <Text style={{ 
                             fontSize: 13, 
                             fontWeight: '700', 
-                            color: isSelected ? '#FFFFFF' : catColor 
+                            color: isSelected ? colors.accentText : catColor 
                           }}>
                             {catName}
                           </Text>
@@ -3212,38 +3712,38 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                   </View>
                 </View>
 
-                {/* Section 3: Create New Category */}
+                {/* Create New Category */}
                 <View style={{ 
-                  backgroundColor: '#F9FAFB', 
+                  backgroundColor: colors.backgroundSecondary, 
                   padding: 16, 
                   borderRadius: 16, 
                   borderWidth: 1, 
-                  borderColor: '#E5E7EB' 
+                  borderColor: colors.border 
                 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#000000', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
                     {t('projects.createNewCategory')}
                   </Text>
 
                   <TextInput
                     style={{
-                      backgroundColor: '#FFFFFF',
+                      backgroundColor: colors.surface,
                       borderWidth: 1,
-                      borderColor: '#E5E7EB',
+                      borderColor: colors.border,
                       borderRadius: 12,
                       paddingHorizontal: 16,
                       paddingVertical: 12,
                       fontSize: 15,
                       fontWeight: '500',
-                      color: '#000000',
+                      color: colors.text,
                       marginBottom: 16,
                     }}
                     placeholder={t('projects.categoryNamePlaceholder')}
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={colors.textQuaternary}
                     value={selectedNode.newCategoryName || ''}
                     onChangeText={(text) => setSelectedNode({ ...selectedNode, newCategoryName: text })}
                   />
 
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary, marginBottom: 12 }}>
                     {t('common.color')}
                   </Text>
 
@@ -3260,7 +3760,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             borderRadius: 20,
                             backgroundColor: color,
                             borderWidth: isSelected ? 3 : 2,
-                            borderColor: isSelected ? '#000000' : '#FFFFFF',
+                            borderColor: isSelected ? colors.primary : colors.surface,
                             shadowColor: '#000',
                             shadowOffset: { width: 0, height: 2 },
                             shadowOpacity: 0.1,
@@ -3288,7 +3788,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       }
                     }}
                     style={{
-                      backgroundColor: selectedNode.newCategoryName?.trim() ? '#3B82F6' : '#E5E7EB',
+                      backgroundColor: selectedNode.newCategoryName?.trim() ? colors.accent : colors.backgroundTertiary,
                       paddingVertical: 14,
                       borderRadius: 12,
                       alignItems: 'center',
@@ -3298,7 +3798,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     <Text style={{ 
                       fontSize: 15, 
                       fontWeight: '700', 
-                      color: selectedNode.newCategoryName?.trim() ? '#FFFFFF' : '#9CA3AF' 
+                      color: selectedNode.newCategoryName?.trim() ? colors.accentText : colors.textQuaternary 
                     }}>
                       {t('projects.createAndAssign')}
                     </Text>
@@ -3316,18 +3816,18 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     setModalOpen(false);
                   }}
                   style={{
-                    backgroundColor: '#000000',
+                    backgroundColor: colors.primary,
                     paddingVertical: 16,
                     borderRadius: 16,
                     alignItems: 'center',
-                    shadowColor: '#000',
+                    shadowColor: colors.text,
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.15,
                     shadowRadius: 8,
                     elevation: 4,
                   }}
                 >
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primaryText }}>
                     {t('projects.saveChanges')}
                   </Text>
                 </Pressable>
@@ -3381,12 +3881,13 @@ const VISUALIZATION_OPTIONS: VisualizationOption[] = [
 // --- MAIN APP ---
 
 const App: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { colors, isDark } = useThemeColors();
   const [activeTab, setActiveTab] = useState<TabKey>('calendar');
   const [selectedColorScheme, setSelectedColorScheme] = useState('default');
   const [projects, setProjects] = useState<Project[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
-  const [categories, setCategories] = useState<CategoryMap>(DEFAULT_CATEGORIES);
+  const [categories, setCategories] = useState<CategoryMap>(() => getDefaultCategories(i18n.language));
 
   // Initialize data persistence
   useAppData(projects, events, categories, setProjects, setEvents, setCategories);
@@ -3408,25 +3909,26 @@ const App: React.FC = () => {
         categories={categories}
         setCategories={setCategories}
         selectedColorScheme={selectedColorScheme}
+        colors={colors}
       />
     );
   } else if (activeTab === 'analytics') {
-    content = <AnalyticsView projects={projects} events={events} categories={categories} selectedColorScheme={selectedColorScheme} setProjects={setProjects} setCategories={setCategories} />;
+    content = <AnalyticsView projects={projects} events={events} categories={categories} selectedColorScheme={selectedColorScheme} setProjects={setProjects} setCategories={setCategories} colors={colors} />;
   } else {
-    content = <ProjectsView projects={projects} events={events} categories={categories} setProjects={setProjects} setCategories={setCategories} setEvents={setEvents} selectedColorScheme={selectedColorScheme} setSelectedColorScheme={setSelectedColorScheme} onGoToCalendar={() => setActiveTab('calendar')} />;
+    content = <ProjectsView projects={projects} events={events} categories={categories} setProjects={setProjects} setCategories={setCategories} setEvents={setEvents} selectedColorScheme={selectedColorScheme} setSelectedColorScheme={setSelectedColorScheme} onGoToCalendar={() => setActiveTab('calendar')} colors={colors} />;
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" />
-      <View style={styles.appContainer}>
-        <View style={styles.topStrip}>
-          <Text style={styles.topStripText}>{t('calendar.today')} · {dateStr}</Text>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.safeArea }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <View style={[styles.appContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.topStrip, { backgroundColor: colors.safeArea }]}>
+          <Text style={[styles.topStripText, { color: colors.textInverse }]}>{t('calendar.today')} · {dateStr}</Text>
         </View>
 
         <View style={{ flex: 1 }}>{content}</View>
 
-        <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <TabBar activeTab={activeTab} setActiveTab={setActiveTab} colors={colors} />
       </View>
     </SafeAreaView>
   );
