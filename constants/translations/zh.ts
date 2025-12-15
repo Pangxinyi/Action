@@ -126,6 +126,10 @@ export default {
     categoryNamePlaceholder: '类别名称...',
     createAndAssign: '创建并分配',
     saveChanges: '保存更改',
+    noDataToExport: '没有可导出的数据',
+    exportFailed: '导出失败',
+    exportNotAvailable: '此平台不支持导出',
+    exportSuccess: '导出已准备，可分享',
   },
 
   // Visualization view (Project Quadrant Map)

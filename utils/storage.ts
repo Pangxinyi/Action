@@ -87,10 +87,41 @@ export const importDataFromJSON = (jsonString: string): AppData => {
 };
 
 /**
- * Export data as JSON string
+ * Prepare app data as a formatted JSON string for export
+ * Includes metadata such as export timestamp and app version
  */
 export const exportDataAsJSON = (data: AppData): string => {
-  return JSON.stringify(data, null, 2);
+  // Export as an ARRAY of event-like objects compatible with `handleImportData`
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const toAmPm = (minutes: number) => {
+    const h = Math.floor((minutes % 1440) / 60);
+    const m = minutes % 60;
+    const period = h >= 12 ? 'pm' : 'am';
+    const hour12 = ((h + 11) % 12) + 1; // 1-12
+    if (m === 0) return `${hour12}${period}`; // e.g., 9am
+    // use dot minute format (legacy parser expects e.g. 9.30am)
+    return `${hour12}.${pad2(m)}${period}`;
+  };
+
+  const eventsPayload = (data.events || []).map((evt) => {
+    const start = typeof evt.start === 'number' ? evt.start : 9 * 60;
+    const duration = typeof evt.duration === 'number' ? evt.duration : 60;
+    const end = start + duration;
+    const startStr = toAmPm(start);
+    const endStr = toAmPm(end);
+    // map project id to name if available
+    const projectName = data.projects && data.projects.find((p: any) => p.id === evt.projectId)?.name;
+
+    return {
+      date: evt.date,
+      time: `${startStr}-${endStr}`,
+      tag: evt.details ?? undefined,
+      type: evt.category ?? null,
+      project: projectName ? [projectName] : null,
+    };
+  });
+
+  return JSON.stringify(eventsPayload, null, 2);
 };
 
 /**

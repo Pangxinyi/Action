@@ -6,26 +6,26 @@
  */
 
 import {
-    Blur,
-    Canvas,
-    Circle,
-    Group,
-    LinearGradient,
-    Skia,
-    vec
+  Blur,
+  Canvas,
+  Circle,
+  Group,
+  LinearGradient,
+  Skia,
+  vec
 } from '@shopify/react-native-skia';
 import React, { useEffect } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-    runOnJS,
-    SharedValue,
-    useAnimatedStyle,
-    useDerivedValue,
-    useFrameCallback,
-    useSharedValue,
-    withSpring,
-    withTiming,
+  runOnJS,
+  SharedValue,
+  useAnimatedStyle,
+  useDerivedValue,
+  useFrameCallback,
+  useSharedValue,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -174,7 +174,7 @@ export const ClusterViewAdvanced: React.FC<ClusterViewAdvancedProps> = ({
       const project = projects.find((p) => p.id === node.id);
       return project ? { ...node, ...project } : node;
     });
-  }, [projects]);
+  }, [projects, nodes]);
 
   return (
     <View style={styles.container}>
@@ -235,7 +235,7 @@ const NodeRenderer: React.FC<{
   // Animate glow when percent changes
   useEffect(() => {
     glowOpacity.value = withTiming(node.percent >= 100 ? 1 : 0, { duration: 600 });
-  }, [node.percent]);
+  }, [node.percent, glowOpacity]);
 
   // Update position from physics
   useDerivedValue(() => {
@@ -325,7 +325,7 @@ const NodeRenderer: React.FC<{
   const color = category?.color || '#9CA3AF';
   const liquidHeight = (node.percent / 100) * (NODE_RADIUS * 2 - 8);
   const isComplete = node.percent >= 100;
-  const firstLetter = node.name.charAt(0).toUpperCase();
+  // firstLetter removed (unused)
 
   return (
     <GestureDetector gesture={panGesture}>

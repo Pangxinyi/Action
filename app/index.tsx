@@ -9,18 +9,21 @@ import {
   Trash2,
   X
 } from 'lucide-react-native';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import '@constants/i18n'; // 初始化 i18n
 import { useAppData } from '@hooks/useAppData';
 import { AppThemeColors, useThemeColors } from '@hooks/useThemeColors';
+import * as DocumentPicker from 'expo-document-picker';
+import * as Sharing from 'expo-sharing';
 import {
   Alert,
+  LogBox,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -28,7 +31,8 @@ import {
   TextInput,
   View
 } from 'react-native';
-import { clearAppData } from '../utils/storage';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { clearAppData, exportDataAsJSON, loadAppData } from '../utils/storage';
 
 
 // --- CONSTANTS ---
@@ -68,7 +72,7 @@ type Project = {
 
 type EventItem = {
   id: number;
-  title: string;
+  title?: string;
   start: number;
   duration: number;
   hexColor: string;
@@ -208,7 +212,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 }) => {
   const { t } = useTranslation();
   const [editingField, setEditingField] = useState<'start' | 'end' | null>(null);
-  const [tempTime, setTempTime] = useState('');
+  // tempTime removed (unused)
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -237,15 +241,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     return t(`calendar.${weekdays[date.getDay()]}`);
   };
 
-  // 格式化完整日期（带星期、月份、日期）
-  const formatFullDate = (date: Date): string => {
-    const weekday = formatWeekday(date, false);
-    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
-                        'july', 'august', 'september', 'october', 'november', 'december'];
-    const month = t(`months.${monthNames[date.getMonth()]}`);
-    const day = date.getDate();
-    return `${weekday}, ${month} ${day}`;
-  };
+  // formatFullDate removed (unused)
 
   // 获取事件的当前颜色（基于项目或分类）
   const getEventColor = (evt: EventItem): string => {
@@ -265,17 +261,21 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   // Date navigation functions
-  const handlePrevDay = () => {
-    const prev = new Date(selectedDate);
-    prev.setDate(prev.getDate() - 1);
-    setSelectedDate(prev);
-  };
+  const handlePrevDay = useCallback(() => {
+    setSelectedDate((d) => {
+      const prev = new Date(d);
+      prev.setDate(prev.getDate() - 1);
+      return prev;
+    });
+  }, []);
 
-  const handleNextDay = () => {
-    const next = new Date(selectedDate);
-    next.setDate(next.getDate() + 1);
-    setSelectedDate(next);
-  };
+  const handleNextDay = useCallback(() => {
+    setSelectedDate((d) => {
+      const next = new Date(d);
+      next.setDate(next.getDate() + 1);
+      return next;
+    });
+  }, []);
 
   const handleTodayClick = () => {
     setSelectedDate(new Date());
@@ -505,19 +505,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     setDraftEvent(null);
   };
 
-  const handleReset = () => {
-    Alert.alert('Reset all data?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reset',
-        style: 'destructive',
-        onPress: () => {
-          setEvents([]);
-          setProjects([]);
-        },
-      },
-    ]);
-  };
+  // handleReset removed (unused)
 
 
   const openTimeEditor = (field: 'start' | 'end') => {
@@ -537,36 +525,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
 
-  const parseTimeString = (value: string): number | null => {
-    const trimmed = value.trim();
-    if (!trimmed) return null;
+  // parseTimeString removed (unused)
 
-    // 支持 9:30 / 09:30 / 930(不建议但兼容) 这类
-    const match = trimmed.match(/^(\d{1,2})(?::?(\d{2}))?$/);
-    if (!match) return null;
-
-    const h = parseInt(match[1], 10);
-    const m = match[2] ? parseInt(match[2], 10) : 0;
-
-    if (h < 0 || h > 23 || m < 0 || m > 59) return null;
-    return h * 60 + m;
-  };
-
-  const applyTempTime = () => {
-    if (!draftEvent || !editingField) return;
-    const minutes = parseTimeString(tempTime);
-    if (minutes == null) {
-      Alert.alert('Invalid time', 'Please enter time like 14:30');
-      return;
-    }
-
-    if (editingField === 'start') {
-      setDraftEvent({ ...draftEvent, start: minutes });  // 只改 start
-    } else {
-      setDraftEvent({ ...draftEvent, end: minutes });    // 只改 end
-    }
-    setEditingField(null);
-  };
+  // applyTempTime removed (unused)
 
 
 
@@ -794,6 +755,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 <Text style={[styles.eventTime, { color: colors.textSecondary }]}>
                   {formatMinutes(evt.start)} - {formatMinutes(evt.start + evt.duration)}
                 </Text>
+                {/* Show linked project under the time if present */}
+                {evt.projectId && (() => {
+                  const linked = projects.find(p => p.id === evt.projectId);
+                  if (!linked) return null;
+                  return (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: linked.hexColor, marginRight: 8 }} />
+                      <Text style={{ fontSize: 12, color: colors.textSecondary }} numberOfLines={1}>{linked.name}</Text>
+                    </View>
+                  );
+                })()}
               </Pressable>
             );
           })}
@@ -1287,12 +1259,6 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
   const [showCategoryEvents, setShowCategoryEvents] = useState(false);
   
   // Archive handlers
-  const handleArchiveProject = (projectId: number) => {
-    setProjects(prev => prev.map(p => 
-      p.id === projectId ? { ...p, archived: true } : p
-    ));
-    setModalOpen(false);
-  };
   
   const days = i18n.language === 'zh' 
     ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -1306,15 +1272,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
         t('calendar.sun')
       ];
 
-  // Get current theme colors - use useMemo to ensure it updates
-  const themeColors = useMemo(() => {
-    return COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
-  }, [selectedColorScheme]);
-
-  // Get current theme colors
-  const getCurrentThemeColors = () => {
-    return themeColors;
-  };
+  // note: themeColors is available where needed via getCurrentThemeColors() or global helper
 
   // Get available months/years from events
   const availableYears = useMemo(() => {
@@ -1376,7 +1334,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
     const barCount = timeRange === 'Week' ? 7 : timeRange === 'Year' ? 12 : 5;
     
     // Initialize: each bar is an array of { category, duration, color }
-    const data: Array<Array<{ category: string; duration: number; color: string }>> = 
+    const data: { category: string; duration: number; color: string }[][] = 
       Array.from({ length: barCount }, () => []);
     
     // Group events by time period and category
@@ -2347,10 +2305,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
   };
 
   // Get category color
-  const getCategoryColor = (categoryName: string | null): string => {
+  const getCategoryColor = useCallback((categoryName: string | null): string => {
     if (!categoryName) return '#9CA3AF';
     return categories[categoryName] || '#9CA3AF';
-  };
+  }, [categories]);
 
   // Calculate project data for quadrant chart
   const projectDataPoints = useMemo((): ProjectDataPoint[] => {
@@ -2422,7 +2380,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     });
 
     return dataPoints;
-  }, [projects, events, timeRange, categories]);
+  }, [projects, events, timeRange, getCategoryColor]);
 
   // Get suggestion text based on quadrant
   const getSuggestion = (share: number, accumulation: number): string => {
@@ -2477,54 +2435,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     }
   };
 
-  const handleExportData = async () => {
-    try {
-      const { writeAsStringAsync } = require('expo-file-system/legacy');
-      const { shareAsync } = require('expo-sharing');
-      const FileSystem = require('expo-file-system');
-
-      const exportData = events.map(event => {
-        const project = projects.find(p => p.id === event.projectId);
-        
-        // Format time range
-        const startHour = Math.floor(event.start / 60);
-        const startMinute = event.start % 60;
-        const endTotal = event.start + event.duration;
-        const endHour = Math.floor(endTotal / 60);
-        const endMinute = endTotal % 60;
-        
-        const formatTime = (h: number, m: number) => 
-          `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-          
-        const timeStr = `${formatTime(startHour, startMinute)}-${formatTime(endHour, endMinute)}`;
-
-        return {
-          date: event.date,
-          time: timeStr,
-          type: event.category,
-          project: project ? [project.name] : [],
-          tag: event.title
-        };
-      });
-
-      const fileName = `action_export_${new Date().toISOString().split('T')[0]}.json`;
-      const filePath = FileSystem.documentDirectory + fileName;
-
-      await writeAsStringAsync(filePath, JSON.stringify(exportData, null, 2));
-      await shareAsync(filePath, {
-        mimeType: 'application/json',
-        dialogTitle: 'Export Data'
-      });
-    } catch (error) {
-      console.error('Export error:', error);
-      Alert.alert('Error', 'Failed to export data');
-    }
-  };
-
   const handleImportData = async () => {
     try {
-      const DocumentPicker = require('expo-document-picker');
-      
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/json',
         multiple: true,
@@ -2632,6 +2544,133 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       Alert.alert('Error', `Failed to import files: ${error}`);
     }
   };
+
+  const handleExportData = useCallback(async () => {
+    try {
+      if (Platform.OS === 'web') {
+        Alert.alert(t('projects.exportNotAvailable'));
+        return;
+      }
+
+      const data = await loadAppData();
+      if (!data) {
+        Alert.alert(t('projects.noDataToExport'));
+        return;
+      }
+
+      const jsonString = exportDataAsJSON(data);
+
+      console.log('[Export] Platform.OS:', Platform.OS);
+      // Prefer the legacy filesystem module to avoid deprecation warnings / errors.
+      let legacy: any = null;
+      try {
+        // @ts-ignore
+        legacy = await import('expo-file-system/legacy');
+      } catch (legacyErr) {
+        console.log('[Export] legacy module import failed', legacyErr);
+      }
+
+      let dir = legacy ? (legacy.cacheDirectory || legacy.documentDirectory) : undefined;
+      console.log('[Export] legacy.documentDirectory:', legacy && legacy.documentDirectory);
+      console.log('[Export] legacy.cacheDirectory:', legacy && legacy.cacheDirectory);
+
+      if (!dir) {
+        // As a last fallback, try the modern module (may emit deprecation warnings on some runtimes)
+        try {
+          const fsModule: any = await import('expo-file-system');
+          dir = fsModule && (fsModule.cacheDirectory || fsModule.documentDirectory);
+          console.log('[Export] fallback FileSystem dirs:', dir);
+        } catch (errFs) {
+          console.warn('[Export] modern FileSystem import failed', errFs);
+        }
+      }
+
+      if (!dir) {
+        Alert.alert(t('projects.exportNotAvailable'));
+        return;
+      }
+
+      const now = new Date();
+      const fileName = `action_export_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.json`;
+      const fileUri = `${dir}${fileName}`;
+      console.log('[Export] fileUri:', fileUri);
+
+      // Prefer legacy module to perform the write (avoids deprecation warnings on modern API)
+      if (legacy && typeof legacy.writeAsStringAsync === 'function') {
+        try {
+          await legacy.writeAsStringAsync(fileUri, jsonString);
+          console.log('[Export] wrote file to legacy uri:', fileUri);
+          const canShare = await Sharing.isAvailableAsync();
+          if (!canShare) {
+            Alert.alert(t('projects.exportNotAvailable'));
+            return;
+          }
+          await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Export Data', UTI: 'public.json' });
+          // cleanup
+          try { if (legacy.cacheDirectory && fileUri.startsWith(legacy.cacheDirectory)) { await legacy.deleteAsync(fileUri, { idempotent: true }); } } catch {}
+          // Export completed and sharing was invoked. No separate alert required.
+          return;
+        } catch (legacyWriteErr) {
+          console.warn('[Export] legacy write failed, will try modern FS as fallback', legacyWriteErr);
+          // fallthrough to modern FS
+        }
+      }
+
+      // If we get here, try modern FileSystem API as a fallback (may emit deprecation warnings on some runtimes)
+      try {
+        const fsModule: any = await import('expo-file-system');
+        await fsModule.writeAsStringAsync(fileUri, jsonString);
+      } catch (err) {
+        console.warn('[Export] modern write failed', err);
+        // Try to use legacy with explicit legacy dir if available
+        try {
+          // @ts-ignore
+          const legacy2: any = await import('expo-file-system/legacy');
+          const legacyDir2 = legacy2.documentDirectory || legacy2.cacheDirectory;
+          if (!legacyDir2) throw new Error('No writable directory');
+          const legacyUri2 = `${legacyDir2}${fileName}`;
+          await legacy2.writeAsStringAsync(legacyUri2, jsonString);
+          console.log('[Export] wrote file to legacy uri (fallback):', legacyUri2);
+          const canShare2 = await Sharing.isAvailableAsync();
+          if (!canShare2) {
+            Alert.alert(t('projects.exportNotAvailable'));
+            return;
+          }
+          await Sharing.shareAsync(legacyUri2, { mimeType: 'application/json', dialogTitle: 'Export Data', UTI: 'public.json' });
+          try { if (legacy2.cacheDirectory && legacyUri2.startsWith(legacy2.cacheDirectory)) { await legacy2.deleteAsync(legacyUri2, { idempotent: true }); } } catch {}
+          // Export completed and sharing was invoked. No alert shown to avoid interrupting sharing UI.
+          return;
+        } catch (err2) {
+          console.error('[Export] Write failed (legacy fallback)', err2);
+          Alert.alert(t('projects.exportFailed'), String(err2));
+          return;
+        }
+      }
+
+      const canShare = await Sharing.isAvailableAsync();
+      console.log('[Export] Sharing.isAvailableAsync():', canShare);
+      if (!canShare) {
+        Alert.alert(t('projects.exportNotAvailable'));
+        return;
+      }
+
+      await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Export Data', UTI: 'public.json' });
+
+      // Clean up if we wrote to cache
+      try {
+        if (dir === (FileSystem as any).cacheDirectory) {
+          await (FileSystem as any).deleteAsync(fileUri, { idempotent: true });
+        }
+      } catch {
+        // ignore
+      }
+
+      // Export completed and sharing was invoked. No separate alert required.
+    } catch (error) {
+      console.error('Export failed', error);
+      Alert.alert(t('projects.exportFailed'), String(error));
+    }
+  }, [t]);
 
   const parseTimeRangeWithStart = (timeStr: string): { start: number; duration: number } => {
     try {
@@ -3842,45 +3881,13 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
 // --- Projects View (Visualization Selection) ---
 
-type VisualizationType = 'gravity' | 'orbit' | 'pods' | 'list';
-
-interface VisualizationOption {
-  id: VisualizationType;
-  title: string;
-  description: string;
-  icon: string;
-}
-
-const VISUALIZATION_OPTIONS: VisualizationOption[] = [
-  {
-    id: 'gravity',
-    title: 'Gravity Clusters',
-    description: 'Organic nodes pulled by gravity',
-    icon: 'gravity',
-  },
-  {
-    id: 'orbit',
-    title: 'Solar Orbits',
-    description: 'Projects orbiting around you',
-    icon: 'orbit',
-  },
-  {
-    id: 'pods',
-    title: 'Category Pods',
-    description: 'Structured containers for clarity',
-    icon: 'pods',
-  },
-  {
-    id: 'list',
-    title: 'Data List',
-    description: 'Minimalist data table',
-    icon: 'list',
-  },
-];
+// Visualization types removed (unused)
 
 // --- MAIN APP ---
 
 const App: React.FC = () => {
+  // Suppress known SafeAreaView deprecation warnings from third-party modules
+  LogBox.ignoreLogs(["SafeAreaView has been deprecated"]);
   const { t, i18n } = useTranslation();
   const { colors, isDark } = useThemeColors();
   const [activeTab, setActiveTab] = useState<TabKey>('calendar');
@@ -3919,9 +3926,10 @@ const App: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.safeArea }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      <View style={[styles.appContainer, { backgroundColor: colors.background }]}>
+    <SafeAreaProvider>
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.safeArea }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <View style={[styles.appContainer, { backgroundColor: colors.background }]}>
         <View style={[styles.topStrip, { backgroundColor: colors.safeArea }]}>
           <Text style={[styles.topStripText, { color: colors.textInverse }]}>{t('calendar.today')} · {dateStr}</Text>
         </View>
@@ -3930,7 +3938,8 @@ const App: React.FC = () => {
 
         <TabBar activeTab={activeTab} setActiveTab={setActiveTab} colors={colors} />
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 };
 

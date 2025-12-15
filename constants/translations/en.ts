@@ -126,6 +126,10 @@ export default {
     categoryNamePlaceholder: 'Category name...',
     createAndAssign: 'Create & Assign',
     saveChanges: 'Save Changes',
+    noDataToExport: 'No data available to export',
+    exportFailed: 'Export failed',
+    exportNotAvailable: 'Export not available on this platform',
+    exportSuccess: 'Export prepared for sharing',
   },
 
   // Visualization view (Project Quadrant Map)
