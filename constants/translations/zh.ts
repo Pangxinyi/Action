@@ -116,7 +116,7 @@ export default {
     goToCalendar: '去添加你的第一个事件',
     editDetails: '编辑详情',
     accumulation: '积累度',
-    accumulationHint: '为这个项目设置一个大致分值：「每投入 1 小时，对我 3–5 年后的帮助有多大？」',
+    accumulationHint: '为这个项目设置一个大致分值：「每投入1小时，对我5年后的帮助有多大？」',
     accumulationLevel0: '消耗',
     accumulationLevel30: '维持',
     accumulationLevel60: '成长',
@@ -130,6 +130,14 @@ export default {
     exportFailed: '导出失败',
     exportNotAvailable: '此平台不支持导出',
     exportSuccess: '导出已准备，可分享',
+    importSuccess: '已从 {{files}} 个文件导入 {{total}} 条事件，创建了 {{projects}} 个新项目',
+    importFailed: '导入失败：{{error}}',
+    importFileArrayRequired: '文件 {{file}} 必须包含事件数组',
+    importProcessFailed: '处理文件 {{file}} 失败：{{error}}',
+    clearConfirmTitle: '清空所有数据',
+    clearConfirmMessage: '确认要删除所有项目和事件吗？此操作不可撤销。',
+    clearSuccess: '数据已清空',
+    clearPartialWarning: '应用内数据已清空，但存储可能需要手动重置',
   },
 
   // Visualization view (Project Quadrant Map)
@@ -160,6 +168,8 @@ export default {
     lastActive: '最近活跃',
     daysAgo: '天前',
     today: '今天',
+    event: '条事件',
+    events: '条事件',
   },
 
   // Common

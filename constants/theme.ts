@@ -96,8 +96,8 @@ export const ThemeColors = {
     backgroundTertiary: '#262626',
     
     // Surface colors (cards, modals, etc.)
-    surface: '#1A1A1A',
-    surfaceSecondary: '#262626',
+    surface: '#000000',
+    surfaceSecondary: '#0A0A0A',
     surfaceHover: '#333333',
     surfacePressed: '#404040',
     
@@ -109,8 +109,8 @@ export const ThemeColors = {
     textInverse: '#111827',
     
     // Border colors
-    border: '#333333',
-    borderSecondary: '#404040',
+    border: '#0A0A0A',
+    borderSecondary: '#111111',
     borderFocus: '#FFFFFF',
     
     // Primary actions
@@ -135,7 +135,7 @@ export const ThemeColors = {
     eventCardBg: 'rgba(255,255,255,0.05)',
     
     // Tab bar
-    tabBar: '#1A1A1A',
+    tabBar: '#000000',
     tabInactive: '#6B7280',
     tabActive: '#FFFFFF',
     

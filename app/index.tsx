@@ -19,6 +19,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import {
   Alert,
+  Dimensions,
   LogBox,
   Modal,
   PanResponder,
@@ -29,7 +30,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { clearAppData, exportDataAsJSON, loadAppData } from '../utils/storage';
@@ -39,7 +40,7 @@ import { clearAppData, exportDataAsJSON, loadAppData } from '../utils/storage';
 
 // Color Theme Palettes
 const COLOR_THEMES = {
-  default: ['#BFA2DB', '#D1D9F2', '#A8E6CF', '#E6B8B7', '#E6C8DC', '#EFD9CE'],
+  default: ['#BFA2DB', '#879DE2', '#A8E6CF', '#E6B8B7', '#E6C8DC', '#EFD9CE'],
   seaside: [ '#3698BF', '#D9D3B4', '#D97C2B', '#ac3c2dff', '#FADB85', '#8F9779'],
   twilight: ['#9FA6C8', '#8DAA91', '#D9A6A1', '#4C8C94', '#7F7B99', '#E3C98D'],
   garden: ['#4BC4D5', '#F3989F', '#89C764', '#FCD45E', '#D98A69', '#446E9B'],
@@ -95,6 +96,13 @@ const getDefaultCategories = (language: string): CategoryMap => {
     'Study': COLOR_THEMES.default[1],
     'Fitness': COLOR_THEMES.default[2],
   };
+};
+
+// Mapping for common default category names to localized labels (English key -> Chinese translation)
+const CATEGORY_I18N_MAP: Record<string, string> = {
+  work: '工作',
+  study: '学习',
+  fitness: '运动',
 };
 
 // --- Shared small helpers ---
@@ -701,7 +709,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               <View style={styles.hourLabelContainer}>
                 <Text style={[styles.hourLabel, { color: colors.textQuaternary }]}>{`${hour}:00`}</Text>
               </View>
-              <View style={[styles.hourTrack, { borderTopColor: colors.border }]}>
+              <View style={[styles.hourTrack, { borderTopColor: colors.chartGrid }]}>
                 <Pressable
                   style={{ flex: 1 }}
                   onPress={(e) => {
@@ -1246,7 +1254,9 @@ type AnalyticsViewProps = {
 };
 
 const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categories, selectedColorScheme, setProjects, setCategories, colors }) => {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
+  // Provide a local `t` that delegates to `i18n.t` so translation calls remain safe
+  const t = (key: string, opts?: any) => (i18n && typeof (i18n as any).t === 'function' ? (i18n as any).t(key, opts) : key);
   const [timeRange, setTimeRange] = useState<'Week' | 'Month' | 'Year'>('Week');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -1824,14 +1834,27 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
               {/* Header */}
               <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View>
-                    <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <Text
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 24, fontWeight: '700', color: colors.text, flexShrink: 1 }}
+                    >
                       {editingProject.name}
                     </Text>
-                    <Text style={{ fontSize: 14, color: colors.textTertiary, marginTop: 4 }}>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 14, color: colors.textTertiary, marginTop: 4 }}
+                    >
                       {(() => {
                         const projectEvents = filteredEvents.filter(evt => evt.projectId === editingProject.id);
-                        return `${projectEvents.length} ${projectEvents.length === 1 ? 'event' : 'events'}`;
+                        const cnt = projectEvents.length;
+                        const totalMinutes = projectEvents.reduce((s, e) => s + (e.duration || 0), 0);
+                        const h = Math.floor(totalMinutes / 60);
+                        const m = totalMinutes % 60;
+                        const timeStr = h > 0 ? `${h}${t('common.hours')} ${m}${t('common.minutes')}` : `${m}${t('common.minutes')}`;
+                        return `${cnt} ${cnt === 1 ? t('visualization.event') : t('visualization.events')} · ${timeStr}`;
                       })()}
                     </Text>
                   </View>
@@ -1917,7 +1940,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: categoryColor }} />
                             <Text style={{ fontSize: 13, color: colors.textTertiary }}>
-                              {evt.category}
+                              {i18n.language === 'zh' ? (CATEGORY_I18N_MAP[evt.category?.toLowerCase() || ''] || evt.category) : evt.category}
                             </Text>
                           </View>
                         )}
@@ -2058,7 +2081,11 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: categoryColor }} />
                             <Text style={{ fontSize: 13, color: colors.textTertiary }}>
-                              {evt.category || t('calendar.uncategorized')}
+                              {(() => {
+                                const name = evt.category || 'uncategorized';
+                                if (name === 'uncategorized') return t('calendar.uncategorized');
+                                return i18n.language === 'zh' ? (CATEGORY_I18N_MAP[name.toLowerCase()] || name) : name;
+                              })()}
                             </Text>
                           </View>
 
@@ -2121,11 +2148,22 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 {/* Header */}
                 <View style={{ paddingHorizontal: 24, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: categoryColor }} />
-                    <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
-                      {selectedCategory === 'uncategorized' ? t('calendar.uncategorized') : selectedCategory}
-                    </Text>
-                  </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
+                          {selectedCategory === 'uncategorized' ? t('calendar.uncategorized') : selectedCategory}
+                        </Text>
+                        {/* Count + total duration */}
+                        <Text style={{ fontSize: 13, color: colors.textTertiary, marginTop: 4 }}>
+                          {`${categoryEvents.length} ${categoryEvents.length === 1 ? t('visualization.event') : t('visualization.events')} · ${(() => {
+                              const totalMinutes = categoryEvents.reduce((s, e) => s + (e.duration || 0), 0);
+                              const h = Math.floor(totalMinutes / 60);
+                              const m = totalMinutes % 60;
+                              if (h > 0) return `${h}${t('common.hours')} ${m}${t('common.minutes')}`;
+                              return `${m}${t('common.minutes')}`;
+                            })()}`}
+                        </Text>
+                      </View>
+                    </View>
                   <Pressable 
                     onPress={() => setShowCategoryEvents(false)}
                     style={{ 
@@ -2282,7 +2320,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
   const [editingProject, setEditingProject] = useState<{ id: number; name: string; category: string | null; hexColor: string; percent: number } | null>(null);
   const [selectedNode, setSelectedNode] = useState<Project | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [chartWidth, setChartWidth] = useState(320);
+  const initialWidth = Dimensions.get('window').width - 24;
+  const [chartWidth, setChartWidth] = useState(initialWidth);
 
   // Chart dimensions
   const CHART_PADDING = { top: 40, right: 20, bottom: 60, left: 28 };
@@ -2461,7 +2500,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
           const data = JSON.parse(jsonText);
 
           if (!Array.isArray(data)) {
-            Alert.alert('Error', `File ${file.name} must contain an array of events`);
+            Alert.alert(t('common.error'), t('projects.importFileArrayRequired', { file: file.name }));
             continue;
           }
 
@@ -2527,7 +2566,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
         } catch (fileError) {
           console.error(`Error processing file ${file.name}:`, fileError);
-          Alert.alert('Error', `Failed to process ${file.name}: ${fileError}`);
+          Alert.alert(t('common.error'), t('projects.importProcessFailed', { file: file.name, error: String(fileError) }));
         }
       }
 
@@ -2536,12 +2575,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
         setCategories(newCategories);
         setProjects(newProjects);
         setShowSettings(false);
-        Alert.alert('Success', `Imported ${totalImported} events from ${files.length} file(s), created ${totalProjectsCreated} new projects`);
+        Alert.alert(t('common.confirm'), t('projects.importSuccess', { total: totalImported, files: files.length, projects: totalProjectsCreated }));
       }
 
     } catch (error) {
       console.error('Import error:', error);
-      Alert.alert('Error', `Failed to import files: ${error}`);
+      Alert.alert(t('common.error'), t('projects.importFailed', { error: String(error) }));
     }
   };
 
@@ -2704,12 +2743,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
   const handleClearData = async () => {
     Alert.alert(
-      'Clear All Data',
-      'Are you sure you want to delete all projects and events? This cannot be undone.',
+      t('projects.clearConfirmTitle'),
+      t('projects.clearConfirmMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         { 
-          text: 'Clear', 
+          text: t('common.delete'), 
           style: 'destructive',
           onPress: async () => {
             setProjects([]);
@@ -2719,10 +2758,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
             
             try {
               await clearAppData();
-              Alert.alert('Success', 'All data has been cleared');
+              Alert.alert(t('common.confirm'), t('projects.clearSuccess'));
             } catch (error) {
               console.error('Failed to clear storage:', error);
-              Alert.alert('Warning', 'Data cleared from app but storage may need manual reset');
+              Alert.alert(t('common.error'), t('projects.clearPartialWarning'));
             }
           }
         },
@@ -3005,7 +3044,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                                     }}
                                   >
                                     <Text style={{ fontSize: 12, fontWeight: '600', color: isSelected ? colors.accentText : catColor }}>
-                                      {catName}
+                                      {i18n.language === 'zh' ? (CATEGORY_I18N_MAP[catName.toLowerCase()] || catName) : catName}
                                     </Text>
                                   </Pressable>
                                 );
@@ -3888,7 +3927,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 const App: React.FC = () => {
   // Suppress known SafeAreaView deprecation warnings from third-party modules
   LogBox.ignoreLogs(["SafeAreaView has been deprecated"]);
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { colors, isDark } = useThemeColors();
   const [activeTab, setActiveTab] = useState<TabKey>('calendar');
   const [selectedColorScheme, setSelectedColorScheme] = useState('default');
@@ -3899,11 +3938,7 @@ const App: React.FC = () => {
   // Initialize data persistence
   useAppData(projects, events, categories, setProjects, setEvents, setCategories);
 
-  const today = new Date();
-  const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
-    2,
-    '0',
-  )}-${String(today.getDate()).padStart(2, '0')}`;
+  
 
   let content: React.ReactNode;
   if (activeTab === 'calendar') {
@@ -3927,12 +3962,10 @@ const App: React.FC = () => {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={[styles.safe, { backgroundColor: colors.safeArea }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={[styles.appContainer, { backgroundColor: colors.background }]}>
-        <View style={[styles.topStrip, { backgroundColor: colors.safeArea }]}>
-          <Text style={[styles.topStripText, { color: colors.textInverse }]}>{t('calendar.today')} · {dateStr}</Text>
-        </View>
+        
 
         <View style={{ flex: 1 }}>{content}</View>
 
@@ -3948,24 +3981,16 @@ export default App;
 // --- STYLES ---
 
 const styles = StyleSheet.create({
-  safe: {
+
+    safe: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: 'transparent',
   },
   appContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
   },
-  topStrip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E7EB',
-  },
-  topStripText: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
+
   header: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -4116,13 +4141,13 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
-    height: 64,
+    height: 52,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingBottom: 0,
+    paddingBottom: 6,
     marginBottom: 0,
   },
   tabItem: {

@@ -2,15 +2,16 @@
   "expo": {
     "name": "Action",
     "slug": "action",
-    "version": "1.0.0",
+    "version": "1.0.4",
     "orientation": "portrait",
-    "icon": "./assets/images/5514914D-C7EC-46EB-B26C-CBE332943726.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "action",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pangxinyi.action",
+      "buildNumber": "4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -18,22 +19,23 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/5514914D-C7EC-46EB-B26C-CBE332943726.png"
+        "foregroundImage": "./assets/images/icon.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.pangxinyi.action"
+      "package": "com.pangxinyi.action",
+      "versionCode": 4
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/5514914D-C7EC-46EB-B26C-CBE332943726.png"
+      "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/5514914D-C7EC-46EB-B26C-CBE332943726.png",
+          "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",

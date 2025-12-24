@@ -116,7 +116,7 @@ export default {
     goToCalendar: 'Add your first event',
     editDetails: 'Edit Details',
     accumulation: 'Accumulation',
-    accumulationHint: 'Set a rough score for this project: "How much will each hour invested help me 3–5 years from now?"',
+    accumulationHint: 'Set a rough score for this project: "How much will each hour invested help me 5 years from now?"',
     accumulationLevel0: 'Drain',
     accumulationLevel30: 'Maintain',
     accumulationLevel60: 'Growth',
@@ -130,6 +130,14 @@ export default {
     exportFailed: 'Export failed',
     exportNotAvailable: 'Export not available on this platform',
     exportSuccess: 'Export prepared for sharing',
+    importSuccess: 'Imported {{total}} events from {{files}} file(s), created {{projects}} new projects',
+    importFailed: 'Failed to import files: {{error}}',
+    importFileArrayRequired: 'File {{file}} must contain an array of events',
+    importProcessFailed: 'Failed to process {{file}}: {{error}}',
+    clearConfirmTitle: 'Clear All Data',
+    clearConfirmMessage: 'Are you sure you want to delete all projects and events? This cannot be undone.',
+    clearSuccess: 'All data has been cleared',
+    clearPartialWarning: 'Data cleared from app but storage may need manual reset',
   },
 
   // Visualization view (Project Quadrant Map)
@@ -160,6 +168,7 @@ export default {
     lastActive: 'Last active',
     daysAgo: 'days ago',
     today: 'today',
+    events: 'events',
   },
 
   // Common
