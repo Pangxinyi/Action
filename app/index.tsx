@@ -16,6 +16,7 @@ import '@constants/i18n'; // 初始化 i18n
 import { useAppData } from '@hooks/useAppData';
 import { AppThemeColors, useThemeColors } from '@hooks/useThemeColors';
 import * as DocumentPicker from 'expo-document-picker';
+import * as Localization from 'expo-localization';
 import * as Sharing from 'expo-sharing';
 import {
   Alert,
@@ -98,12 +99,7 @@ const getDefaultCategories = (language: string): CategoryMap => {
   };
 };
 
-// Mapping for common default category names to localized labels (English key -> Chinese translation)
-const CATEGORY_I18N_MAP: Record<string, string> = {
-  work: '工作',
-  study: '学习',
-  fitness: '运动',
-};
+// Category labels are stored in translations under `categories`.
 
 // --- Shared small helpers ---
 
@@ -1940,7 +1936,10 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: categoryColor }} />
                             <Text style={{ fontSize: 13, color: colors.textTertiary }}>
-                              {i18n.language === 'zh' ? (CATEGORY_I18N_MAP[evt.category?.toLowerCase() || ''] || evt.category) : evt.category}
+                              {(() => {
+                                const name = evt.category || '';
+                                return name ? t(`categories.${name.toLowerCase()}`, { defaultValue: name }) : '';
+                              })()}
                             </Text>
                           </View>
                         )}
@@ -2084,7 +2083,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                               {(() => {
                                 const name = evt.category || 'uncategorized';
                                 if (name === 'uncategorized') return t('calendar.uncategorized');
-                                return i18n.language === 'zh' ? (CATEGORY_I18N_MAP[name.toLowerCase()] || name) : name;
+                                return name === 'uncategorized' ? t('calendar.uncategorized') : t(`categories.${name.toLowerCase()}`, { defaultValue: name });
                               })()}
                             </Text>
                           </View>
@@ -3044,7 +3043,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                                     }}
                                   >
                                     <Text style={{ fontSize: 12, fontWeight: '600', color: isSelected ? colors.accentText : catColor }}>
-                                      {i18n.language === 'zh' ? (CATEGORY_I18N_MAP[catName.toLowerCase()] || catName) : catName}
+                                      {t(`categories.${catName.toLowerCase()}`, { defaultValue: catName })}
                                     </Text>
                                   </Pressable>
                                 );
@@ -3933,7 +3932,21 @@ const App: React.FC = () => {
   const [selectedColorScheme, setSelectedColorScheme] = useState('default');
   const [projects, setProjects] = useState<Project[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
-  const [categories, setCategories] = useState<CategoryMap>(() => getDefaultCategories(i18n.language));
+  const getInitialLanguage = () => {
+    try {
+      const locales = Localization.getLocales();
+      if (locales && locales.length > 0) {
+        const primary = locales[0];
+        const languageCode = (primary.languageCode || '').toLowerCase();
+        if (languageCode.startsWith('zh')) return 'zh';
+      }
+    } catch {
+      // ignore and fall back
+    }
+    return i18n?.language || 'en';
+  };
+
+  const [categories, setCategories] = useState<CategoryMap>(() => getDefaultCategories(getInitialLanguage()));
 
   // Initialize data persistence
   useAppData(projects, events, categories, setProjects, setEvents, setCategories);

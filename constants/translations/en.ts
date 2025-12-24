@@ -196,6 +196,13 @@ export default {
     mineral: 'Mineral',
   },
 
+  // Category labels
+  categories: {
+    work: 'Work',
+    study: 'Study',
+    fitness: 'Fitness',
+  },
+
   // Languages
   languages: {
     english: 'English',

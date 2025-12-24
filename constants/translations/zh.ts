@@ -196,6 +196,13 @@ export default {
     vivid: '鲜艳',
     mineral: '矿物',
   },
+  
+  // Category labels
+  categories: {
+    work: '工作',
+    study: '学习',
+    fitness: '运动',
+  },
 
   // Languages
   languages: {
