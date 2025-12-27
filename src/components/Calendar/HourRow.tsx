@@ -1,4 +1,4 @@
-import { default as React, default as React } from 'react';
+import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 type Props = {
@@ -34,17 +34,5 @@ const HourRow: React.FC<Props> = ({ hour, pixelsPerMinute, colors, onSlotPress }
     </View>
   );
 };
-
-export default React.memo(HourRow);
-
-export type HourRowProps = {
-  hour: number;
-};
-
-const HourRow: React.FC<HourRowProps> = ({ hour }) => (
-  <View>
-    <Text>{`${hour}:00`}</Text>
-  </View>
-);
 
 export default React.memo(HourRow);

@@ -743,20 +743,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       <Modal visible={isModalOpen && !!draftEvent} transparent animationType="slide">
             {draftEvent && (
               <EventEditor
-                draftEvent={draftEvent}
-                setDraftEvent={setDraftEvent}
+                initialDraft={draftEvent}
                 editingField={editingField}
                 timeOptions={timeOptions}
                 timeListRef={timeListRef}
-                onSelectTime={handleSelectTime}
                 onOpenTimeEditor={openTimeEditor}
-                projects={projects}
-                categories={categories}
-                setCategories={setCategories}
                 themeColors={themeColors}
                 colors={colors}
-                onSave={handleSave}
-                onDelete={handleDelete}
                 onClose={() => {
                   setIsModalOpen(false);
                   setDraftEvent(null);
