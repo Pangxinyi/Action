@@ -3473,7 +3473,7 @@ const App: React.FC = () => {
 
         <View style={{ flex: 1 }}>{content}</View>
 
-        <TabBar activeTab={activeTab} setActiveTab={setActiveTab} colors={colors} />
+        <TabBar activeTab={activeTab} setActiveTab={setActiveTab} colors={colors} t={t} Icons={{ Calendar: CalendarIcon, PieChart, Network }} />
       </View>
       </SafeAreaView>
     </SafeAreaProvider>
