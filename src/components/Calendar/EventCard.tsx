@@ -2,11 +2,11 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 export type EventItem = {
-  id: number | string;
+  id: number;
   title?: string;
   start: number;
   duration: number;
-  hexColor?: string;
+  hexColor: string;
   details?: string;
   category?: string;
   date: string;

@@ -10,7 +10,7 @@ type Props = {
   timeOptions: number[];
   timeListRef: any;
   onOpenTimeEditor: (f: 'start' | 'end') => void;
-  themeColors: string[];
+  themeColors: readonly string[];
   colors: any;
   onClose: () => void;
   t: (k: string) => string;
@@ -53,14 +53,14 @@ const EventEditor: React.FC<Props> = ({
         <View style={{ marginBottom: 12 }}>
           <Text style={{ color: colors.textTertiary }}>{t('calendar.start')}</Text>
           <Pressable onPress={() => onOpenTimeEditor('start')}>
-            <Text style={{ color: colors.text }}>{formatMinutes(draftEvent.start)}</Text>
+            <Text style={{ color: colors.text }}>{formatMinutes(local.start)}</Text>
           </Pressable>
         </View>
 
         <View style={{ marginBottom: 12 }}>
           <Text style={{ color: colors.textTertiary }}>{t('calendar.end')}</Text>
           <Pressable onPress={() => onOpenTimeEditor('end')}>
-            <Text style={{ color: colors.text }}>{formatMinutes(draftEvent.end)}</Text>
+            <Text style={{ color: colors.text }}>{formatMinutes(local.end)}</Text>
           </Pressable>
         </View>
 
@@ -73,13 +73,16 @@ const EventEditor: React.FC<Props> = ({
               showsVerticalScrollIndicator={false}
             >
               {timeOptions.map((m) => {
-                const current = editingField === 'start' ? draftEvent.start : draftEvent.end;
+                const current = editingField === 'start' ? local.start : local.end;
                 const nearest = Math.round(current / 1) * 1;
                 const active = m === nearest;
                 return (
                   <Pressable
                     key={`${editingField}-${m}`}
-                    onPress={() => onSelectTime(editingField, m)}
+                    onPress={() => {
+                      if (editingField === 'start') setLocal({ ...local, start: m });
+                      else setLocal({ ...local, end: m });
+                    }}
                     style={{ padding: 8, backgroundColor: active ? colors.backgroundTertiary : colors.surface }}
                   >
                     <Text style={{ color: active ? colors.text : colors.textTertiary }}>{formatMinutes(m)}</Text>
@@ -124,7 +127,7 @@ const EventEditor: React.FC<Props> = ({
             </Pressable>
           </View>
 
-          {draftEvent.isNewCategory && (
+          {local.isNewCategory && (
             <View style={{ marginTop: 8 }}>
               <TextInput
                 value={local.newCategoryName || ''}
@@ -154,7 +157,7 @@ const EventEditor: React.FC<Props> = ({
               </Pressable>
             ))}
 
-            <Pressable onPress={() => setDraftEvent({ ...draftEvent, isNewProject: true })} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+            <Pressable onPress={() => setLocal({ ...local, isNewProject: true })} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
               <Text style={{ color: colors.textTertiary }}>{t('projects.newProject')}</Text>
             </Pressable>
           </View>
