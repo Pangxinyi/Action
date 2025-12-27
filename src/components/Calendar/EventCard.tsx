@@ -1,20 +1,76 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-export type EventCardProps = {
+export type EventItem = {
   id: number | string;
   title?: string;
-  start?: number;
-  duration?: number;
-  color?: string;
-  height?: number;
+  start: number;
+  duration: number;
+  hexColor?: string;
+  details?: string;
+  category?: string;
+  date: string;
+  projectId?: number;
 };
 
-const EventCard: React.FC<EventCardProps> = ({ title }) => {
+type Props = {
+  evt: EventItem;
+  top: number;
+  height: number;
+  colors: any;
+  projects: any[];
+  onPress: (evt: EventItem) => void;
+};
+
+const formatMinutes = (total: number) => {
+  const m = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+};
+
+const EventCard: React.FC<Props> = ({ evt, top, height, colors, projects, onPress }) => {
+  const cardHeight = Math.max(20, height);
+  const showOnlyTitle = cardHeight <= 28;
+  const showTitleAndTime = cardHeight > 28 && cardHeight <= 44;
+  const showAll = cardHeight > 44;
+
+  const linked = evt.projectId ? projects.find(p => p.id === evt.projectId) : null;
+
   return (
-    <View>
-      <Text numberOfLines={1} ellipsizeMode="tail">{title}</Text>
-    </View>
+    <Pressable
+      onPress={() => onPress(evt)}
+      style={{
+        position: 'absolute',
+        left: 12,
+        right: 12,
+        top,
+        height: cardHeight,
+        backgroundColor: `${evt.hexColor || '#9CA3AF'}99`,
+        borderLeftColor: evt.hexColor || '#9CA3AF',
+        borderLeftWidth: 4,
+        borderRadius: 8,
+        padding: 8,
+        overflow: 'hidden',
+      }}
+    >
+      <Text numberOfLines={showOnlyTitle ? 1 : showTitleAndTime ? 1 : 2} ellipsizeMode="tail" style={{ color: colors.text, fontWeight: '600' }}>
+        {evt.details || evt.title}
+      </Text>
+
+      {(showTitleAndTime || showAll) && (
+        <Text style={{ color: colors.textSecondary, marginTop: 2 }}>
+          {formatMinutes(evt.start)} - {formatMinutes(evt.start + evt.duration)}
+        </Text>
+      )}
+
+      {showAll && linked && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: linked.hexColor, marginRight: 8 }} />
+          <Text numberOfLines={1} style={{ color: colors.textSecondary, fontSize: 12 }}>{linked.name}</Text>
+        </View>
+      )}
+    </Pressable>
   );
 };
 

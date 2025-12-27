@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 export type TabBarProps = { active: string; onSelect: (k: string) => void };
 

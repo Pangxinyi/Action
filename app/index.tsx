@@ -34,6 +34,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import EventCard from '../src/components/Calendar/EventCard';
+import HourRow from '../src/components/Calendar/HourRow';
+import EventEditor from '../src/components/Calendar/EventEditor';
 import { clearAppData, exportDataAsJSON, loadAppData } from '../utils/storage';
 
 
@@ -700,33 +703,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={{ minHeight: 1440, paddingHorizontal: 12, paddingTop: 0 }}>
           {hours.map((hour) => (
-            <View
-              key={hour}
-              style={[
-                styles.hourRow,
-                { height: 60 * pixelsPerMinute, borderColor: colors.border },
-              ]}
-            >
-              <View style={styles.hourLabelContainer}>
-                <Text style={[styles.hourLabel, { color: colors.textQuaternary }]}>{`${hour}:00`}</Text>
-              </View>
-              <View style={[styles.hourTrack, { borderTopColor: colors.chartGrid }]}>
-                <Pressable
-                  style={{ flex: 1 }}
-                  onPress={(e) => {
-                    // Get the Y position within this hour track
-                    const locationY = e.nativeEvent.locationY;
-                    // Calculate minutes within this hour (0-59)
-                    let minutesInHour = Math.round((locationY / 60) * 60);
-                    // Round to nearest 5-minute increment
-                    minutesInHour = Math.round(minutesInHour / 5) * 5;
-                    // Clamp to 0-59 range
-                    minutesInHour = Math.min(59, Math.max(0, minutesInHour));
-                    handleSlotPress(hour, minutesInHour);
-                  }}
-                />
-              </View>
-            </View>
+            <HourRow key={hour} hour={hour} pixelsPerMinute={pixelsPerMinute} colors={colors} onSlotPress={handleSlotPress} />
           ))}
 
           {events
@@ -740,54 +717,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             .map((evt) => {
             const top = evt.start * pixelsPerMinute;
             const height = evt.duration * pixelsPerMinute;
-            const eventColor = getEventColor(evt);
             if (top < 0) return null;
-            const cardHeight = Math.max(20, height);
-            const showOnlyTitle = cardHeight <= 28;
-            const showTitleAndTime = cardHeight > 28 && cardHeight <= 44;
-            const showAll = cardHeight > 44;
             return (
-              <Pressable
+              <EventCard
                 key={evt.id}
-                onPress={() => handleEventPress(evt)}
-                style={[
-                  styles.eventCard,
-                  {
-                    top,
-                    height: cardHeight,
-                    backgroundColor: `${eventColor}99`,
-                    borderLeftColor: eventColor,
-                  },
-                ]}
-              >
-                {/* Title */}
-                <Text
-                  style={[styles.eventTitle, { color: colors.text }]}
-                  numberOfLines={showOnlyTitle ? 1 : showTitleAndTime ? 1 : 2}
-                  ellipsizeMode="tail"
-                >
-                  {evt.details || evt.title || t('calendar.newEvent')}
-                </Text>
-
-                {/* Time (only if enough height) */}
-                {(showTitleAndTime || showAll) && (
-                  <Text style={[styles.eventTime, { color: colors.textSecondary }]}>
-                    {formatMinutes(evt.start)} - {formatMinutes(evt.start + evt.duration)}
-                  </Text>
-                )}
-
-                {/* Project row (only if plenty of height) */}
-                {showAll && evt.projectId && (() => {
-                  const linked = projects.find(p => p.id === evt.projectId);
-                  if (!linked) return null;
-                  return (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: linked.hexColor, marginRight: 8 }} />
-                      <Text style={{ fontSize: 12, color: colors.textSecondary }} numberOfLines={1}>{linked.name}</Text>
-                    </View>
-                  );
-                })()}
-              </Pressable>
+                evt={evt}
+                top={top}
+                height={height}
+                colors={colors}
+                projects={projects}
+                onPress={handleEventPress}
+              />
             );
           })}
 
@@ -801,411 +741,30 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
       {/* Event Modal */}
       <Modal visible={isModalOpen && !!draftEvent} transparent animationType="slide">
-        <Pressable 
-          style={[styles.modalOverlay, { backgroundColor: colors.modalBackdrop }]}
-          onPress={() => {
-            setIsModalOpen(false);
-            setDraftEvent(null);
-            setEditingField(null);
-          }}
-        >
-          <View 
-            style={[styles.bottomSheetLarge, { backgroundColor: colors.surface }]}
-            onStartShouldSetResponder={() => true}
-            onResponderRelease={() => {}}
-          >
-            {/* 顶部标题 + 删除 + 关闭 */}
-            <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.sheetTitle, { color: colors.text }]}>
-                {draftEvent?.id ? t('calendar.editEvent') : t('calendar.addEvent')}
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                {draftEvent?.id && (
-                  <Pressable style={styles.iconDanger} onPress={handleDelete}>
-                    <Trash2 size={18} color={colors.error} />
-                  </Pressable>
-                )}
-                <Pressable
-                  style={styles.iconButton}
-                  onPress={() => {
-                    setIsModalOpen(false);
-                    setDraftEvent(null);
-                    setEditingField(null); 
-                  }}
-                >
-                  <X size={20} color={colors.textTertiary} />
-                </Pressable>
-              </View>
-            </View>
-
             {draftEvent && (
-              <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ paddingBottom: 24 }}
-              >
-                {/* ---- 时间大卡片 ---- */}
-                {/* ---- 时间大卡片 ---- */}
-                <View style={[styles.card, styles.timeCard, { backgroundColor: colors.backgroundSecondary }]}>
-                  <View style={styles.timeHeaderRow}>
-                    <Text style={[styles.timeHeaderLabel, { color: colors.textTertiary }]}>{t('calendar.start')}</Text>
-                    <Text style={[styles.timeHeaderLabel, { color: colors.textTertiary }]}>{t('calendar.end')}</Text>
-                  </View>
-
-                  <View style={styles.timeMainRow}>
-                    {/* START */}
-                    <Pressable
-                      style={styles.timeBlock}
-                      onPress={() => openTimeEditor('start')}
-                    >
-                      <Text style={[styles.timeBig, { color: colors.text }]}>
-                        {formatMinutes(draftEvent.start)}
-                      </Text>
-                    </Pressable>
-
-                    <Text style={[styles.timeArrow, { color: colors.textTertiary }]}>→</Text>
-
-                    {/* END */}
-                    <Pressable
-                      style={styles.timeBlock}
-                      onPress={() => openTimeEditor('end')}
-                    >
-                      <Text style={[styles.timeBig, { color: colors.text }]}>
-                        {formatMinutes(draftEvent.end)}
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-
-                {/* 👉 下拉时间选择器，类似 Google Calendar 的选择列表 */}
-                {editingField && (
-                  <View style={[styles.timePickerContainer, { backgroundColor: colors.backgroundTertiary, borderColor: colors.border }]}>
-                    <Text style={[styles.timePickerTitle, { color: colors.textTertiary }]}>
-                      {editingField === 'start'
-                        ? t('calendar.startTime')
-                        : t('calendar.duration')}
-                    </Text>
-                    <ScrollView
-                      key={editingField}
-                      ref={timeListRef}
-                      style={{ maxHeight: 260 }}
-                      scrollEnabled={true}
-                      showsVerticalScrollIndicator={false}
-                      contentContainerStyle={{ paddingVertical: 0 }}
-                      onContentSizeChange={(width, height) => {
-                        if (height === 0) return;
-                        
-                        // Only scroll if we have an active editing field
-                        if (!editingField || !draftEvent) return;
-                        
-                        const current =
-                          editingField === 'start' ? draftEvent.start : draftEvent.end;
-                        const nearestIndex = Math.round(current / TIME_STEP_MIN);
-                        const totalItems = (48 * 60) / TIME_STEP_MIN; // 支持跨越午夜的事件
-                        const actualRowHeight = height / totalItems;
-                        const scrollY = nearestIndex * actualRowHeight;
-
-                        timeListRef.current?.scrollTo({ y: scrollY, animated: false });
-                      }}
-                    >
-                      {timeOptions.map((m) => {
-                        const current =
-                          editingField === 'start'
-                            ? draftEvent.start
-                            : draftEvent.end;
-
-                        const nearest =
-                          Math.round(current / TIME_STEP_MIN) * TIME_STEP_MIN;
-                        const active = m === nearest;
-
-                        return (
-                          <Pressable
-                            key={`${editingField}-${m}`}
-                            style={[
-                              styles.timeOptionRow,
-                              { backgroundColor: colors.surface },
-                              active && [styles.timeOptionRowActive, { backgroundColor: colors.backgroundTertiary }],
-                            ]}
-                            onPress={() => handleSelectTime(editingField, m)}
-                          >
-                            <Text
-                              style={[
-                                styles.timeOptionText,
-                                { color: colors.textTertiary },
-                                active && [styles.timeOptionTextActive, { color: colors.text }],
-                              ]}
-                            >
-                              {formatMinutes(m)}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-                )}
-
-
-
-
-                {/* ---- Event Details / Tag ---- */}
-                <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                  <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('calendar.details')}</Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                    placeholder={t('calendar.details')}
-                    placeholderTextColor={colors.textQuaternary}
-                    value={draftEvent.details || ''}
-                    onChangeText={(txt) =>
-                      setDraftEvent({ ...draftEvent, details: txt })
-                    }
-                    multiline
-                  />
-                </View>
-
-                {/* ---- Event Category ---- */}
-                <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                  <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('calendar.category')}</Text>
-                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                    {Object.keys(categories).map((catName) => {
-                      const catColor = categories[catName];
-                      const isSelected = draftEvent.category === catName;
-                      return (
-                        <Pressable
-                          key={catName}
-                          style={[
-                            {
-                              paddingHorizontal: 12,
-                              paddingVertical: 6,
-                              borderRadius: 8,
-                              backgroundColor: `${catColor}20`,
-                              borderColor: catColor,
-                              borderWidth: 2,
-                            },
-                            isSelected && { backgroundColor: catColor, borderColor: catColor },
-                          ]}
-                          onPress={() => {
-                            setDraftEvent({ 
-                              ...draftEvent, 
-                              category: catName,
-                              isNewCategory: false,
-                              newCategoryName: '',
-                            });
-                          }}
-                        >
-                          <Text
-                            style={[
-                              { color: catColor, fontWeight: '600', fontSize: 12 },
-                              isSelected && { color: colors.primaryText },
-                            ]}
-                          >
-                            {catName}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                    
-                    <Pressable
-                      style={[
-                        styles.newProjectChip,
-                        { borderColor: colors.border },
-                        draftEvent.isNewCategory && [styles.newProjectChipActive, { borderColor: colors.accent }],
-                      ]}
-                      onPress={() =>
-                        setDraftEvent({ ...draftEvent, isNewCategory: true })
-                      }
-                    >
-                      <Plus
-                        size={14}
-                        color={
-                          draftEvent.isNewCategory ? colors.accent : colors.textTertiary
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.newProjectText,
-                          { color: colors.textTertiary },
-                          draftEvent.isNewCategory && { color: colors.accent },
-                        ]}
-                      >
-                        {t('projects.newCategory')}
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  {draftEvent.isNewCategory && (
-                    <View style={{ marginTop: 12, gap: 8 }}>
-                      <TextInput
-                        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                        placeholder={t('projects.categoryName')}
-                        placeholderTextColor={colors.textQuaternary}
-                        value={draftEvent.newCategoryName || ''}
-                        onChangeText={(txt) =>
-                          setDraftEvent({ ...draftEvent, newCategoryName: txt })
-                        }
-                      />
-                      <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}>
-                        {t('common.color')}
-                      </Text>
-                      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                        {themeColors.map((color) => (
-                          <Pressable
-                            key={color}
-                            style={[
-                              {
-                                width: 36,
-                                height: 36,
-                                borderRadius: 8,
-                                backgroundColor: color,
-                              },
-                              draftEvent.newCategoryColor === color && {
-                                borderColor: colors.primary,
-                                borderWidth: 3,
-                              },
-                            ]}
-                            onPress={() =>
-                              setDraftEvent({ ...draftEvent, newCategoryColor: color })
-                            }
-                          />
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                </View>
-
-                {/* ---- Project 选择 ---- */}
-                <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                  <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('calendar.project')}</Text>
-                  <Text style={{ fontSize: 12, color: colors.textQuaternary, marginBottom: 12, lineHeight: 16 }}>
-                    {t('calendar.projectHint')}
-                  </Text>
-                  <View style={styles.projectGrid}>
-                    {projects.map((p) => {
-                      const active =
-                        !draftEvent.isNewProject &&
-                        draftEvent.selectedProjectId === p.id;
-                      return (
-                        <Pressable
-                          key={p.id}
-                          style={[
-                            styles.projectChip,
-                            { backgroundColor: colors.surface, borderColor: colors.border },
-                            active && [styles.projectChipActive, { borderColor: colors.accent, backgroundColor: colors.accentLight }],
-                          ]}
-                          onPress={() =>
-                            setDraftEvent({
-                              ...draftEvent,
-                              isNewProject: false,
-                              selectedProjectId: p.id,
-                            })
-                          }
-                        >
-                          <View
-                            style={[
-                              styles.projectDot,
-                              { backgroundColor: p.hexColor },
-                            ]}
-                          />
-                          <Text
-                            numberOfLines={1}
-                            style={[styles.projectChipText, { color: colors.text }]}
-                          >
-                            {p.name}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-
-                    <Pressable
-                      style={[
-                        styles.newProjectChip,
-                        { borderColor: colors.border },
-                        draftEvent.isNewProject && [styles.newProjectChipActive, { borderColor: colors.accent }],
-                      ]}
-                      onPress={() =>
-                        setDraftEvent({ ...draftEvent, isNewProject: true })
-                      }
-                    >
-                      <Plus
-                        size={14}
-                        color={
-                          draftEvent.isNewProject ? colors.accent : colors.textTertiary
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.newProjectText,
-                          { color: colors.textTertiary },
-                          draftEvent.isNewProject && { color: colors.accent },
-                        ]}
-                      >
-                        {t('projects.newProject')}
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  {draftEvent.isNewProject && (
-                    <>
-                      <TextInput
-                        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                        placeholder={t('projects.projectName')}
-                        placeholderTextColor={colors.textQuaternary}
-                        value={draftEvent.newProjectName}
-                        onChangeText={(txt) =>
-                          setDraftEvent({ ...draftEvent, newProjectName: txt })
-                        }
-                      />
-                      
-                      {/* Accumulation Slider */}
-                      <View style={{ marginTop: 16, paddingHorizontal: 4 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                            {t('projects.accumulation')}
-                          </Text>
-                          <View style={{ 
-                            paddingHorizontal: 10, 
-                            paddingVertical: 3, 
-                            borderRadius: 10, 
-                            backgroundColor: colors.backgroundTertiary 
-                          }}>
-                            <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>
-                              {Math.round(draftEvent.newProjectPercent)}%
-                            </Text>
-                          </View>
-                        </View>
-
-                        <Text style={{ fontSize: 11, color: colors.textTertiary, lineHeight: 16, marginBottom: 12 }}>
-                          {t('projects.accumulationHint')}
-                        </Text>
-
-                        {/* Slider */}
-                        <View 
-                          style={{ height: 40, justifyContent: 'center', marginBottom: 6 }}
-                          onStartShouldSetResponder={() => true}
-                          onResponderGrant={(e) => {
-                            const locationX = e.nativeEvent.locationX;
-                            const containerWidth = 327; // Approximate width
-                            const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
-                            setDraftEvent({ ...draftEvent, newProjectPercent: Math.round(newPercent) });
-                          }}
-                          onResponderMove={(e) => {
-                            const locationX = e.nativeEvent.locationX;
-                            const containerWidth = 327;
-                            const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
-                            setDraftEvent({ ...draftEvent, newProjectPercent: Math.round(newPercent) });
-                          }}
-                        >
-                          <View style={{ 
-                            height: 6, 
-                            backgroundColor: colors.border, 
-                            borderRadius: 3,
-                            overflow: 'hidden',
-                          }}>
-                            <View style={{ 
-                              height: '100%', 
-                              width: `${draftEvent.newProjectPercent}%`, 
-                              backgroundColor: colors.accent,
-                              borderRadius: 3,
-                            }} />
-                          </View>
+              <EventEditor
+                draftEvent={draftEvent}
+                setDraftEvent={setDraftEvent}
+                editingField={editingField}
+                timeOptions={timeOptions}
+                timeListRef={timeListRef}
+                onSelectTime={handleSelectTime}
+                onOpenTimeEditor={openTimeEditor}
+                projects={projects}
+                categories={categories}
+                setCategories={setCategories}
+                themeColors={themeColors}
+                colors={colors}
+                onSave={handleSave}
+                onDelete={handleDelete}
+                onClose={() => {
+                  setIsModalOpen(false);
+                  setDraftEvent(null);
+                  setEditingField(null);
+                }}
+                t={t}
+              />
+            )}
                           
                           {/* Draggable Handle */}
                           <View 
