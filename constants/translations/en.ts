@@ -199,7 +199,7 @@ export default {
   // Category labels
   categories: {
     work: 'Work',
-    study: 'Study',
+    study: 'Learning',
     fitness: 'Fitness',
   },
 

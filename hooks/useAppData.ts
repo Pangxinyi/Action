@@ -3,7 +3,7 @@
  * Manages loading and saving app data with local storage persistence
  */
 
-import { useEffect } from 'react';
+import { Dispatch, SetStateAction, useEffect } from 'react';
 import { AppData, loadAppData, saveAppData } from '../utils/storage';
 
 type UseAppDataResult = {
@@ -18,9 +18,9 @@ export const useAppData = (
   projects: any[],
   events: any[],
   categories: { [key: string]: string },
-  setProjects: (projects: any[]) => void,
-  setEvents: (events: any[]) => void,
-  setCategories: (categories: { [key: string]: string }) => void,
+  setProjects: Dispatch<SetStateAction<any[]>>,
+  setEvents: Dispatch<SetStateAction<any[]>>,
+  setCategories: Dispatch<SetStateAction<{ [key: string]: string }>>,
   onLoaded?: () => void
 ): UseAppDataResult => {
   const isLoaded = projects.length > 0 || events.length > 0;
@@ -30,9 +30,12 @@ export const useAppData = (
     const loadData = async () => {
       const savedData = await loadAppData();
       if (savedData) {
-        setProjects(savedData.projects);
-        setEvents(savedData.events);
-        setCategories(savedData.categories);
+        // Only apply saved data if the current in-memory state is still empty.
+        // Use functional updaters to inspect latest state and avoid overwriting
+        // user-created data that may have been added before async load finished.
+        setProjects((prev) => (prev && prev.length > 0 ? prev : savedData.projects || []));
+        setEvents((prev) => (prev && prev.length > 0 ? prev : savedData.events || []));
+        setCategories((prev) => (prev && Object.keys(prev).length > 0 ? prev : savedData.categories || {}));
       }
       onLoaded?.();
     };

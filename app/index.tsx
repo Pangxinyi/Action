@@ -94,7 +94,7 @@ const getDefaultCategories = (language: string): CategoryMap => {
   }
   return {
     'Work': COLOR_THEMES.default[0],
-    'Study': COLOR_THEMES.default[1],
+    'Learning': COLOR_THEMES.default[1],
     'Fitness': COLOR_THEMES.default[2],
   };
 };
@@ -358,6 +358,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
   const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
   const nowTop = nowMinutes * pixelsPerMinute;
+  const isSelectedDateToday =
+    selectedDate.getFullYear() === currentTime.getFullYear() &&
+    selectedDate.getMonth() === currentTime.getMonth() &&
+    selectedDate.getDate() === currentTime.getDate();
 
   const openNewEventAt = (totalMinutes: number) => {
     const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(
@@ -485,6 +489,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
     const rawDuration = draftEvent.end - draftEvent.start;
     const duration = Math.max(1, rawDuration); // 至少 1 分钟，防止 end <= start
+
 
     const payload: Omit<EventItem, 'id'> = {
       title,
@@ -737,6 +742,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             const height = evt.duration * pixelsPerMinute;
             const eventColor = getEventColor(evt);
             if (top < 0) return null;
+            const cardHeight = Math.max(20, height);
+            const showOnlyTitle = cardHeight <= 28;
+            const showTitleAndTime = cardHeight > 28 && cardHeight <= 44;
+            const showAll = cardHeight > 44;
             return (
               <Pressable
                 key={evt.id}
@@ -745,22 +754,30 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                   styles.eventCard,
                   {
                     top,
-                    height: Math.max(20, height),
+                    height: cardHeight,
                     backgroundColor: `${eventColor}99`,
                     borderLeftColor: eventColor,
                   },
                 ]}
               >
-                {evt.details && (
-                  <Text style={[styles.eventTitle, { color: colors.text }]} numberOfLines={1}>
-                    {evt.details}
+                {/* Title */}
+                <Text
+                  style={[styles.eventTitle, { color: colors.text }]}
+                  numberOfLines={showOnlyTitle ? 1 : showTitleAndTime ? 1 : 2}
+                  ellipsizeMode="tail"
+                >
+                  {evt.details || evt.title || t('calendar.newEvent')}
+                </Text>
+
+                {/* Time (only if enough height) */}
+                {(showTitleAndTime || showAll) && (
+                  <Text style={[styles.eventTime, { color: colors.textSecondary }]}>
+                    {formatMinutes(evt.start)} - {formatMinutes(evt.start + evt.duration)}
                   </Text>
                 )}
-                <Text style={[styles.eventTime, { color: colors.textSecondary }]}>
-                  {formatMinutes(evt.start)} - {formatMinutes(evt.start + evt.duration)}
-                </Text>
-                {/* Show linked project under the time if present */}
-                {evt.projectId && (() => {
+
+                {/* Project row (only if plenty of height) */}
+                {showAll && evt.projectId && (() => {
                   const linked = projects.find(p => p.id === evt.projectId);
                   if (!linked) return null;
                   return (
@@ -774,9 +791,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             );
           })}
 
-          <View style={[styles.nowLine, { top: nowTop }]}>
-            <View style={styles.nowDot} />
-          </View>
+          {isSelectedDateToday && (
+            <View style={[styles.nowLine, { top: nowTop }]}>
+              <View style={styles.nowDot} />
+            </View>
+          )}
         </View>
       </ScrollView>
 

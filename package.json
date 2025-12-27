@@ -1,17 +1,7 @@
 {
   "name": "action-journal",
   "main": "expo-router/entry",
-  "version": "1.0.6",
-  "scripts": {
-    "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
-    "lint": "expo lint",
-    "eas:build:ios": "eas build --platform ios --profile production",
-    "eas:build:android": "eas build --platform android --profile production"
-  },
+  "version": "1.0.7",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
