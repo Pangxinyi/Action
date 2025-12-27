@@ -132,47 +132,11 @@ type HeaderProps = {
   colors?: AppThemeColors;
 };
 
-const Header: React.FC<HeaderProps> = ({ title, subtitle, leftIcon, rightIcon, colors }) => {
-  return (
-    <View style={[styles.header, colors && { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-      <View style={styles.headerLeft}>
-        {leftIcon && <View style={{ marginRight: 8 }}>{leftIcon}</View>}
-        <View>
-          <Text style={[styles.headerTitle, colors && { color: colors.text }]}>{title}</Text>
-          {subtitle ? <Text style={[styles.headerSubtitle, colors && { color: colors.textTertiary }]}>{subtitle}</Text> : null}
-        </View>
-      </View>
-      {rightIcon && <View>{rightIcon}</View>}
-    </View>
-  );
-};
+import Header from '../src/components/Common/Header';
 
 type TabKey = 'calendar' | 'analytics' | 'projects';
 
-const TabBar: React.FC<{ activeTab: TabKey; setActiveTab: (t: TabKey) => void; colors: AppThemeColors }> = ({
-  activeTab,
-  setActiveTab,
-  colors,
-}) => {
-  const { t } = useTranslation();
-  const mkTab = (key: TabKey, label: string, Icon: any) => {
-    const active = activeTab === key;
-    return (
-      <Pressable style={styles.tabItem} onPress={() => setActiveTab(key)}>
-        <Icon size={24} strokeWidth={active ? 2.5 : 2} color={active ? colors.tabActive : colors.tabInactive} />
-        <Text style={[styles.tabLabel, { color: active ? colors.tabActive : colors.tabInactive }]}>{label}</Text>
-      </Pressable>
-    );
-  };
-
-  return (
-    <View style={[styles.tabBar, { backgroundColor: colors.tabBar, borderColor: colors.border }]}>
-      {mkTab('calendar', t('tabs.calendar'), CalendarIcon)}
-      {mkTab('analytics', t('tabs.analytics'), PieChart)}
-      {mkTab('projects', t('tabs.projects'), Network)}
-    </View>
-  );
-};
+import TabBar from '../src/components/Common/TabBar';
 
 // --- Calendar View (Today) ---
 
@@ -741,70 +705,26 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
       {/* Event Modal */}
       <Modal visible={isModalOpen && !!draftEvent} transparent animationType="slide">
-            {draftEvent && (
-              <EventEditor
-                initialDraft={draftEvent}
-                editingField={editingField}
-                timeOptions={timeOptions}
-                timeListRef={timeListRef}
-                onOpenTimeEditor={openTimeEditor}
-                themeColors={themeColors}
-                colors={colors}
-                onClose={() => {
-                  setIsModalOpen(false);
-                  setDraftEvent(null);
-                  setEditingField(null);
-                }}
-                t={t}
-              />
-            )}
-                          
-                          {/* Draggable Handle */}
-                          <View 
-                            style={{ 
-                              position: 'absolute',
-                              left: `${draftEvent.newProjectPercent}%`,
-                              transform: [{ translateX: -10 }],
-                              width: 20,
-                              height: 20,
-                              borderRadius: 10,
-                              backgroundColor: colors.surface,
-                              borderWidth: 2,
-                              borderColor: colors.accent,
-                              shadowColor: colors.text,
-                              shadowOffset: { width: 0, height: 1 },
-                              shadowOpacity: 0.15,
-                              shadowRadius: 3,
-                              elevation: 3,
-                            }}
-                          />
-                        </View>
-
-                        {/* Scale Labels */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 1 }}>
-                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
-                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
-                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
-                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
-                        </View>
-                      </View>
-                    </>
-                  )}
-                </View>
-              </ScrollView>
-            )}
-
-            {/* 底部主按钮 */}
-            <Pressable style={[styles.primaryButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
-              <Text style={[styles.primaryButtonText, { color: colors.primaryText }]}>
-                {draftEvent?.id ? t('calendar.save') : t('calendar.addEvent')}
-              </Text>
-            </Pressable>
-          </View>
-        </Pressable>
+        {draftEvent && (
+          <EventEditor
+            initialDraft={draftEvent}
+            editingField={editingField}
+            timeOptions={timeOptions}
+            timeListRef={timeListRef}
+            onOpenTimeEditor={openTimeEditor}
+            themeColors={themeColors}
+            colors={colors}
+            onClose={() => {
+              setIsModalOpen(false);
+              setDraftEvent(null);
+              setEditingField(null);
+            }}
+            t={t}
+          />
+        )}
       </Modal>
 
-          </View>
+      </View>
   );
 };
 
