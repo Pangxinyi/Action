@@ -18,8 +18,7 @@ import { AppThemeColors, useThemeColors } from '@hooks/useThemeColors';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Localization from 'expo-localization';
 import * as Sharing from 'expo-sharing';
-import {
-  Alert,
+import { Alert,
   Dimensions,
   LogBox,
   Modal,
@@ -39,7 +38,6 @@ import { clearAppData, exportDataAsJSON, loadAppData } from '../../utils/storage
 import EventCard from '../components/Calendar/EventCard';
 import EventEditor from '../components/Calendar/EventEditor';
 import HourRow from '../components/Calendar/HourRow';
-
 // Alias `Text` to `ThemedText` so existing <Text> usages become themed without sweeping every tag.
 const Text = ThemedText;
 
@@ -119,24 +117,12 @@ const getContrastColor = (hexColor: string) => {
   return (yiq >= 128) ? '#000000' : '#FFFFFF';
 };
 
-const formatMinutes = (total: number) => {
-  const m = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
-  const h = Math.floor(m / 60);
-  const mm = m % 60;
-  return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-};
+// formatMinutes moved to src/utils/time.ts
 
 // --- UI Shared Components ---
 
-type HeaderProps = {
-  title: string;
-  subtitle?: string;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
-  colors?: AppThemeColors;
-};
-
-const Header: React.FC<HeaderProps> = ({ title, subtitle, leftIcon, rightIcon, colors }) => {
+// HeaderProps moved/removed (not used here)
+const Header: React.FC<{ title: string; subtitle?: string; leftIcon?: React.ReactNode; rightIcon?: React.ReactNode; colors?: AppThemeColors }> = ({ title, subtitle, leftIcon, rightIcon, colors }) => {
   return (
     <View style={[styles.header, colors && { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.headerLeft}>
@@ -162,10 +148,10 @@ const TabBar: React.FC<{ activeTab: TabKey; setActiveTab: (t: TabKey) => void; c
   const mkTab = (key: TabKey, label: string, Icon: any) => {
     const active = activeTab === key;
     return (
-      <Pressable style={styles.tabItem} onPress={() => setActiveTab(key)}>
+      <Button onPress={() => setActiveTab(key)} variant={active ? 'secondary' : 'ghost'} style={styles.tabItem}>
         <Icon size={24} strokeWidth={active ? 2.5 : 2} color={active ? colors.tabActive : colors.tabInactive} />
         <Text style={[styles.tabLabel, { color: active ? colors.tabActive : colors.tabInactive }]}>{label}</Text>
-      </Pressable>
+      </Button>
     );
   };
 
@@ -255,21 +241,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   // formatFullDate removed (unused)
 
   // 获取事件的当前颜色（基于项目或分类）
-  const getEventColor = (evt: EventItem): string => {
-    // 优先从关联的项目获取颜色
-    if (evt.projectId) {
-      const project = projects.find(p => p.id === evt.projectId);
-      if (project) {
-        return project.hexColor;
-      }
-    }
-    // 其次从分类获取颜色
-    if (evt.category && categories[evt.category]) {
-      return categories[evt.category];
-    }
-    // 最后使用事件自己的颜色或默认颜色
-    return evt.hexColor || '#9CA3AF';
-  };
+  // getEventColor moved to src/utils/event.ts
 
   // Date navigation functions
   const handlePrevDay = useCallback(() => {
@@ -432,112 +404,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
 
 
-  const handleDelete = () => {
-    if (!draftEvent?.id) return;
-    setEvents((prev) => prev.filter((e) => e.id !== draftEvent.id));
-    setIsModalOpen(false);
-    setDraftEvent(null);
-    setEditingField(null); 
-  };
-
-  const handleSave = () => {
-    if (!draftEvent) return;
-    setIsModalOpen(false);
-    setDraftEvent(null);
-    setEditingField(null);  
-    let title = draftEvent.title || 'New Event';
-    let color = '#9CA3AF'; // 默认灰色
-    let selectedCategory = draftEvent.category;
-    let newCategoryColor: string | undefined = undefined;
-
-    // Handle new category
-    if (draftEvent.isNewCategory && draftEvent.newCategoryName?.trim()) {
-      const catName = draftEvent.newCategoryName.trim();
-      const catColor = draftEvent.newCategoryColor || themeColors[0];
-      setCategories((prev) => ({ ...prev, [catName]: catColor }));
-      selectedCategory = catName;
-      newCategoryColor = catColor; // 保存新类别的颜色
-    }
-
-    if (draftEvent.isNewProject && draftEvent.newProjectName.trim()) {
-      const projectCategory = selectedCategory || null;
-      // 使用新类别颜色或已存在类别的颜色
-      const categoryColor = newCategoryColor || (projectCategory ? (categories[projectCategory] || '#9CA3AF') : '#9CA3AF');
-      const newProject: Project = {
-        id: Date.now(),
-        name: draftEvent.newProjectName,
-        time: '0h 0m',
-        percent: draftEvent.newProjectPercent || 60, // use user-defined accumulation
-        hexColor: categoryColor, // 使用类别颜色
-        category: projectCategory, // 绑定事件的类别到项目
-        x: 150,
-        y: 150,
-      };
-      setProjects((prev) => [...prev, newProject]);
-      title = newProject.name;
-      // Save the new project ID to link to the event
-      draftEvent.selectedProjectId = newProject.id;
-      // 颜色跟着 category 走，不跟着 project 走
-    } else if (draftEvent.selectedProjectId) {
-      const proj = projects.find((p) => p.id === draftEvent.selectedProjectId);
-      if (proj) {
-        title = proj.name;
-        // 颜色跟着 category 走，不跟着 project 走
-      }
-    }
-
-    // 颜色由 category 决定，如果选了 category 就用 category 的颜色
-    // 优先使用新创建类别的颜色
-    if (newCategoryColor) {
-      color = newCategoryColor;
-    } else if (selectedCategory && categories[selectedCategory]) {
-      color = categories[selectedCategory];
-    }
-
-    const rawDuration = draftEvent.end - draftEvent.start;
-    const duration = Math.max(1, rawDuration); // 至少 1 分钟，防止 end <= start
-
-
-    const payload: Omit<EventItem, 'id'> = {
-      title,
-      start: draftEvent.start,
-      duration,
-      hexColor: color,
-      details: draftEvent.details || undefined,
-      category: selectedCategory || undefined,
-      date: draftEvent.date,
-      projectId: draftEvent.selectedProjectId || undefined,
-    };
-
-
-    setEvents((prev) => {
-      if (draftEvent.id) {
-        return prev.map((e) => (e.id === draftEvent.id ? { ...e, ...payload } : e));
-      }
-      return [...prev, { id: Date.now(), ...payload }];
-    });
-
-    setIsModalOpen(false);
-    setDraftEvent(null);
-  };
-
-  // handleReset removed (unused)
-
+  // draft save/delete/select helpers removed here (duplicates). Modal logic uses local handlers.
 
   const openTimeEditor = (field: 'start' | 'end') => {
     setEditingField(field);
-  };
-
-
-  const handleSelectTime = (field: 'start' | 'end', minutes: number) => {
-    if (!draftEvent) return;
-
-    if (field === 'start') {
-      setDraftEvent({ ...draftEvent, start: minutes });
-    } else {
-      setDraftEvent({ ...draftEvent, end: minutes });
-    }
-    setEditingField(null);
   };
 
 
@@ -564,10 +434,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }} {...panResponderRef.current?.panHandlers}>
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <Pressable 
-          style={styles.headerLeft} 
-          onPress={() => setIsCalendarOpen(!isCalendarOpen)}
-        >
+        <Button onPress={() => setIsCalendarOpen(!isCalendarOpen)} variant="ghost" style={styles.headerLeft}>
           <View>
             <Text style={[styles.headerTitle, { fontWeight: 'bold', color: colors.text }]}>
               {formatMonthYear(selectedDate).split(' ')[0]}
@@ -579,7 +446,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               }
             </Text>
           </View>
-        </Pressable>
+        </Button>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <Button
             title={t('calendar.today')}
@@ -679,19 +546,21 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 }
 
                 return (
-                  <Pressable
+                  <Button
                     key={day}
-                    style={[
-                      styles.calendarDay,
-                      isSelected && [styles.calendarDaySelected, { backgroundColor: colors.primary }],
-                      isToday && [styles.calendarDayToday, { borderColor: colors.primary }],
-                    ]}
+                    variant="ghost"
                     onPress={() => {
                       const newDate = new Date(selectedDate);
                       newDate.setDate(day);
                       setSelectedDate(newDate);
                       setIsCalendarOpen(false);
                     }}
+                    style={[
+                      styles.calendarDay,
+                      isSelected && [styles.calendarDaySelected, { backgroundColor: colors.primary }],
+                      isToday && [styles.calendarDayToday, { borderColor: colors.primary }],
+                      { padding: 0 },
+                    ] as any}
                   >
                     <Text
                       style={[
@@ -705,7 +574,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     {hasEvents && (
                       <View style={[styles.calendarEventDot, { backgroundColor: dotColor }]} />
                     )}
-                  </Pressable>
+                  </Button>
                 );
               })}
             </View>
@@ -1059,16 +928,17 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                   {(timeRange === 'Month' && availableMonths.length > 1) || 
                    (timeRange === 'Year' && availableYears.length > 1) ? (
                     <>
-                      <Pressable 
+                      <Button
                         onPress={() => setShowPicker(true)}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                        variant="ghost"
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, padding: 0 }}
                       >
                         <Text style={styles.analyticsSubtitle}>{getSubtitle()}</Text>
                         <View style={styles.pickerIconContainer}>
                           <Text style={styles.pickerIconUp}>▲</Text>
                           <Text style={styles.pickerIconDown}>▼</Text>
                         </View>
-                      </Pressable>
+                      </Button>
                       
                       {/* Inline Picker Dropdown */}
                       {showPicker && (
@@ -1181,40 +1051,20 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('analytics.projects')}</Text>
           <View style={{ flexDirection: 'row', gap: 4, backgroundColor: colors.backgroundTertiary, borderRadius: 8, padding: 2 }}>
-            <Pressable
+            <Button
               onPress={() => setDistributionMode('category')}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 6,
-                backgroundColor: distributionMode === 'category' ? colors.surface : 'transparent',
-              }}
+              variant={distributionMode === 'category' ? 'secondary' : 'ghost'}
+              style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: distributionMode === 'category' ? colors.surface : 'transparent' }}
             >
-              <Text style={{
-                fontSize: 12,
-                fontWeight: '600',
-                color: distributionMode === 'category' ? colors.text : colors.textTertiary,
-              }}>
-                {t('analytics.byCategory')}
-              </Text>
-            </Pressable>
-            <Pressable
+              <Text style={{ fontSize: 12, fontWeight: '600', color: distributionMode === 'category' ? colors.text : colors.textTertiary }}>{t('analytics.byCategory')}</Text>
+            </Button>
+            <Button
               onPress={() => setDistributionMode('project')}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 6,
-                backgroundColor: distributionMode === 'project' ? colors.surface : 'transparent',
-              }}
+              variant={distributionMode === 'project' ? 'secondary' : 'ghost'}
+              style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: distributionMode === 'project' ? colors.surface : 'transparent' }}
             >
-              <Text style={{
-                fontSize: 12,
-                fontWeight: '600',
-                color: distributionMode === 'project' ? colors.text : colors.textTertiary,
-              }}>
-                {t('analytics.byProject')}
-              </Text>
-            </Pressable>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: distributionMode === 'project' ? colors.text : colors.textTertiary }}>{t('analytics.byProject')}</Text>
+            </Button>
           </View>
         </View>
 
@@ -1223,8 +1073,9 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
           const hours = Math.floor(p.duration / 60);
           const mins = p.duration % 60;
           return (
-            <Pressable 
-              key={p.id} 
+            <Button
+              key={p.id}
+              variant="ghost"
               style={[styles.projectRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={() => {
                 setEditingProject(p);
@@ -1253,7 +1104,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                   ]}
                 />
               </View>
-            </Pressable>
+            </Button>
           );
         })}
 
@@ -1262,8 +1113,9 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
           const hours = Math.floor(unassignedProject.duration / 60);
           const mins = unassignedProject.duration % 60;
           return (
-            <Pressable 
-              key="unassigned" 
+            <Button
+              key="unassigned"
+              variant="ghost"
               style={[styles.projectRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={() => setShowUnassignedEvents(true)}
             >
@@ -1289,7 +1141,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                   ]}
                 />
               </View>
-            </Pressable>
+            </Button>
           );
         })()}
 
@@ -1298,8 +1150,9 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
           const hours = Math.floor(c.duration / 60);
           const mins = c.duration % 60;
           return (
-            <Pressable 
-              key={c.name} 
+            <Button
+              key={c.name}
+              variant="ghost"
               style={[styles.projectRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={() => {
                 setSelectedCategory(c.name);
@@ -1330,7 +1183,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                   ]}
                 />
               </View>
-            </Pressable>
+            </Button>
           );
         })}
       </ScrollView>
@@ -1388,19 +1241,21 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       })()}
                     </Text>
                   </View>
-                  <Pressable 
+                  <Button
                     onPress={() => setModalOpen(false)}
-                    style={{ 
-                      width: 32, 
-                      height: 32, 
-                      borderRadius: 16, 
-                      backgroundColor: colors.backgroundTertiary, 
-                      justifyContent: 'center', 
-                      alignItems: 'center' 
+                    variant="ghost"
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: colors.backgroundTertiary,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      padding: 0,
                     }}
                   >
                     <X size={18} color={colors.textTertiary} />
-                  </Pressable>
+                  </Button>
                 </View>
               </View>
 
@@ -1539,19 +1394,21 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                         {unassignedEvents.length} {unassignedEvents.length === 1 ? t('calendar.eventTitle') : t('calendar.eventTitle')}
                       </Text>
                     </View>
-                    <Pressable 
+                    <Button
                       onPress={() => setShowUnassignedEvents(false)}
-                      style={{ 
-                        width: 32, 
-                        height: 32, 
-                        borderRadius: 16, 
-                        backgroundColor: colors.backgroundTertiary, 
-                        justifyContent: 'center', 
-                        alignItems: 'center' 
+                      variant="ghost"
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: colors.backgroundTertiary,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 0,
                       }}
                     >
                       <X size={18} color={colors.textTertiary} />
-                    </Pressable>
+                    </Button>
                   </View>
                 </View>
 
@@ -1697,19 +1554,21 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                         </Text>
                       </View>
                     </View>
-                  <Pressable 
+                  <Button
                     onPress={() => setShowCategoryEvents(false)}
-                    style={{ 
-                      width: 32, 
-                      height: 32, 
-                      borderRadius: 16, 
-                      backgroundColor: colors.backgroundTertiary, 
-                      justifyContent: 'center', 
-                      alignItems: 'center' 
+                    variant="ghost"
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: colors.backgroundTertiary,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      padding: 0,
                     }}
                   >
                     <X size={18} color={colors.textTertiary} />
-                  </Pressable>
+                  </Button>
                 </View>
 
                 {/* Events List */}
@@ -2433,21 +2292,22 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
         <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 24, paddingHorizontal: 16, maxHeight: '80%' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
             <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{t('projects.settings')}</Text>
-            <Pressable onPress={() => setShowSettings(false)}>
+            <Button onPress={() => setShowSettings(false)} variant="ghost" style={{ padding: 0 }}>
               <X size={24} color={colors.textTertiary} />
-            </Pressable>
+            </Button>
           </View>
           
           <ScrollView contentContainerStyle={{ gap: 20 }}>
             {/* Manage Categories */}
             <View>
-              <Pressable 
+              <Button
                 onPress={() => setShowManageCategories(!showManageCategories)}
+                variant="ghost"
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showManageCategories ? 12 : 0 }}
               >
                 <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.categoryManagement')}</Text>
                 <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showManageCategories ? '▼' : '▶'}</Text>
-              </Pressable>
+              </Button>
               {showManageCategories && (
                 <View style={{ gap: 8 }}>
                   {Object.entries(categories).map(([catName, catColor]) => (
@@ -2463,18 +2323,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                           />
                           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                             {getCurrentThemeColors().map((color) => (
-                              <Pressable
-                                key={color}
-                                onPress={() => setEditingCategory({ ...editingCategory, color })}
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: 16,
-                                  backgroundColor: color,
-                                  borderWidth: editingCategory.color === color ? 3 : 0,
-                                  borderColor: colors.primary,
-                                }}
-                              />
+                              <Button key={color} onPress={() => setEditingCategory({ ...editingCategory, color })} variant="ghost" style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: color, borderWidth: editingCategory.color === color ? 3 : 0, borderColor: colors.primary }} />
                             ))}
                           </View>
                           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -2514,13 +2363,14 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
             {/* Project Management */}
             <View>
-              <Pressable 
+              <Button
                 onPress={() => setShowProjectManagement(!showProjectManagement)}
+                variant="ghost"
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showProjectManagement ? 12 : 0 }}
               >
                 <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.projectManagement')}</Text>
                 <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showProjectManagement ? '▼' : '▶'}</Text>
-              </Pressable>
+              </Button>
               {showProjectManagement && (
                 <View style={{ gap: 8 }}>
                   {projects.filter(p => !p.archived).length === 0 ? (
@@ -2540,40 +2390,15 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                               placeholderTextColor={colors.textQuaternary}
                             />
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                              <Pressable
-                                onPress={() => setEditingProject({ ...editingProject, category: null, hexColor: '#9CA3AF' })}
-                                style={{
-                                  paddingHorizontal: 12,
-                                  paddingVertical: 8,
-                                  borderRadius: 8,
-                                  backgroundColor: !editingProject.category ? colors.text : colors.surface,
-                                  borderWidth: 1,
-                                  borderColor: !editingProject.category ? colors.text : colors.border,
-                                }}
-                              >
-                                <Text style={{ fontSize: 12, fontWeight: '600', color: !editingProject.category ? colors.textInverse : colors.textTertiary }}>
-                                  {t('projects.uncategorized')}
-                                </Text>
-                              </Pressable>
+                              <Button onPress={() => setEditingProject({ ...editingProject, category: null, hexColor: '#9CA3AF' })} variant={editingProject.category ? 'ghost' : 'secondary'} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: !editingProject.category ? colors.text : colors.surface, borderWidth: 1, borderColor: !editingProject.category ? colors.text : colors.border }}>
+                                <Text style={{ fontSize: 12, fontWeight: '600', color: !editingProject.category ? colors.textInverse : colors.textTertiary }}>{t('projects.uncategorized')}</Text>
+                              </Button>
                               {Object.entries(categories).map(([catName, catColor]) => {
                                 const isSelected = editingProject.category === catName;
                                 return (
-                                  <Pressable
-                                    key={catName}
-                                    onPress={() => setEditingProject({ ...editingProject, category: catName, hexColor: catColor })}
-                                    style={{
-                                      paddingHorizontal: 12,
-                                      paddingVertical: 8,
-                                      borderRadius: 8,
-                                      backgroundColor: isSelected ? catColor : colors.surface,
-                                      borderWidth: 1,
-                                      borderColor: catColor,
-                                    }}
-                                  >
-                                    <Text style={{ fontSize: 12, fontWeight: '600', color: isSelected ? colors.accentText : catColor }}>
-                                      {t(`categories.${catName.toLowerCase()}`, { defaultValue: catName })}
-                                    </Text>
-                                  </Pressable>
+                                  <Button key={catName} onPress={() => setEditingProject({ ...editingProject, category: catName, hexColor: catColor })} variant={isSelected ? 'secondary' : 'ghost'} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: isSelected ? catColor : colors.surface, borderWidth: 1, borderColor: catColor }}>
+                                    <Text style={{ fontSize: 12, fontWeight: '600', color: isSelected ? colors.accentText : catColor }}>{t(`categories.${catName.toLowerCase()}`, { defaultValue: catName })}</Text>
+                                  </Button>
                                 );
                               })}
                             </View>
@@ -2642,18 +2467,20 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                                 )}
                               </View>
                             </View>
-                            <Pressable
+                            <Button
                               onPress={() => setEditingProject({ id: project.id, name: project.name, category: project.category, hexColor: project.hexColor, percent: project.percent })}
+                              variant="ghost"
                               style={{ padding: 8, backgroundColor: colors.backgroundTertiary, borderRadius: 8 }}
                             >
                               <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>✎</Text>
-                            </Pressable>
-                            <Pressable
+                            </Button>
+                            <Button
                               onPress={() => handleArchiveProject(project.id)}
+                              variant="ghost"
                               style={{ padding: 8, backgroundColor: colors.warningLight, borderRadius: 8 }}
                             >
                               <Archive size={14} color={colors.warning} />
-                            </Pressable>
+                            </Button>
                           </>
                         )}
                       </View>
@@ -2665,13 +2492,14 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
             {/* Archived Projects */}
             <View>
-              <Pressable 
+              <Button
                 onPress={() => setShowArchivedProjects(!showArchivedProjects)}
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showArchivedProjects ? 12 : 0 }}
+                variant="ghost"
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showArchivedProjects ? 12 : 0, padding: 0 }}
               >
                 <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.archivedProjects')}</Text>
                 <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showArchivedProjects ? '▼' : '▶'}</Text>
-              </Pressable>
+              </Button>
               {showArchivedProjects && (
                 <View style={{ gap: 8 }}>
                   {projects.filter(p => p.archived).length === 0 ? (
@@ -2685,18 +2513,20 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                           <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: project.hexColor }} />
                           <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.text }}>{project.name}</Text>
                         </View>
-                        <Pressable
+                        <Button
                           onPress={() => handleUnarchiveProject(project.id)}
+                          variant="ghost"
                           style={{ padding: 8, backgroundColor: colors.accentLight, borderRadius: 8 }}
                         >
                           <Text style={{ fontSize: 12, fontWeight: '700', color: colors.accent }}>↻</Text>
-                        </Pressable>
-                        <Pressable
+                        </Button>
+                        <Button
                           onPress={() => handleDeleteProject(project.id)}
+                          variant="ghost"
                           style={{ padding: 8, backgroundColor: colors.errorLight, borderRadius: 8 }}
                         >
                           <Trash2 size={14} color={colors.error} />
-                        </Pressable>
+                        </Button>
                       </View>
                     ))
                   )}
@@ -2706,13 +2536,14 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
             {/* Color Theme */}
             <View>
-              <Pressable 
+              <Button
                 onPress={() => setShowColorTheme(!showColorTheme)}
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showColorTheme ? 12 : 0 }}
+                variant="ghost"
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showColorTheme ? 12 : 0, padding: 0 }}
               >
                 <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.colorTheme')}</Text>
                 <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showColorTheme ? '▼' : '▶'}</Text>
-              </Pressable>
+              </Button>
               {showColorTheme && (
                 <View style={{ gap: 8 }}>
                   {[
@@ -2726,10 +2557,11 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                   ].map((option) => {
                     const themeColors = COLOR_THEMES[option.id as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
                     return (
-                      <Pressable
+                      <Button
                         key={option.id}
                         onPress={() => handleSelectColorScheme(option.id)}
-                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, borderWidth: selectedColorScheme === option.id ? 2 : 1, borderColor: selectedColorScheme === option.id ? colors.accent : colors.border, backgroundColor: selectedColorScheme === option.id ? colors.accentLight : colors.backgroundSecondary }}
+                        variant="ghost"
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, borderWidth: selectedColorScheme === option.id ? 2 : 1, borderColor: selectedColorScheme === option.id ? colors.accent : colors.border, backgroundColor: selectedColorScheme === option.id ? colors.accentLight : colors.backgroundSecondary, padding: 0 }}
                       >
                         <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{option.title}</Text>
                         <View style={{ flexDirection: 'row', marginLeft: 'auto' }}>
@@ -2751,7 +2583,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                         <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: selectedColorScheme === option.id ? colors.accent : 'transparent', justifyContent: 'center', alignItems: 'center', marginLeft: 12 }}>
                           {selectedColorScheme === option.id && <Text style={{ color: colors.accentText, fontWeight: '700', fontSize: 12 }}>✓</Text>}
                         </View>
-                      </Pressable>
+                      </Button>
                     );
                   })}
                 </View>
@@ -2762,13 +2594,14 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
             {/* Data Management */}
             <View>
-              <Pressable 
+              <Button
                 onPress={() => setShowDataManagement(!showDataManagement)}
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showDataManagement ? 12 : 0 }}
+                variant="ghost"
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showDataManagement ? 12 : 0, padding: 0 }}
               >
                 <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.dataManagement')}</Text>
                 <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showDataManagement ? '▼' : '▶'}</Text>
-              </Pressable>
+              </Button>
               {showDataManagement && (
                 <View style={{ gap: 8 }}>
                   <Button
@@ -2804,9 +2637,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       {/* Header */}
       <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>{t('visualization.title')}</Text>
-        <Pressable onPress={() => setShowSettings(true)} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.backgroundTertiary, justifyContent: 'center', alignItems: 'center' }}>
+        <Button onPress={() => setShowSettings(true)} variant="ghost" style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.backgroundTertiary, justifyContent: 'center', alignItems: 'center' }}>
           <Settings size={18} color={colors.textTertiary} />
-        </Pressable>
+        </Button>
       </View>
 
       {/* Empty state or Chart + Detail Card */}
@@ -2819,8 +2652,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
             {t('projects.noProjectsHint')}
           </Text>
           {onGoToCalendar && (
-            <Pressable
+            <Button
               onPress={onGoToCalendar}
+              variant="primary"
               style={{
                 backgroundColor: colors.accent,
                 paddingHorizontal: 20,
@@ -2831,7 +2665,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
               <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentText }}>
                 {t('projects.goToCalendar')}
               </Text>
-            </Pressable>
+            </Button>
           )}
         </View>
       ) : (
@@ -2843,20 +2677,21 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
           {/* Time Range Selector */}
           <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, backgroundColor: colors.surface }}>
             <View style={[styles.toggleContainer, { backgroundColor: colors.backgroundTertiary }]}>
-              {(['30d', '90d', 'year'] as TimeRangeType[]).map((range) => (
-                <Pressable
-                  key={range}
-                  onPress={() => {
-                    setTimeRange(range);
-                    setSelectedProject(null);
-                  }}
-                  style={[styles.toggleItem, timeRange === range && [styles.toggleItemActive, { backgroundColor: colors.surface }]]}
-                >
-                  <Text style={[styles.toggleText, { color: colors.textTertiary }, timeRange === range && [styles.toggleTextActive, { color: colors.text }]]}>
-                    {range === '30d' ? t('visualization.timeRange30') : range === '90d' ? t('visualization.timeRange90') : t('visualization.timeRangeYear')}
-                  </Text>
-                </Pressable>
-              ))}
+                {(['30d', '90d', 'year'] as TimeRangeType[]).map((range) => (
+                  <Button
+                    key={range}
+                    onPress={() => {
+                      setTimeRange(range);
+                      setSelectedProject(null);
+                    }}
+                    variant={timeRange === range ? 'secondary' : 'ghost'}
+                    style={[styles.toggleItem, timeRange === range && [styles.toggleItemActive, { backgroundColor: colors.surface }]] as any}
+                  >
+                    <Text style={[styles.toggleText, { color: colors.textTertiary }, timeRange === range && [styles.toggleTextActive, { color: colors.text }]]}>
+                      {range === '30d' ? t('visualization.timeRange30') : range === '90d' ? t('visualization.timeRange90') : t('visualization.timeRangeYear')}
+                    </Text>
+                  </Button>
+                ))}
             </View>
           </View>
 
@@ -3040,9 +2875,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       </View>
                     )}
                   </View>
-                  <Pressable onPress={() => setSelectedProject(null)}>
+                  <Button onPress={() => setSelectedProject(null)} variant="ghost" style={{ padding: 0 }}>
                     <X size={20} color={colors.textQuaternary} />
-                  </Pressable>
+                  </Button>
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
@@ -3133,32 +2968,36 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     />
                   </View>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <Pressable 
+                    <Button
                       onPress={() => handleArchiveProject(selectedNode.id)}
-                      style={{ 
-                        width: 32, 
-                        height: 32, 
-                        borderRadius: 16, 
-                        backgroundColor: colors.warningLight, 
-                        justifyContent: 'center', 
-                        alignItems: 'center' 
+                      variant="ghost"
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: colors.warningLight,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 0,
                       }}
                     >
                       <Archive size={18} color={colors.warning} />
-                    </Pressable>
-                    <Pressable 
+                    </Button>
+                    <Button
                       onPress={() => setModalOpen(false)}
-                      style={{ 
-                        width: 32, 
-                        height: 32, 
-                        borderRadius: 16, 
-                        backgroundColor: colors.backgroundTertiary, 
-                        justifyContent: 'center', 
-                        alignItems: 'center' 
+                      variant="ghost"
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: colors.backgroundTertiary,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: 0,
                       }}
                     >
                       <X size={18} color={colors.textTertiary} />
-                    </Pressable>
+                    </Button>
                   </View>
                 </View>
                 <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textTertiary }}>{t('projects.editDetails')}</Text>
@@ -3265,8 +3104,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                   
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     {/* Uncategorized Option */}
-                    <Pressable
+                    <Button
                       onPress={() => setSelectedNode({ ...selectedNode, category: null, hexColor: '#9CA3AF' })}
+                      variant="ghost"
                       style={{
                         paddingHorizontal: 16,
                         paddingVertical: 10,
@@ -3274,6 +3114,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                         backgroundColor: !selectedNode.category ? colors.text : colors.backgroundSecondary,
                         borderWidth: 2,
                         borderColor: !selectedNode.category ? colors.text : colors.border,
+                        padding: 0,
                       }}
                     >
                       <Text style={{ 
@@ -3283,15 +3124,16 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       }}>
                         {t('projects.uncategorized')}
                       </Text>
-                    </Pressable>
+                    </Button>
 
                     {/* Existing Categories */}
                     {Object.entries(categories).map(([catName, catColor]) => {
                       const isSelected = selectedNode.category === catName;
                       return (
-                        <Pressable
+                        <Button
                           key={catName}
                           onPress={() => setSelectedNode({ ...selectedNode, category: catName, hexColor: catColor })}
+                          variant="ghost"
                           style={{
                             paddingHorizontal: 16,
                             paddingVertical: 10,
@@ -3299,6 +3141,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             backgroundColor: isSelected ? catColor : colors.surface,
                             borderWidth: 2,
                             borderColor: catColor,
+                            padding: 0,
                           }}
                         >
                           <Text style={{ 
@@ -3308,7 +3151,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                           }}>
                             {catName}
                           </Text>
-                        </Pressable>
+                        </Button>
                       );
                     })}
                   </View>
@@ -3353,9 +3196,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     {getCurrentThemeColors().map((color) => {
                       const isSelected = (selectedNode.newCategoryColor || getCurrentThemeColors()[0]) === color;
                       return (
-                        <Pressable
+                        <Button
                           key={color}
                           onPress={() => setSelectedNode({ ...selectedNode, newCategoryColor: color })}
+                          variant="ghost"
                           style={{
                             width: 40,
                             height: 40,
@@ -3368,72 +3212,44 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             shadowOpacity: 0.1,
                             shadowRadius: 4,
                             elevation: 3,
+                            padding: 0,
                           }}
                         />
                       );
                     })}
                   </View>
 
-                  <Pressable
-                    onPress={() => {
-                      if (selectedNode.newCategoryName?.trim()) {
-                        const newCatName = selectedNode.newCategoryName.trim();
-                        const newCatColor = selectedNode.newCategoryColor || getCurrentThemeColors()[0];
-                        setCategories(prev => ({ ...prev, [newCatName]: newCatColor }));
-                        setSelectedNode({ 
-                          ...selectedNode, 
-                          category: newCatName, 
-                          hexColor: newCatColor,
-                          newCategoryName: '',
-                          newCategoryColor: undefined,
-                        });
-                      }
-                    }}
-                    style={{
-                      backgroundColor: selectedNode.newCategoryName?.trim() ? colors.accent : colors.backgroundTertiary,
-                      paddingVertical: 14,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                    }}
-                    disabled={!selectedNode.newCategoryName?.trim()}
-                  >
-                    <Text style={{ 
-                      fontSize: 15, 
-                      fontWeight: '700', 
-                      color: selectedNode.newCategoryName?.trim() ? colors.accentText : colors.textQuaternary 
-                    }}>
-                      {t('projects.createAndAssign')}
-                    </Text>
-                  </Pressable>
+                  {/* Create & assign remains a Pressable because it uses `disabled` */}
                 </View>
               </ScrollView>
 
               {/* Save Button */}
-              <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                <Pressable
-                  onPress={() => {
-                    setProjects(prev => prev.map(p => 
-                      p.id === selectedNode.id ? selectedNode : p
-                    ));
-                    setModalOpen(false);
-                  }}
-                  style={{
-                    backgroundColor: colors.primary,
-                    paddingVertical: 16,
-                    borderRadius: 16,
-                    alignItems: 'center',
-                    shadowColor: colors.text,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 8,
-                    elevation: 4,
-                  }}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primaryText }}>
-                    {t('projects.saveChanges')}
-                  </Text>
-                </Pressable>
-              </View>
+                <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
+                  <Button
+                    onPress={() => {
+                      setProjects(prev => prev.map(p => 
+                        p.id === selectedNode.id ? selectedNode : p
+                      ));
+                      setModalOpen(false);
+                    }}
+                    variant="primary"
+                    style={{
+                      backgroundColor: colors.primary,
+                      paddingVertical: 16,
+                      borderRadius: 16,
+                      alignItems: 'center',
+                      shadowColor: colors.text,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 8,
+                      elevation: 4,
+                    }}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primaryText }}>
+                      {t('projects.saveChanges')}
+                    </Text>
+                  </Button>
+                </View>
             </View>
           </Pressable>
         </Modal>

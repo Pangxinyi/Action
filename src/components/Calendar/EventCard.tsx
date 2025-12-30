@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
-import ThemedText from '../Common/ThemedText';
 import Button from '../Common/Button';
+import ThemedText from '../Common/ThemedText';
 
 export type EventItem = {
   id: number;

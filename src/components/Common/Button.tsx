@@ -1,6 +1,6 @@
 import { useThemeColors } from '@hooks/useThemeColors';
 import React from 'react';
-import { Pressable, Text, StyleProp, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, Text, ViewStyle } from 'react-native';
 
 type Props = {
   title?: string;

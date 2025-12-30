@@ -1,8 +1,8 @@
 import { AppThemeColors } from '@hooks/useThemeColors';
 import React from 'react';
 import { View } from 'react-native';
-import ThemedText from './ThemedText';
 import Button from './Button';
+import ThemedText from './ThemedText';
 
 type TabKey = 'calendar' | 'analytics' | 'projects';
 
