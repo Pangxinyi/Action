@@ -1273,13 +1273,13 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       { backgroundColor: c.color },
                     ]}
                   />
-                  <Text style={[styles.projectRowName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
+                  <ThemedText style={[styles.projectRowName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
                     {c.name === 'uncategorized' ? t('calendar.uncategorized') : c.name}
-                  </Text>
+                  </ThemedText>
                 </View>
-                <Text style={[styles.projectRowTime, { color: colors.textSecondary }]}>
+                <ThemedText style={[styles.projectRowTime, { color: colors.textSecondary }]}> 
                   {hours}{t('common.hours')} {mins}{t('common.minutes')}
-                </Text>
+                </ThemedText>
               </View>
               <View style={[styles.progressTrack, { backgroundColor: colors.backgroundTertiary }]}>
                 <View
@@ -2390,8 +2390,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       <View style={{ flex: 1, backgroundColor: colors.modalBackdrop }}>
         <Pressable style={{ flex: 1 }} onPress={() => setShowSettings(false)} />
         <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 24, paddingHorizontal: 16, maxHeight: '80%' }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{t('projects.settings')}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <ThemedText variant="title" style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{t('projects.settings')}</ThemedText>
             <Pressable onPress={() => setShowSettings(false)}>
               <X size={24} color={colors.textTertiary} />
             </Pressable>
@@ -2404,8 +2404,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                 onPress={() => setShowManageCategories(!showManageCategories)}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showManageCategories ? 12 : 0 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.categoryManagement')}</Text>
-                <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showManageCategories ? '▼' : '▶'}</Text>
+                <ThemedText variant="label" style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.categoryManagement')}</ThemedText>
+                <ThemedText variant="label" style={{ fontSize: 12, color: colors.textTertiary }}>{showManageCategories ? '▼' : '▶'}</ThemedText>
               </Pressable>
               {showManageCategories && (
                 <View style={{ gap: 8 }}>
@@ -2575,7 +2575,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                               </View>
                             </View>
                             <View style={{ flexDirection: 'row', gap: 8 }}>
-                              <Pressable
+                              <Button
+                                title={t('common.save')}
                                 onPress={() => {
                                   if (editingProject.name.trim()) {
                                     setProjects(prev => prev.map(p => 
@@ -2584,16 +2585,15 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                                   }
                                   setEditingProject(null);
                                 }}
-                                style={{ flex: 1, backgroundColor: colors.accent, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
-                              >
-                                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accentText }}>{t('common.save')}</Text>
-                              </Pressable>
-                              <Pressable
+                                variant="secondary"
+                                style={{ flex: 1 }}
+                              />
+                              <Button
+                                title={t('common.cancel')}
                                 onPress={() => setEditingProject(null)}
-                                style={{ flex: 1, backgroundColor: colors.backgroundTertiary, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
-                              >
-                                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textTertiary }}>{t('common.cancel')}</Text>
-                              </Pressable>
+                                variant="ghost"
+                                style={{ flex: 1, backgroundColor: colors.backgroundTertiary }}
+                              />
                             </View>
                           </View>
                         ) : (
@@ -2601,9 +2601,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.backgroundSecondary, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12 }}>
                               <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: project.hexColor }} />
                               <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{project.name}</Text>
+                                <ThemedText style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{project.name}</ThemedText>
                                 {project.category && (
-                                  <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }}>{project.category}</Text>
+                                  <ThemedText style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }}>{project.category}</ThemedText>
                                 )}
                               </View>
                             </View>
@@ -2611,7 +2611,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                               onPress={() => setEditingProject({ id: project.id, name: project.name, category: project.category, hexColor: project.hexColor, percent: project.percent })}
                               style={{ padding: 8, backgroundColor: colors.backgroundTertiary, borderRadius: 8 }}
                             >
-                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>✎</Text>
+                              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>✎</ThemedText>
                             </Pressable>
                             <Pressable
                               onPress={() => handleArchiveProject(project.id)}
