@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import ThemedText from '../Common/ThemedText';
 
 type Props = {
   hour: number;
@@ -17,7 +18,7 @@ const HourRow: React.FC<Props> = ({ hour, pixelsPerMinute, colors, onSlotPress }
       ]}
     >
       <View style={{ width: 56, justifyContent: 'center', alignItems: 'flex-start', paddingLeft: 12 }}>
-        <Text style={{ color: colors.textQuaternary }}>{`${hour}:00`}</Text>
+        <ThemedText style={{ color: colors.textQuaternary }}>{`${hour}:00`}</ThemedText>
       </View>
       <View style={{ flex: 1, borderTopWidth: 1, borderTopColor: colors.chartGrid }}>
         <Pressable

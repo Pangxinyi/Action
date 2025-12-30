@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text } from 'react-native';
 import { AppThemeColors } from '@hooks/useThemeColors';
+import React from 'react';
+import { View } from 'react-native';
+import ThemedText from './ThemedText';
 
 type HeaderProps = {
   title: string;
@@ -16,8 +17,8 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle, leftIcon, rightIcon, c
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         {leftIcon && <View style={{ marginRight: 8 }}>{leftIcon}</View>}
         <View>
-          <Text style={[{ fontSize: 16, fontWeight: '700' }, colors && { color: colors.text }]}>{title}</Text>
-          {subtitle ? <Text style={[{ fontSize: 12 }, colors && { color: colors.textTertiary }]}>{subtitle}</Text> : null}
+          <ThemedText variant="title" style={colors ? { color: colors.text } : undefined}>{title}</ThemedText>
+          {subtitle ? <ThemedText variant="label" style={colors ? { color: colors.textTertiary } : undefined}>{subtitle}</ThemedText> : null}
         </View>
       </View>
       {rightIcon && <View>{rightIcon}</View>}

@@ -1,6 +1,6 @@
+import { useThemeColors } from '@hooks/useThemeColors';
 import React from 'react';
 import { Text, TextProps } from 'react-native';
-import { useThemeColors } from '@hooks/useThemeColors';
 
 type Props = TextProps & {
   variant?: 'body' | 'label' | 'title';

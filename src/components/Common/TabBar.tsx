@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Pressable, Text } from 'react-native';
 import { AppThemeColors } from '@hooks/useThemeColors';
+import React from 'react';
+import { Pressable, View } from 'react-native';
+import ThemedText from './ThemedText';
 
 type TabKey = 'calendar' | 'analytics' | 'projects';
 
@@ -18,7 +19,7 @@ const TabBar: React.FC<Props> = ({ activeTab, setActiveTab, colors, t, Icons }) 
     return (
       <Pressable style={{ alignItems: 'center', padding: 8 }} onPress={() => setActiveTab(key)}>
         <Icon size={24} strokeWidth={active ? 2.5 : 2} color={active ? colors.tabActive : colors.tabInactive} />
-        <Text style={{ color: active ? colors.tabActive : colors.tabInactive }}>{label}</Text>
+        <ThemedText style={{ color: active ? colors.tabActive : colors.tabInactive }}>{label}</ThemedText>
       </Pressable>
     );
   };

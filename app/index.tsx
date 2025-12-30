@@ -2735,27 +2735,24 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
               </Pressable>
               {showDataManagement && (
                 <View style={{ gap: 8 }}>
-                  <Pressable
+                  <Button
+                    title={t('projects.importData')}
                     onPress={handleImportData}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-                  >
-                    <ThemedText style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.text }}>{t('projects.importData')}</ThemedText>
-                    <ThemedText style={{ fontSize: 20, color: colors.text }}>↑</ThemedText>
-                  </Pressable>
-                  <Pressable
+                    variant="secondary"
+                    style={{ paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'flex-start' }}
+                  />
+                  <Button
+                    title={t('projects.exportData')}
                     onPress={handleExportData}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-                  >
-                    <ThemedText style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.text }}>{t('projects.exportData')}</ThemedText>
-                    <ThemedText style={{ fontSize: 20, color: colors.text }}>↓</ThemedText>
-                  </Pressable>
-                  <Pressable
+                    variant="secondary"
+                    style={{ paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'flex-start' }}
+                  />
+                  <Button
+                    title={t('projects.clearAllData')}
                     onPress={handleClearData}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.error }}
-                  >
-                    <ThemedText style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.accentText }}>{t('projects.clearAllData')}</ThemedText>
-                    <Trash2 size={18} color={colors.accentText} />
-                  </Pressable>
+                    variant="ghost"
+                    style={{ paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.error, alignItems: 'flex-start' }}
+                  />
                 </View>
               )}
             </View>

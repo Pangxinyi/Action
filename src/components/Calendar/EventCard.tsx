@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import ThemedText from '../Common/ThemedText';
 
 export type EventItem = {
   id: number;
@@ -54,20 +55,20 @@ const EventCard: React.FC<Props> = ({ evt, top, height, colors, projects, onPres
         overflow: 'hidden',
       }}
     >
-      <Text numberOfLines={showOnlyTitle ? 1 : showTitleAndTime ? 1 : 2} ellipsizeMode="tail" style={{ color: colors.text, fontWeight: '600' }}>
+      <ThemedText numberOfLines={showOnlyTitle ? 1 : showTitleAndTime ? 1 : 2} ellipsizeMode="tail" style={{ color: colors.text, fontWeight: '600' }}>
         {evt.details || evt.title}
-      </Text>
+      </ThemedText>
 
       {(showTitleAndTime || showAll) && (
-        <Text style={{ color: colors.textSecondary, marginTop: 2 }}>
+        <ThemedText style={{ color: colors.textSecondary, marginTop: 2 }}>
           {formatMinutes(evt.start)} - {formatMinutes(evt.start + evt.duration)}
-        </Text>
+        </ThemedText>
       )}
 
       {showAll && linked && (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
           <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: linked.hexColor, marginRight: 8 }} />
-          <Text numberOfLines={1} style={{ color: colors.textSecondary, fontSize: 12 }}>{linked.name}</Text>
+          <ThemedText numberOfLines={1} style={{ color: colors.textSecondary, fontSize: 12 }}>{linked.name}</ThemedText>
         </View>
       )}
     </Pressable>

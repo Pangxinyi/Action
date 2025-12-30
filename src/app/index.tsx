@@ -7,12 +7,12 @@ import {
   Plus,
   Settings,
   Trash2,
-  X
+  X,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import '@constants/i18n'; // 初始化 i18n
+import '@constants/i18n'; // initialize i18n
 import { useAppData } from '@hooks/useAppData';
 import { AppThemeColors, useThemeColors } from '@hooks/useThemeColors';
 import * as DocumentPicker from 'expo-document-picker';
@@ -33,6 +33,7 @@ import {
   View,
 } from 'react-native';
 import ThemedText from '../components/Common/ThemedText';
+import Button from '../components/Common/Button';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { clearAppData, exportDataAsJSON, loadAppData } from '../../utils/storage';
 import EventCard from '../components/Calendar/EventCard';
@@ -2773,27 +2774,24 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
               </Pressable>
               {showDataManagement && (
                 <View style={{ gap: 8 }}>
-                  <Pressable
+                  <Button
+                    title={t('projects.importData')}
                     onPress={handleImportData}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-                  >
-                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.text }}>{t('projects.importData')}</Text>
-                    <Text style={{ fontSize: 20, color: colors.text }}>↑</Text>
-                  </Pressable>
-                  <Pressable
+                    variant="secondary"
+                    style={{ paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'flex-start' }}
+                  />
+                  <Button
+                    title={t('projects.exportData')}
                     onPress={handleExportData}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-                  >
-                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.text }}>{t('projects.exportData')}</Text>
-                    <Text style={{ fontSize: 20, color: colors.text }}>↓</Text>
-                  </Pressable>
-                  <Pressable
+                    variant="secondary"
+                    style={{ paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'flex-start' }}
+                  />
+                  <Button
+                    title={t('projects.clearAllData')}
                     onPress={handleClearData}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.error }}
-                  >
-                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.accentText }}>{t('projects.clearAllData')}</Text>
-                    <Trash2 size={18} color={colors.accentText} />
-                  </Pressable>
+                    variant="ghost"
+                    style={{ paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.error, alignItems: 'flex-start' }}
+                  />
                 </View>
               )}
             </View>

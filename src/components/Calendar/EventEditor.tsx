@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useData } from '../../context/DataContext';
+import Button from '../Common/Button';
+import ThemedText from '../Common/ThemedText';
 
 type DraftEvent = any;
 
@@ -51,16 +53,16 @@ const EventEditor: React.FC<Props> = ({
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
       <View style={{ padding: 12 }}>
         <View style={{ marginBottom: 12 }}>
-          <Text style={{ color: colors.textTertiary }}>{t('calendar.start')}</Text>
+          <ThemedText variant="label" style={{ color: colors.textTertiary }}>{t('calendar.start')}</ThemedText>
           <Pressable onPress={() => onOpenTimeEditor('start')}>
-            <Text style={{ color: colors.text }}>{formatMinutes(local.start)}</Text>
+            <ThemedText style={{ color: colors.text }}>{formatMinutes(local.start)}</ThemedText>
           </Pressable>
         </View>
 
         <View style={{ marginBottom: 12 }}>
-          <Text style={{ color: colors.textTertiary }}>{t('calendar.end')}</Text>
+          <ThemedText variant="label" style={{ color: colors.textTertiary }}>{t('calendar.end')}</ThemedText>
           <Pressable onPress={() => onOpenTimeEditor('end')}>
-            <Text style={{ color: colors.text }}>{formatMinutes(local.end)}</Text>
+            <ThemedText style={{ color: colors.text }}>{formatMinutes(local.end)}</ThemedText>
           </Pressable>
         </View>
 
@@ -85,7 +87,7 @@ const EventEditor: React.FC<Props> = ({
                     }}
                     style={{ padding: 8, backgroundColor: active ? colors.backgroundTertiary : colors.surface }}
                   >
-                    <Text style={{ color: active ? colors.text : colors.textTertiary }}>{formatMinutes(m)}</Text>
+                    <ThemedText style={{ color: active ? colors.text : colors.textTertiary }}>{formatMinutes(m)}</ThemedText>
                   </Pressable>
                 );
               })}
@@ -94,7 +96,7 @@ const EventEditor: React.FC<Props> = ({
         )}
 
         <View style={{ marginTop: 12 }}>
-          <Text style={{ color: colors.textTertiary }}>{t('calendar.details')}</Text>
+              <ThemedText variant="label" style={{ color: colors.textTertiary }}>{t('calendar.details')}</ThemedText>
                 <TextInput
             style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, padding: 8, marginTop: 8 }}
             placeholder={t('calendar.details')}
@@ -106,7 +108,7 @@ const EventEditor: React.FC<Props> = ({
         </View>
 
         <View style={{ marginTop: 12 }}>
-          <Text style={{ color: colors.textTertiary }}>{t('calendar.category')}</Text>
+          <ThemedText variant="label" style={{ color: colors.textTertiary }}>{t('calendar.category')}</ThemedText>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
             {Object.keys(categories).map((catName) => {
               const catColor = categories[catName];
@@ -117,13 +119,13 @@ const EventEditor: React.FC<Props> = ({
                   style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: `${catColor}20`, borderColor: catColor, borderWidth: 2 }}
                   onPress={() => setLocal({ ...local, category: catName, isNewCategory: false, newCategoryName: '' })}
                 >
-                  <Text style={{ color: isSelected ? colors.primaryText : catColor }}>{catName}</Text>
+                  <ThemedText style={{ color: isSelected ? colors.primaryText : catColor }}>{catName}</ThemedText>
                 </Pressable>
               );
             })}
 
             <Pressable onPress={() => setLocal({ ...local, isNewCategory: true })} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-              <Text style={{ color: colors.textTertiary }}>{t('projects.newCategory')}</Text>
+              <ThemedText variant="label" style={{ color: colors.textTertiary }}>{t('projects.newCategory')}</ThemedText>
             </Pressable>
           </View>
 
@@ -146,19 +148,19 @@ const EventEditor: React.FC<Props> = ({
         </View>
 
         <View style={{ marginTop: 12 }}>
-          <Text style={{ color: colors.textTertiary }}>{t('calendar.project')}</Text>
+          <ThemedText variant="label" style={{ color: colors.textTertiary }}>{t('calendar.project')}</ThemedText>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
             {projects.map((p) => (
               <Pressable key={p.id} onPress={() => setLocal({ ...local, isNewProject: false, selectedProjectId: p.id })} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.hexColor }} />
-                  <Text style={{ color: colors.text }}>{p.name}</Text>
+                  <ThemedText style={{ color: colors.text }}>{p.name}</ThemedText>
                 </View>
               </Pressable>
             ))}
 
             <Pressable onPress={() => setLocal({ ...local, isNewProject: true })} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-              <Text style={{ color: colors.textTertiary }}>{t('projects.newProject')}</Text>
+              <ThemedText variant="label" style={{ color: colors.textTertiary }}>{t('projects.newProject')}</ThemedText>
             </Pressable>
           </View>
         </View>
@@ -170,13 +172,12 @@ const EventEditor: React.FC<Props> = ({
             if (local.id) deleteEvent(local.id);
             onClose();
           }} style={{ padding: 12 }}>
-            <Text style={{ color: colors.error }}>{t('common.delete')}</Text>
+            <ThemedText style={{ color: colors.error }}>{t('common.delete')}</ThemedText>
           </Pressable>
           <Pressable onPress={onClose} style={{ padding: 12 }}>
-            <Text style={{ color: colors.textTertiary }}>{t('common.cancel')}</Text>
+            <ThemedText style={{ color: colors.textTertiary }}>{t('common.cancel')}</ThemedText>
           </Pressable>
-          <Pressable onPress={() => {
-            // handle new vs update
+          <Button title={t('common.save')} onPress={() => {
             if (local.id) {
               updateEvent(local.id, { ...local });
             } else {
@@ -184,9 +185,7 @@ const EventEditor: React.FC<Props> = ({
               addEvent(rest as Omit<DraftEvent, 'id'>);
             }
             onClose();
-          }} style={{ padding: 12, backgroundColor: colors.primary, borderRadius: 8 }}>
-            <Text style={{ color: colors.primaryText }}>{t('common.save')}</Text>
-          </Pressable>
+          }} style={{ padding: 12, borderRadius: 8 }} />
         </View>
       </View>
     </ScrollView>
