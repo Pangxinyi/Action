@@ -548,9 +548,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             variant="secondary"
             style={[styles.todayButton, { backgroundColor: colors.backgroundTertiary } as any]}
           />
-          <Pressable style={[styles.fabSmall, { backgroundColor: colors.primary }]} onPress={handleAddNow}>
+          <Button onPress={handleAddNow} variant="primary" style={[styles.fabSmall, { backgroundColor: colors.primary }]}>
             <Plus size={18} color={colors.primaryText} />
-          </Pressable>
+          </Button>
         </View>
       </View>
 
@@ -2392,9 +2392,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
         <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 24, paddingHorizontal: 16, maxHeight: '80%' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
             <ThemedText variant="title" style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{t('projects.settings')}</ThemedText>
-            <Pressable onPress={() => setShowSettings(false)}>
+            <Button onPress={() => setShowSettings(false)} variant="ghost" style={{ padding: 0 }}>
               <X size={24} color={colors.textTertiary} />
-            </Pressable>
+            </Button>
           </View>
           
           <ScrollView contentContainerStyle={{ gap: 20 }}>

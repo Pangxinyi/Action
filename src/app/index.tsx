@@ -587,9 +587,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             variant="secondary"
             style={[styles.todayButton, { backgroundColor: colors.backgroundTertiary } as any]}
           />
-          <Pressable style={[styles.fabSmall, { backgroundColor: colors.primary }]} onPress={handleAddNow}>
+          <Button onPress={handleAddNow} variant="primary" style={[styles.fabSmall, { backgroundColor: colors.primary }]}>
             <Plus size={18} color={colors.primaryText} />
-          </Pressable>
+          </Button>
         </View>
       </View>
 
@@ -2476,18 +2476,18 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             ))}
                           </View>
                           <View style={{ flexDirection: 'row', gap: 8 }}>
-                            <Pressable
+                            <Button
+                              title={t('common.save')}
                               onPress={handleUpdateCategory}
-                              style={{ flex: 1, backgroundColor: colors.accent, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
-                            >
-                              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accentText }}>{t('common.save')}</Text>
-                            </Pressable>
-                            <Pressable
+                              variant="secondary"
+                              style={{ flex: 1 }}
+                            />
+                            <Button
+                              title={t('common.cancel')}
                               onPress={() => setEditingCategory(null)}
-                              style={{ flex: 1, backgroundColor: colors.backgroundTertiary, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
-                            >
-                              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textTertiary }}>{t('common.cancel')}</Text>
-                            </Pressable>
+                              variant="ghost"
+                              style={{ flex: 1, backgroundColor: colors.backgroundTertiary }}
+                            />
                           </View>
                         </View>
                       ) : (
@@ -2614,25 +2614,25 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                               </View>
                             </View>
                             <View style={{ flexDirection: 'row', gap: 8 }}>
-                              <Pressable
-                                onPress={() => {
-                                  if (editingProject.name.trim()) {
-                                    setProjects(prev => prev.map(p => 
-                                      p.id === editingProject.id ? { ...p, name: editingProject.name.trim(), category: editingProject.category, hexColor: editingProject.hexColor, percent: editingProject.percent } : p
-                                    ));
-                                  }
-                                  setEditingProject(null);
-                                }}
-                                style={{ flex: 1, backgroundColor: colors.accent, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
-                              >
-                                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accentText }}>{t('common.save')}</Text>
-                              </Pressable>
-                              <Pressable
-                                onPress={() => setEditingProject(null)}
-                                style={{ flex: 1, backgroundColor: colors.backgroundTertiary, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
-                              >
-                                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textTertiary }}>{t('common.cancel')}</Text>
-                              </Pressable>
+                                <Button
+                                  title={t('common.save')}
+                                  onPress={() => {
+                                    if (editingProject.name.trim()) {
+                                      setProjects(prev => prev.map(p => 
+                                        p.id === editingProject.id ? { ...p, name: editingProject.name.trim(), category: editingProject.category, hexColor: editingProject.hexColor, percent: editingProject.percent } : p
+                                      ));
+                                    }
+                                    setEditingProject(null);
+                                  }}
+                                  variant="secondary"
+                                  style={{ flex: 1 }}
+                                />
+                                <Button
+                                  title={t('common.cancel')}
+                                  onPress={() => setEditingProject(null)}
+                                  variant="ghost"
+                                  style={{ flex: 1, backgroundColor: colors.backgroundTertiary }}
+                                />
                             </View>
                           </View>
                         ) : (
