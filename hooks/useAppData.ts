@@ -1,19 +1,8 @@
-/**
- * useAppData Hook
- * Manages loading and saving app data with local storage persistence
- */
-
-import { Dispatch, SetStateAction, useEffect } from 'react';
+import { Dispatch, SetStateAction, useEffect, useRef } from 'react';
 import { AppData, loadAppData, saveAppData } from '../utils/storage';
 
-type UseAppDataResult = {
-  isLoaded: boolean;
-};
+import { debounce } from 'lodash';
 
-/**
- * Hook to load and save app data
- * Call this once when the app initializes
- */
 export const useAppData = (
   projects: any[],
   events: any[],
@@ -22,38 +11,43 @@ export const useAppData = (
   setEvents: Dispatch<SetStateAction<any[]>>,
   setCategories: Dispatch<SetStateAction<{ [key: string]: string }>>,
   onLoaded?: () => void
-): UseAppDataResult => {
-  const isLoaded = projects.length > 0 || events.length > 0;
+) => {
+  const isLoaded = useRef(false);
 
-  // Load data on app mount
   useEffect(() => {
     const loadData = async () => {
       const savedData = await loadAppData();
       if (savedData) {
-        // Only apply saved data if the current in-memory state is still empty.
-        // Use functional updaters to inspect latest state and avoid overwriting
-        // user-created data that may have been added before async load finished.
-        setProjects((prev) => (prev && prev.length > 0 ? prev : savedData.projects || []));
-        setEvents((prev) => (prev && prev.length > 0 ? prev : savedData.events || []));
-        setCategories((prev) => (prev && Object.keys(prev).length > 0 ? prev : savedData.categories || {}));
+        setProjects((prev) => (prev.length > 0 ? prev : savedData.projects || []));
+        setEvents((prev) => (prev.length > 0 ? prev : savedData.events || []));
+        setCategories((prev) => (Object.keys(prev).length > 0 ? prev : savedData.categories || {}));
       }
+      isLoaded.current = true;
       onLoaded?.();
     };
     loadData();
   }, []);
 
-  // Auto-save data when it changes
+
+  const debouncedSave = useRef(
+    debounce((data: AppData) => {
+      console.log('Auto-saving data...');
+      saveAppData(data).catch(console.error);
+    }, 2000) 
+  ).current;
+
+
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded.current) {
       const data: AppData = {
         projects,
         events,
         categories,
         version: '1.0.0',
       };
-      saveAppData(data).catch(console.error);
+      debouncedSave(data);
     }
   }, [projects, events, categories]);
 
-  return { isLoaded };
+  return { isLoaded: isLoaded.current };
 };

@@ -168,6 +168,7 @@ export default {
     lastActive: 'Last active',
     daysAgo: 'days ago',
     today: 'today',
+    event: 'event',
     events: 'events',
   },
 

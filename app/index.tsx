@@ -103,6 +103,19 @@ const getDefaultCategories = (language: string): CategoryMap => {
 
 // --- Shared small helpers ---
 
+// 安全地将 "YYYY-MM-DD" 解析为本地日期的午夜 00:00
+const parseLocalDate = (dateStr: string): Date => {
+  if (!dateStr) return new Date();
+  // 强制将字符串按连字符分割，分别取年月日
+  // 避免 new Date('2025-01-01') 被解析为 UTC 导致的时区偏差
+  const parts = dateStr.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // JS 月份从 0 开始
+  const day = parseInt(parts[2], 10);
+  return new Date(year, month, day);
+};
+
+
 const getContrastColor = (hexColor: string) => {
   if (!hexColor || !hexColor.startsWith('#')) return '#000000';
   const r = parseInt(hexColor.substr(1, 2), 16);
@@ -599,6 +612,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             <View style={styles.calendarHeader}>
               <Pressable onPress={() => {
                 const prev = new Date(selectedDate);
+                prev.setDate(1); // set to 1st to avoid month rollover when current day is 29/30/31
                 prev.setMonth(prev.getMonth() - 1);
                 setSelectedDate(prev);
               }}>
@@ -609,6 +623,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               </Text>
               <Pressable onPress={() => {
                 const next = new Date(selectedDate);
+                next.setDate(1); // set to 1st to avoid month rollover when current day is 29/30/31
                 next.setMonth(next.getMonth() + 1);
                 setSelectedDate(next);
               }}>
@@ -671,8 +686,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                       isToday && [styles.calendarDayToday, { borderColor: colors.primary }],
                     ]}
                     onPress={() => {
-                      const newDate = new Date(selectedDate);
-                      newDate.setDate(day);
+                      const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
                       setSelectedDate(newDate);
                       setIsCalendarOpen(false);
                     }}
@@ -1303,7 +1317,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
   const availableYears = useMemo(() => {
     const years = new Set<number>();
     events.forEach(evt => {
-      years.add(new Date(evt.date).getFullYear());
+      years.add(parseLocalDate(evt.date).getFullYear());
     });
     return Array.from(years).sort((a, b) => b - a); // Descending order
   }, [events]);
@@ -1311,7 +1325,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
   const availableMonths = useMemo(() => {
     const months = new Set<number>();
     events.forEach(evt => {
-      const date = new Date(evt.date);
+      const date = parseLocalDate(evt.date);
       if (date.getFullYear() === selectedYear) {
         months.add(date.getMonth());
       }
@@ -1320,7 +1334,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
   }, [events, selectedYear]);
 
   // Filter events based on timeRange
-  const filteredEvents = (() => {
+  const filteredEvents = useMemo(() => {
     if (timeRange === 'Week') {
       const today = new Date();
       const dayOfWeek = today.getDay(); // 0 (Sunday) to 6 (Saturday)
@@ -1337,24 +1351,24 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
       sunday.setHours(23, 59, 59, 999);
       
       return events.filter((evt) => {
-        const eventDate = new Date(evt.date);
+        const eventDate = parseLocalDate(evt.date);
         return eventDate >= monday && eventDate <= sunday;
       });
     } else if (timeRange === 'Month') {
       return events.filter((evt) => {
-        const eventDate = new Date(evt.date);
+        const eventDate = parseLocalDate(evt.date);
         return eventDate.getMonth() === selectedMonth && eventDate.getFullYear() === selectedYear;
       });
     } else {
       return events.filter((evt) => {
-        const eventDate = new Date(evt.date);
+        const eventDate = parseLocalDate(evt.date);
         return eventDate.getFullYear() === selectedYear;
       });
     }
-  })();
+  }, [events, timeRange, selectedMonth, selectedYear]);
 
   // Calculate stacked chart data based on timeRange (by category)
-  const stackedChartData = (() => {
+  const stackedChartData = useMemo(() => {
     // Get number of bars based on timeRange
     const barCount = timeRange === 'Week' ? 7 : timeRange === 'Year' ? 12 : 5;
     
@@ -1366,7 +1380,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
     const periodCategoryMap: Map<number, Map<string, number>> = new Map();
     
     filteredEvents.forEach((evt) => {
-      const eventDate = new Date(evt.date);
+      const eventDate = parseLocalDate(evt.date);
       let idx = -1;
       
       if (timeRange === 'Week') {
@@ -1408,7 +1422,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
     });
     
     return data;
-  })();
+  }, [filteredEvents, timeRange, categories]);
 
   // Calculate total for each bar (for height calculation)
   const chartTotals = stackedChartData.map(bar => 
@@ -1908,8 +1922,8 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                     );
                   }
                   
-                  return projectEvents.map((evt, index) => {
-                    const eventDate = new Date(evt.date);
+                    return projectEvents.map((evt, index) => {
+                    const eventDate = parseLocalDate(evt.date);
                     const hours = Math.floor(evt.duration / 60);
                     const mins = evt.duration % 60;
                     const categoryColor = evt.category ? (categories[evt.category] || editingProject.hexColor) : editingProject.hexColor;
@@ -2021,7 +2035,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                         {t('calendar.uncategorized')}
                       </Text>
                       <Text style={{ fontSize: 14, color: colors.textTertiary, marginTop: 4 }}>
-                        {unassignedEvents.length} {unassignedEvents.length === 1 ? t('calendar.eventTitle') : t('calendar.eventTitle')}
+                        {(() => {
+                          const cnt = unassignedEvents.length;
+                          const totalMinutes = unassignedEvents.reduce((s, e) => s + (e.duration || 0), 0);
+                          const h = Math.floor(totalMinutes / 60);
+                          const m = totalMinutes % 60;
+                          const timeStr = h > 0 ? `${h}${t('common.hours')} ${m}${t('common.minutes')}` : `${m}${t('common.minutes')}`;
+                          return `${cnt} ${cnt === 1 ? t('visualization.event') : t('visualization.events')} · ${timeStr}`;
+                        })()}
                       </Text>
                     </View>
                     <Pressable 
@@ -2054,7 +2075,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                     </View>
                   ) : (
                     unassignedEvents.map((evt, index) => {
-                      const eventDate = new Date(evt.date);
+                      const eventDate = parseLocalDate(evt.date);
                       const hours = Math.floor(evt.duration / 60);
                       const mins = evt.duration % 60;
                       const categoryColor = evt.category ? (categories[evt.category] || '#9CA3AF') : '#9CA3AF';
@@ -2211,7 +2232,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                     </View>
                   ) : (
                     categoryEvents.map((evt, index) => {
-                      const eventDate = new Date(evt.date);
+                      const eventDate = parseLocalDate(evt.date);
                       const hours = Math.floor(evt.duration / 60);
                       const mins = evt.duration % 60;
                       
@@ -2387,7 +2408,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
     // Filter events in time range
     const filteredEvents = events.filter(evt => {
-      const evtDate = new Date(evt.date);
+      const evtDate = parseLocalDate(evt.date);
       return evtDate >= startDate && evtDate <= today;
     });
 
@@ -2401,7 +2422,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       if (!evt.projectId) return;
       const current = projectMetrics.get(evt.projectId) || { duration: 0, lastEventDate: new Date(0) };
       current.duration += evt.duration;
-      const evtDate = new Date(evt.date);
+      const evtDate = parseLocalDate(evt.date);
       if (evtDate > current.lastEventDate) {
         current.lastEventDate = evtDate;
       }

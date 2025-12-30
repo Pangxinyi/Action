@@ -38,6 +38,7 @@
     "expo-system-ui": "~6.0.9",
     "expo-web-browser": "~15.0.10",
     "i18next": "^25.7.1",
+    "lodash": "^4.17.21",
     "lucide-react-native": "^0.555.0",
     "nativewind": "^4.2.1",
     "react": "19.1.0",
@@ -54,6 +55,7 @@
     "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.21",
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^9.25.0",
