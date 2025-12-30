@@ -1375,9 +1375,9 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                   if (projectEvents.length === 0) {
                     return (
                       <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                        <Text style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
-                          No events for this project
-                        </Text>
+                        <ThemedText style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
+                              No events for this project
+                            </ThemedText>
                       </View>
                     );
                   }
@@ -1410,44 +1410,44 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                         }}
                       >
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                          <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, flex: 1 }}>
+                          <ThemedText style={{ fontSize: 16, fontWeight: '600', color: colors.text, flex: 1 }}>
                             {evt.details || evt.title || t('calendar.newEvent')}
-                          </Text>
+                          </ThemedText>
                           <View style={{ 
                             paddingHorizontal: 8, 
                             paddingVertical: 4, 
                             backgroundColor: colors.surface,
                             borderRadius: 6,
                           }}>
-                            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>
+                            <ThemedText style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>
                               {hours > 0 && `${hours}${t('common.hours')} `}{mins}{t('common.minutes')}
-                            </Text>
+                            </ThemedText>
                           </View>
                         </View>
 
                         {evt.category && (
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: categoryColor }} />
-                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                            <ThemedText style={{ fontSize: 13, color: colors.textTertiary }}>
                               {(() => {
                                 const name = evt.category || '';
-                                return name ? t(`categories.${name.toLowerCase()}`, { defaultValue: name }) : '';
+                                return name ? t('categories.' + name.toLowerCase(), { defaultValue: name }) : '';
                               })()}
-                            </Text>
+                            </ThemedText>
                           </View>
                         )}
 
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                          <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                          <ThemedText style={{ fontSize: 13, color: colors.textTertiary }}>
                             {eventDate.toLocaleDateString(i18n.language === 'zh' ? 'zh-CN' : 'en-US', { 
                               month: 'short', 
                               day: 'numeric' 
                             })}
-                          </Text>
-                          <Text style={{ fontSize: 13, color: colors.textQuaternary }}>•</Text>
-                          <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                          </ThemedText>
+                          <ThemedText style={{ fontSize: 13, color: colors.textQuaternary }}>•</ThemedText>
+                          <ThemedText style={{ fontSize: 13, color: colors.textTertiary }}>
                             {startTime} - {endTime}
-                          </Text>
+                          </ThemedText>
                         </View>
                       </View>
                     );
@@ -1522,9 +1522,9 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 >
                   {unassignedEvents.length === 0 ? (
                     <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
+                      <ThemedText style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
                         {t('projects.noProjectsYet')}
-                      </Text>
+                      </ThemedText>
                     </View>
                   ) : (
                     unassignedEvents.map((evt, index) => {
@@ -1555,43 +1555,43 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                           }}
                         >
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, flex: 1 }}>
+                            <ThemedText style={{ fontSize: 16, fontWeight: '600', color: colors.text, flex: 1 }}>
                               {evt.details || evt.title || t('calendar.newEvent')}
-                            </Text>
+                            </ThemedText>
                             <View style={{ 
                               paddingHorizontal: 8, 
                               paddingVertical: 4, 
                               backgroundColor: colors.surface,
                               borderRadius: 6,
                             }}>
-                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>
+                              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>
                                 {hours > 0 && `${hours}${t('common.hours')} `}{mins}{t('common.minutes')}
-                              </Text>
+                              </ThemedText>
                             </View>
                           </View>
 
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: categoryColor }} />
-                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                            <ThemedText style={{ fontSize: 13, color: colors.textTertiary }}>
                               {(() => {
                                 const name = evt.category || 'uncategorized';
                                 if (name === 'uncategorized') return t('calendar.uncategorized');
-                                return name === 'uncategorized' ? t('calendar.uncategorized') : t(`categories.${name.toLowerCase()}`, { defaultValue: name });
+                                return name === 'uncategorized' ? t('calendar.uncategorized') : t('categories.' + name.toLowerCase(), { defaultValue: name });
                               })()}
-                            </Text>
+                            </ThemedText>
                           </View>
 
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                            <ThemedText style={{ fontSize: 13, color: colors.textTertiary }}>
                               {eventDate.toLocaleDateString(i18n.language === 'zh' ? 'zh-CN' : 'en-US', { 
                                 month: 'short', 
                                 day: 'numeric' 
                               })}
-                            </Text>
-                            <Text style={{ fontSize: 13, color: colors.textQuaternary }}>•</Text>
-                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                            </ThemedText>
+                            <ThemedText style={{ fontSize: 13, color: colors.textQuaternary }}>•</ThemedText>
+                            <ThemedText style={{ fontSize: 13, color: colors.textTertiary }}>
                               {startTime} - {endTime}
-                            </Text>
+                            </ThemedText>
                           </View>
                         </View>
                       );
