@@ -35,9 +35,15 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import EventCard from '../src/components/Calendar/EventCard';
-import HourRow from '../src/components/Calendar/HourRow';
 import EventEditor from '../src/components/Calendar/EventEditor';
+import HourRow from '../src/components/Calendar/HourRow';
 import { clearAppData, exportDataAsJSON, loadAppData } from '../utils/storage';
+
+import Header from '../src/components/Common/Header';
+
+import ThemedText from '../src/components/Common/ThemedText';
+import Button from '../src/components/Common/Button';
+import TabBar from '../src/components/Common/TabBar';
 
 
 // --- CONSTANTS ---
@@ -132,11 +138,7 @@ type HeaderProps = {
   colors?: AppThemeColors;
 };
 
-import Header from '../src/components/Common/Header';
-
 type TabKey = 'calendar' | 'analytics' | 'projects';
-
-import TabBar from '../src/components/Common/TabBar';
 
 // --- Calendar View (Today) ---
 
@@ -529,20 +531,20 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           onPress={() => setIsCalendarOpen(!isCalendarOpen)}
         >
           <View>
-            <Text style={[styles.headerTitle, { fontWeight: 'bold', color: colors.text }]}>
+            <ThemedText variant="title" style={[styles.headerTitle, { fontWeight: 'bold', color: colors.text }]}> 
               {formatMonthYear(selectedDate).split(' ')[0]}
-            </Text>
-            <Text style={[styles.headerSubtitle, { color: colors.textTertiary }]}>
+            </ThemedText>
+            <ThemedText variant="label" style={[styles.headerSubtitle, { color: colors.textTertiary }]}> 
               {i18n.language === 'zh' 
                 ? `${selectedDate.getDate()}日 ${formatWeekday(selectedDate, false)}`
                 : `${String(selectedDate.getDate()).padStart(2, '0')} ${formatWeekday(selectedDate, false)}`
               }
-            </Text>
+            </ThemedText>
           </View>
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <Pressable style={[styles.todayButton, { backgroundColor: colors.backgroundTertiary }]} onPress={handleTodayClick}>
-            <Text style={[styles.todayButtonText, { color: colors.text }]}>{t('calendar.today')}</Text>
+            <ThemedText style={[styles.todayButtonText, { color: colors.text }]}>{t('calendar.today')}</ThemedText>
           </Pressable>
           <Pressable style={[styles.fabSmall, { backgroundColor: colors.primary }]} onPress={handleAddNow}>
             <Plus size={18} color={colors.primaryText} />
@@ -569,24 +571,24 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 prev.setMonth(prev.getMonth() - 1);
                 setSelectedDate(prev);
               }}>
-                <Text style={[styles.calendarNavText, { color: colors.text }]}>←</Text>
+                <ThemedText style={[styles.calendarNavText, { color: colors.text }]}>←</ThemedText>
               </Pressable>
-              <Text style={[styles.calendarMonth, { color: colors.text }]}>
+              <ThemedText style={[styles.calendarMonth, { color: colors.text }]}> 
                 {formatMonthYear(selectedDate)}
-              </Text>
+              </ThemedText>
               <Pressable onPress={() => {
                 const next = new Date(selectedDate);
                 next.setMonth(next.getMonth() + 1);
                 setSelectedDate(next);
               }}>
-                <Text style={[styles.calendarNavText, { color: colors.text }]}>→</Text>
+                <ThemedText style={[styles.calendarNavText, { color: colors.text }]}>→</ThemedText>
               </Pressable>
             </View>
 
             {/* Weekday labels */}
             <View style={styles.calendarWeekdays}>
               {['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((day) => (
-                <Text key={day} style={[styles.calendarWeekdayLabel, { color: colors.textTertiary }]}>{t(`calendar.${day}`)}</Text>
+                <ThemedText key={day} style={[styles.calendarWeekdayLabel, { color: colors.textTertiary }]}>{t(`calendar.${day}`)}</ThemedText>
               ))}
             </View>
 
@@ -644,7 +646,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                       setIsCalendarOpen(false);
                     }}
                   >
-                    <Text
+                    <ThemedText
                       style={[
                         styles.calendarDayText,
                         { color: colors.text },
@@ -652,7 +654,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                       ]}
                     >
                       {day}
-                    </Text>
+                    </ThemedText>
                     {hasEvents && (
                       <View style={[styles.calendarEventDot, { backgroundColor: dotColor }]} />
                     )}
@@ -1008,11 +1010,11 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
         </View>
 
         <View style={[styles.analyticsCard, { backgroundColor: colors.surface }]}>
-          <View style={styles.analyticsHeader}>
+              <View style={styles.analyticsHeader}>
             <View style={{ position: 'relative' }}>
-              <Text style={[styles.analyticsTitle, { color: colors.text }]}>{t('analytics.totalTime')}</Text>
+              <ThemedText style={[styles.analyticsTitle, { color: colors.text }]}>{t('analytics.totalTime')}</ThemedText>
               {timeRange === 'Week' ? (
-                <Text style={[styles.analyticsSubtitle, { color: colors.textTertiary }]}>{getSubtitle()}</Text>
+                <ThemedText style={[styles.analyticsSubtitle, { color: colors.textTertiary }]}>{getSubtitle()}</ThemedText>
               ) : (
                 <>
                   {(timeRange === 'Month' && availableMonths.length > 1) || 
@@ -1093,10 +1095,10 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 </>
               )}
             </View>
-            <Text style={[styles.analyticsValue, { color: colors.text }]}>
-              {totalHours}<Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.hours')}</Text> {totalMins}
-              <Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.minutes')}</Text>
-            </Text>
+            <ThemedText style={[styles.analyticsValue, { color: colors.text }]}> 
+              {totalHours}<ThemedText style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.hours')}</ThemedText> {totalMins}
+              <ThemedText style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.minutes')}</ThemedText>
+            </ThemedText>
           </View>
           <View style={styles.barChartRow}>
             {stackedChartData.map((barSegments, idx) => {
@@ -1127,7 +1129,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       })}
                     </View>
                   </View>
-                  <Text style={[styles.barLabel, { color: colors.textQuaternary }]}>{chartLabels[idx]}</Text>
+                  <ThemedText style={[styles.barLabel, { color: colors.textQuaternary }]}>{chartLabels[idx]}</ThemedText>
                 </View>
               );
             })}
@@ -1136,9 +1138,9 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
 
         {/* Distribution Mode Toggle */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('analytics.projects')}</Text>
+          <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>{t('analytics.projects')}</ThemedText>
           <View style={{ flexDirection: 'row', gap: 4, backgroundColor: colors.backgroundTertiary, borderRadius: 8, padding: 2 }}>
-            <Pressable
+              <Pressable
               onPress={() => setDistributionMode('category')}
               style={{
                 paddingHorizontal: 12,
@@ -1147,13 +1149,13 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 backgroundColor: distributionMode === 'category' ? colors.surface : 'transparent',
               }}
             >
-              <Text style={{
+              <ThemedText style={{
                 fontSize: 12,
                 fontWeight: '600',
                 color: distributionMode === 'category' ? colors.text : colors.textTertiary,
               }}>
                 {t('analytics.byCategory')}
-              </Text>
+              </ThemedText>
             </Pressable>
             <Pressable
               onPress={() => setDistributionMode('project')}
@@ -1164,13 +1166,13 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 backgroundColor: distributionMode === 'project' ? colors.surface : 'transparent',
               }}
             >
-              <Text style={{
+              <ThemedText style={{
                 fontSize: 12,
                 fontWeight: '600',
                 color: distributionMode === 'project' ? colors.text : colors.textTertiary,
               }}>
                 {t('analytics.byProject')}
-              </Text>
+              </ThemedText>
             </Pressable>
           </View>
         </View>
@@ -1196,11 +1198,11 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       { backgroundColor: p.hexColor },
                     ]}
                   />
-                  <Text style={[styles.projectRowName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{p.name}</Text>
+                  <ThemedText style={[styles.projectRowName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{p.name}</ThemedText>
                 </View>
-                <Text style={[styles.projectRowTime, { color: colors.textSecondary }]}>
+                <ThemedText style={[styles.projectRowTime, { color: colors.textSecondary }]}> 
                   {hours}{t('common.hours')} {mins}{t('common.minutes')}
-                </Text>
+                </ThemedText>
               </View>
               <View style={[styles.progressTrack, { backgroundColor: colors.backgroundTertiary }]}>
                 <View
@@ -1232,11 +1234,11 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       { backgroundColor: unassignedProject.hexColor },
                     ]}
                   />
-                  <Text style={[styles.projectRowName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{unassignedProject.name}</Text>
+                  <ThemedText style={[styles.projectRowName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{unassignedProject.name}</ThemedText>
                 </View>
-                <Text style={[styles.projectRowTime, { color: colors.textSecondary }]}>
+                <ThemedText style={[styles.projectRowTime, { color: colors.textSecondary }]}> 
                   {hours}{t('common.hours')} {mins}{t('common.minutes')}
-                </Text>
+                </ThemedText>
               </View>
               <View style={[styles.progressTrack, { backgroundColor: colors.backgroundTertiary }]}>
                 <View
@@ -2435,25 +2437,25 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             ))}
                           </View>
                           <View style={{ flexDirection: 'row', gap: 8 }}>
-                            <Pressable
+                            <Button
+                              title={t('common.save')}
                               onPress={handleUpdateCategory}
-                              style={{ flex: 1, backgroundColor: colors.accent, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
-                            >
-                              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accentText }}>{t('common.save')}</Text>
-                            </Pressable>
-                            <Pressable
+                              variant="secondary"
+                              style={{ flex: 1 }}
+                            />
+                            <Button
+                              title={t('common.cancel')}
                               onPress={() => setEditingCategory(null)}
-                              style={{ flex: 1, backgroundColor: colors.backgroundTertiary, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
-                            >
-                              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textTertiary }}>{t('common.cancel')}</Text>
-                            </Pressable>
+                              variant="ghost"
+                              style={{ flex: 1, backgroundColor: colors.backgroundTertiary }}
+                            />
                           </View>
                         </View>
                       ) : (
                         <>
                           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.backgroundSecondary, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12 }}>
                             <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: catColor }} />
-                            <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.text }}>{catName}</Text>
+                            <ThemedText variant="body" style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.text }}>{catName}</ThemedText>
                           </View>
                           <Pressable
                             onPress={() => setEditingCategory({ oldName: catName, newName: catName, color: catColor })}
@@ -2477,12 +2479,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
             {/* Project Management */}
             <View>
-              <Pressable 
+              <Pressable
                 onPress={() => setShowProjectManagement(!showProjectManagement)}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showProjectManagement ? 12 : 0 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.projectManagement')}</Text>
-                <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showProjectManagement ? '▼' : '▶'}</Text>
+                <ThemedText variant="label" style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.projectManagement')}</ThemedText>
+                <ThemedText variant="label" style={{ fontSize: 12, color: colors.textTertiary }}>{showProjectManagement ? '▼' : '▶'}</ThemedText>
               </Pressable>
               {showProjectManagement && (
                 <View style={{ gap: 8 }}>
@@ -3419,6 +3421,7 @@ const App: React.FC = () => {
   LogBox.ignoreLogs(["SafeAreaView has been deprecated"]);
   const { i18n } = useTranslation();
   const { colors, isDark } = useThemeColors();
+  const t = (key: string, opts?: any) => (i18n && typeof (i18n as any).t === 'function' ? (i18n as any).t(key, opts) : key);
   const [activeTab, setActiveTab] = useState<TabKey>('calendar');
   const [selectedColorScheme, setSelectedColorScheme] = useState('default');
   const [projects, setProjects] = useState<Project[]>([]);
