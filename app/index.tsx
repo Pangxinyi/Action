@@ -29,7 +29,6 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
@@ -1090,7 +1089,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                       )}
                     </>
                   ) : (
-                    <Text style={[styles.analyticsSubtitle, { color: colors.textTertiary }]}>{getSubtitle()}</Text>
+                    <ThemedText style={[styles.analyticsSubtitle, { color: colors.textTertiary }]}>{getSubtitle()}</ThemedText>
                   )}
                 </>
               )}
@@ -1324,14 +1323,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
               <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <View style={{ flex: 1, marginRight: 12 }}>
-                    <Text
+                    <ThemedText
                       numberOfLines={2}
                       ellipsizeMode="tail"
                       style={{ fontSize: 24, fontWeight: '700', color: colors.text, flexShrink: 1 }}
                     >
                       {editingProject.name}
-                    </Text>
-                    <Text
+                    </ThemedText>
+                    <ThemedText
                       numberOfLines={1}
                       ellipsizeMode="tail"
                       style={{ fontSize: 14, color: colors.textTertiary, marginTop: 4 }}
@@ -1345,7 +1344,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                         const timeStr = h > 0 ? `${h}${t('common.hours')} ${m}${t('common.minutes')}` : `${m}${t('common.minutes')}`;
                         return `${cnt} ${cnt === 1 ? t('visualization.event') : t('visualization.events')} · ${timeStr}`;
                       })()}
-                    </Text>
+                    </ThemedText>
                   </View>
                   <Pressable 
                     onPress={() => setModalOpen(false)}
@@ -1491,12 +1490,12 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View>
-                      <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
+                      <ThemedText style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
                         {t('calendar.uncategorized')}
-                      </Text>
-                      <Text style={{ fontSize: 14, color: colors.textTertiary, marginTop: 4 }}>
+                      </ThemedText>
+                      <ThemedText style={{ fontSize: 14, color: colors.textTertiary, marginTop: 4 }}>
                         {unassignedEvents.length} {unassignedEvents.length === 1 ? t('calendar.eventTitle') : t('calendar.eventTitle')}
-                      </Text>
+                      </ThemedText>
                     </View>
                     <Pressable 
                       onPress={() => setShowUnassignedEvents(false)}
@@ -1641,11 +1640,11 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 <View style={{ paddingHorizontal: 24, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
+                        <ThemedText style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
                           {selectedCategory === 'uncategorized' ? t('calendar.uncategorized') : selectedCategory}
-                        </Text>
+                        </ThemedText>
                         {/* Count + total duration */}
-                        <Text style={{ fontSize: 13, color: colors.textTertiary, marginTop: 4 }}>
+                        <ThemedText style={{ fontSize: 13, color: colors.textTertiary, marginTop: 4 }}>
                           {`${categoryEvents.length} ${categoryEvents.length === 1 ? t('visualization.event') : t('visualization.events')} · ${(() => {
                               const totalMinutes = categoryEvents.reduce((s, e) => s + (e.duration || 0), 0);
                               const h = Math.floor(totalMinutes / 60);
@@ -1653,7 +1652,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                               if (h > 0) return `${h}${t('common.hours')} ${m}${t('common.minutes')}`;
                               return `${m}${t('common.minutes')}`;
                             })()}`}
-                        </Text>
+                        </ThemedText>
                       </View>
                     </View>
                   <Pressable 
@@ -1679,9 +1678,9 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 >
                   {categoryEvents.length === 0 ? (
                     <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
+                      <ThemedText style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
                         {t('projects.noProjectsYet')}
-                      </Text>
+                      </ThemedText>
                     </View>
                   ) : (
                     categoryEvents.map((evt, index) => {
@@ -1711,18 +1710,18 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                           }}
                         >
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, flex: 1 }}>
+                            <ThemedText style={{ fontSize: 16, fontWeight: '600', color: colors.text, flex: 1 }}>
                               {evt.details || evt.title || t('calendar.newEvent')}
-                            </Text>
+                            </ThemedText>
                             <View style={{ 
                               paddingHorizontal: 8, 
                               paddingVertical: 4, 
                               backgroundColor: colors.surface,
                               borderRadius: 6,
                             }}>
-                              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>
+                              <ThemedText style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>
                                 {hours > 0 && `${hours}${t('common.hours')} `}{mins}{t('common.minutes')}
-                              </Text>
+                              </ThemedText>
                             </View>
                           </View>
 
@@ -1733,9 +1732,9 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                               return (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                                   <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: linkedProject.hexColor }} />
-                                  <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textSecondary }}>
+                                  <ThemedText style={{ fontSize: 13, fontWeight: '500', color: colors.textSecondary }}>
                                     {linkedProject.name}
-                                  </Text>
+                                  </ThemedText>
                                 </View>
                               );
                             }
@@ -1743,16 +1742,16 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                           })()}
 
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                            <ThemedText style={{ fontSize: 13, color: colors.textTertiary }}>
                               {eventDate.toLocaleDateString(i18n.language === 'zh' ? 'zh-CN' : 'en-US', { 
                                 month: 'short', 
                                 day: 'numeric' 
                               })}
-                            </Text>
-                            <Text style={{ fontSize: 13, color: colors.textQuaternary }}>•</Text>
-                            <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                            </ThemedText>
+                            <ThemedText style={{ fontSize: 13, color: colors.textQuaternary }}>•</ThemedText>
+                            <ThemedText style={{ fontSize: 13, color: colors.textTertiary }}>
                               {startTime} - {endTime}
-                            </Text>
+                            </ThemedText>
                           </View>
                         </View>
                       );
@@ -2461,7 +2460,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             onPress={() => setEditingCategory({ oldName: catName, newName: catName, color: catColor })}
                             style={{ padding: 8, backgroundColor: colors.backgroundTertiary, borderRadius: 8 }}
                           >
-                            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>✎</Text>
+                            <ThemedText style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>✎</ThemedText>
                           </Pressable>
                           <Pressable
                             onPress={() => handleDeleteCategory(catName)}
@@ -2489,9 +2488,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
               {showProjectManagement && (
                 <View style={{ gap: 8 }}>
                   {projects.filter(p => !p.archived).length === 0 ? (
-                    <Text style={{ fontSize: 13, color: colors.textQuaternary, textAlign: 'center', paddingVertical: 16 }}>
+                    <ThemedText style={{ fontSize: 13, color: colors.textQuaternary, textAlign: 'center', paddingVertical: 16 }}>
                       {t('projects.noActiveProjects')}
-                    </Text>
+                    </ThemedText>
                   ) : (
                     projects.filter(p => !p.archived).map((project) => (
                       <View key={project.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -2516,9 +2515,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                                   borderColor: !editingProject.category ? colors.text : colors.border,
                                 }}
                               >
-                                <Text style={{ fontSize: 12, fontWeight: '600', color: !editingProject.category ? colors.textInverse : colors.textTertiary }}>
+                                <ThemedText style={{ fontSize: 12, fontWeight: '600', color: !editingProject.category ? colors.textInverse : colors.textTertiary }}>
                                   {t('projects.uncategorized')}
-                                </Text>
+                                </ThemedText>
                               </Pressable>
                               {Object.entries(categories).map(([catName, catColor]) => {
                                 const isSelected = editingProject.category === catName;
@@ -2535,9 +2534,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                                       borderColor: catColor,
                                     }}
                                   >
-                                    <Text style={{ fontSize: 12, fontWeight: '600', color: isSelected ? colors.accentText : catColor }}>
+                                    <ThemedText style={{ fontSize: 12, fontWeight: '600', color: isSelected ? colors.accentText : catColor }}>
                                       {t(`categories.${catName.toLowerCase()}`, { defaultValue: catName })}
-                                    </Text>
+                                    </ThemedText>
                                   </Pressable>
                                 );
                               })}
@@ -2545,12 +2544,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             {/* Accumulation Slider */}
                             <View>
                               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, textTransform: 'uppercase' }}>
+                                <ThemedText style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, textTransform: 'uppercase' }}>
                                   {t('projects.accumulation')}
-                                </Text>
-                                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                                </ThemedText>
+                                <ThemedText style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
                                   {Math.round(editingProject.percent)}%
-                                </Text>
+                                </ThemedText>
                               </View>
                               <View 
                                 style={{ height: 32, justifyContent: 'center' }}
@@ -2630,31 +2629,31 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
             {/* Archived Projects */}
             <View>
-              <Pressable 
+                <Pressable 
                 onPress={() => setShowArchivedProjects(!showArchivedProjects)}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showArchivedProjects ? 12 : 0 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.archivedProjects')}</Text>
-                <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showArchivedProjects ? '▼' : '▶'}</Text>
+                <ThemedText style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.archivedProjects')}</ThemedText>
+                <ThemedText style={{ fontSize: 12, color: colors.textTertiary }}>{showArchivedProjects ? '▼' : '▶'}</ThemedText>
               </Pressable>
               {showArchivedProjects && (
                 <View style={{ gap: 8 }}>
-                  {projects.filter(p => p.archived).length === 0 ? (
-                    <Text style={{ fontSize: 13, color: colors.textQuaternary, textAlign: 'center', paddingVertical: 16 }}>
+                    {projects.filter(p => p.archived).length === 0 ? (
+                    <ThemedText style={{ fontSize: 13, color: colors.textQuaternary, textAlign: 'center', paddingVertical: 16 }}>
                       {t('projects.noArchivedProjects')}
-                    </Text>
+                    </ThemedText>
                   ) : (
                     projects.filter(p => p.archived).map((project) => (
                       <View key={project.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.backgroundSecondary, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12 }}>
                           <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: project.hexColor }} />
-                          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.text }}>{project.name}</Text>
+                          <ThemedText style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.text }}>{project.name}</ThemedText>
                         </View>
                         <Pressable
                           onPress={() => handleUnarchiveProject(project.id)}
                           style={{ padding: 8, backgroundColor: colors.accentLight, borderRadius: 8 }}
                         >
-                          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.accent }}>↻</Text>
+                          <ThemedText style={{ fontSize: 12, fontWeight: '700', color: colors.accent }}>↻</ThemedText>
                         </Pressable>
                         <Pressable
                           onPress={() => handleDeleteProject(project.id)}
@@ -2675,8 +2674,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                 onPress={() => setShowColorTheme(!showColorTheme)}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showColorTheme ? 12 : 0 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.colorTheme')}</Text>
-                <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showColorTheme ? '▼' : '▶'}</Text>
+                <ThemedText style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.colorTheme')}</ThemedText>
+                <ThemedText style={{ fontSize: 12, color: colors.textTertiary }}>{showColorTheme ? '▼' : '▶'}</ThemedText>
               </Pressable>
               {showColorTheme && (
                 <View style={{ gap: 8 }}>
@@ -2696,7 +2695,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                         onPress={() => handleSelectColorScheme(option.id)}
                         style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, borderWidth: selectedColorScheme === option.id ? 2 : 1, borderColor: selectedColorScheme === option.id ? colors.accent : colors.border, backgroundColor: selectedColorScheme === option.id ? colors.accentLight : colors.backgroundSecondary }}
                       >
-                        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{option.title}</Text>
+                        <ThemedText style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{option.title}</ThemedText>
                         <View style={{ flexDirection: 'row', marginLeft: 'auto' }}>
                           {themeColors.map((color, index) => (
                             <View 
@@ -2714,7 +2713,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                           ))}
                         </View>
                         <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: selectedColorScheme === option.id ? colors.accent : 'transparent', justifyContent: 'center', alignItems: 'center', marginLeft: 12 }}>
-                          {selectedColorScheme === option.id && <Text style={{ color: colors.accentText, fontWeight: '700', fontSize: 12 }}>✓</Text>}
+                          {selectedColorScheme === option.id && <ThemedText style={{ color: colors.accentText, fontWeight: '700', fontSize: 12 }}>✓</ThemedText>}
                         </View>
                       </Pressable>
                     );
@@ -2813,9 +2812,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                   }}
                   style={[styles.toggleItem, timeRange === range && [styles.toggleItemActive, { backgroundColor: colors.surface }]]}
                 >
-                  <Text style={[styles.toggleText, { color: colors.textTertiary }, timeRange === range && [styles.toggleTextActive, { color: colors.text }]]}>
+                  <ThemedText style={[styles.toggleText, { color: colors.textTertiary }, timeRange === range && [styles.toggleTextActive, { color: colors.text }]]}>
                     {range === '30d' ? t('visualization.timeRange30') : range === '90d' ? t('visualization.timeRange90') : t('visualization.timeRangeYear')}
-                  </Text>
+                  </ThemedText>
                 </Pressable>
               ))}
             </View>
@@ -2829,7 +2828,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
             <View style={{ width: '100%', height: CHART_HEIGHT, backgroundColor: colors.surface, borderRadius: 16, padding: 10 }}>
               {/* Y-axis label */}
               <View style={{ position: 'absolute', left: 0, top: CHART_HEIGHT / 2, transform: [{ rotate: '-90deg' }] }}>
-                <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textQuaternary }}>{t('visualization.yAxis')}</Text>
+                <ThemedText style={{ fontSize: 9, fontWeight: '600', color: colors.textQuaternary }}>{t('visualization.yAxis')}</ThemedText>
               </View>
 
               {/* Chart area */}
@@ -2888,24 +2887,24 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
                 {/* Quadrant labels */}
                 <View style={{ position: 'absolute', right: 4, top: 4 }}>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, textAlign: 'right' }}>
+                  <ThemedText style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, textAlign: 'right' }}>
                     {t('visualization.quadrantTopRight')}
-                  </Text>
+                  </ThemedText>
                 </View>
                 <View style={{ position: 'absolute', left: 4, top: 4 }}>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary }}>
+                  <ThemedText style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary }}>
                     {t('visualization.quadrantTopLeft')}
-                  </Text>
+                  </ThemedText>
                 </View>
                 <View style={{ position: 'absolute', right: 4, bottom: 4 }}>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, textAlign: 'right' }}>
+                  <ThemedText style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary, textAlign: 'right' }}>
                     {t('visualization.quadrantBottomRight')}
-                  </Text>
+                  </ThemedText>
                 </View>
                 <View style={{ position: 'absolute', left: 4, bottom: 4 }}>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary }}>
+                  <ThemedText style={{ fontSize: 9, fontWeight: '600', color: colors.textTertiary }}>
                     {t('visualization.quadrantBottomLeft')}
-                  </Text>
+                  </ThemedText>
                 </View>
 
                 {/* Project bubbles */}
@@ -2945,7 +2944,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       }}
                     >
                       {radius > 20 && (
-                        <Text
+                        <ThemedText
                           style={{
                             fontSize: radius > 30 ? 10 : 8,
                             fontWeight: '700',
@@ -2955,7 +2954,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                           }}
                         >
                           {point.name}
-                        </Text>
+                        </ThemedText>
                       )}
                     </Pressable>
                   );
@@ -2991,13 +2990,13 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
               <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 16, shadowColor: colors.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <View style={{ flex: 1, marginRight: 12 }}>
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
+                    <ThemedText style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 4 }}>
                       {selectedProject.name}
-                    </Text>
+                    </ThemedText>
                     {selectedProject.category && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: selectedProject.color, marginRight: 6 }} />
-                        <Text style={{ fontSize: 13, color: colors.textTertiary }}>{selectedProject.category}</Text>
+                        <ThemedText style={{ fontSize: 13, color: colors.textTertiary }}>{selectedProject.category}</ThemedText>
                       </View>
                     )}
                   </View>
@@ -3008,45 +3007,45 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
                 <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
                   <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary, borderRadius: 12, padding: 12 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, marginBottom: 4 }}>{t('visualization.timeSpent')}</Text>
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+                    <ThemedText style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, marginBottom: 4 }}>{t('visualization.timeSpent')}</ThemedText>
+                    <ThemedText style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                       {Math.floor(selectedProject.durationHours)}h {Math.round((selectedProject.durationHours % 1) * 60)}m
-                    </Text>
-                    <Text style={{ fontSize: 11, color: colors.textQuaternary, marginTop: 2 }}>
+                    </ThemedText>
+                    <ThemedText style={{ fontSize: 11, color: colors.textQuaternary, marginTop: 2 }}>
                       {t('visualization.share')}: {Math.round(selectedProject.share * 100)}%
-                    </Text>
+                    </ThemedText>
                   </View>
                   <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary, borderRadius: 12, padding: 12 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, marginBottom: 4 }}>{t('projects.accumulation')}</Text>
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+                    <ThemedText style={{ fontSize: 11, fontWeight: '600', color: colors.textTertiary, marginBottom: 4 }}>{t('projects.accumulation')}</ThemedText>
+                    <ThemedText style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                       {Math.round(selectedProject.accumulation)}%
-                    </Text>
-                    <Text style={{ fontSize: 11, color: colors.textQuaternary, marginTop: 2 }}>
+                    </ThemedText>
+                    <ThemedText style={{ fontSize: 11, color: colors.textQuaternary, marginTop: 2 }}>
                       {getQuadrantLabel(selectedProject.share, selectedProject.accumulation)}
-                    </Text>
+                    </ThemedText>
                   </View>
                 </View>
 
                 <View style={{ backgroundColor: colors.warningLight, borderRadius: 12, padding: 12, borderLeftWidth: 3, borderLeftColor: colors.warning }}>
-                  <Text style={{ fontSize: 13, color: colors.text, lineHeight: 18 }}>
+                  <ThemedText style={{ fontSize: 13, color: colors.text, lineHeight: 18 }}>
                     {getSuggestion(selectedProject.share, selectedProject.accumulation)}
-                  </Text>
+                  </ThemedText>
                 </View>
 
                 {selectedProject.recentActivity > 0 && (
-                  <Text style={{ fontSize: 11, color: colors.textQuaternary, marginTop: 8, textAlign: 'center' }}>
+                  <ThemedText style={{ fontSize: 11, color: colors.textQuaternary, marginTop: 8, textAlign: 'center' }}>
                     {t('visualization.lastActive')}: {selectedProject.recentActivity === 0 ? t('visualization.today') : `${selectedProject.recentActivity} ${t('visualization.daysAgo')}`}
-                  </Text>
+                  </ThemedText>
                 )}
               </View>
             ) : (
               <View style={{ backgroundColor: colors.backgroundSecondary, borderRadius: 16, padding: 16, alignItems: 'center', gap: 4 }}>
-                <Text style={{ fontSize: 13, color: colors.textQuaternary }}>
+                <ThemedText style={{ fontSize: 13, color: colors.textQuaternary }}>
                   {t('visualization.tapToSelect')}
-                </Text>
-                <Text style={{ fontSize: 12, color: colors.textQuaternary, opacity: 0.7 }}>
+                </ThemedText>
+                <ThemedText style={{ fontSize: 12, color: colors.textQuaternary, opacity: 0.7 }}>
                   {t('visualization.longPressToEdit')}
-                </Text>
+                </ThemedText>
               </View>
             )}
           </View>
@@ -3122,7 +3121,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     </Pressable>
                   </View>
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textTertiary }}>{t('projects.editDetails')}</Text>
+                <ThemedText style={{ fontSize: 14, fontWeight: '500', color: colors.textTertiary }}>{t('projects.editDetails')}</ThemedText>
               </View>
 
               <ScrollView 
@@ -3133,29 +3132,29 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                 {/* Accumulation (Progress) */}
                 <View style={{ marginBottom: 32 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    <ThemedText style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                       {t('projects.accumulation')}
-                    </Text>
+                    </ThemedText>
                     <View style={{ 
                       paddingHorizontal: 12, 
                       paddingVertical: 4, 
                       borderRadius: 12, 
                       backgroundColor: selectedNode.percent >= 100 ? colors.success : colors.backgroundTertiary 
                     }}>
-                      <Text style={{ 
+                      <ThemedText style={{ 
                         fontSize: 18, 
                         fontWeight: '800', 
                         color: selectedNode.percent >= 100 ? colors.accentText : colors.text 
                       }}>
                         {Math.round(selectedNode.percent)}%
-                      </Text>
+                      </ThemedText>
                     </View>
                   </View>
 
                   {/* Hint Text */}
-                  <Text style={{ fontSize: 12, color: colors.textTertiary, lineHeight: 18, marginBottom: 16 }}>
+                  <ThemedText style={{ fontSize: 12, color: colors.textTertiary, lineHeight: 18, marginBottom: 16 }}>
                     {t('projects.accumulationHint')}
-                  </Text>
+                  </ThemedText>
 
                   {/* Progress Bar - Draggable */}
                   <View 
@@ -3211,18 +3210,18 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
                   {/* Scale Labels */}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 }}>
-                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
-                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
-                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
-                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
+                    <ThemedText style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel0')}</ThemedText>
+                    <ThemedText style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel30')}</ThemedText>
+                    <ThemedText style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel60')}</ThemedText>
+                    <ThemedText style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel85')}</ThemedText>
                   </View>
                 </View>
 
                 {/* Category Selection */}
                 <View style={{ marginBottom: 32 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
+                  <ThemedText style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
                     {t('projects.category')}
-                  </Text>
+                  </ThemedText>
                   
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     {/* Uncategorized Option */}
@@ -3237,13 +3236,13 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                         borderColor: !selectedNode.category ? colors.text : colors.border,
                       }}
                     >
-                      <Text style={{ 
+                      <ThemedText style={{ 
                         fontSize: 13, 
                         fontWeight: '700', 
                         color: !selectedNode.category ? colors.textInverse : colors.textTertiary 
                       }}>
                         {t('projects.uncategorized')}
-                      </Text>
+                      </ThemedText>
                     </Pressable>
 
                     {/* Existing Categories */}
@@ -3262,13 +3261,13 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             borderColor: catColor,
                           }}
                         >
-                          <Text style={{ 
+                          <ThemedText style={{ 
                             fontSize: 13, 
                             fontWeight: '700', 
                             color: isSelected ? colors.accentText : catColor 
                           }}>
                             {catName}
-                          </Text>
+                          </ThemedText>
                         </Pressable>
                       );
                     })}
@@ -3283,9 +3282,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                   borderWidth: 1, 
                   borderColor: colors.border 
                 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
+                  <ThemedText style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
                     {t('projects.createNewCategory')}
-                  </Text>
+                  </ThemedText>
 
                   <TextInput
                     style={{
@@ -3306,9 +3305,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     onChangeText={(text) => setSelectedNode({ ...selectedNode, newCategoryName: text })}
                   />
 
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary, marginBottom: 12 }}>
+                  <ThemedText style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary, marginBottom: 12 }}>
                     {t('common.color')}
-                  </Text>
+                  </ThemedText>
 
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
                     {getCurrentThemeColors().map((color) => {
@@ -3358,13 +3357,13 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     }}
                     disabled={!selectedNode.newCategoryName?.trim()}
                   >
-                    <Text style={{ 
+                    <ThemedText style={{ 
                       fontSize: 15, 
                       fontWeight: '700', 
                       color: selectedNode.newCategoryName?.trim() ? colors.accentText : colors.textQuaternary 
                     }}>
                       {t('projects.createAndAssign')}
-                    </Text>
+                    </ThemedText>
                   </Pressable>
                 </View>
               </ScrollView>
@@ -3390,9 +3389,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     elevation: 4,
                   }}
                 >
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primaryText }}>
+                  <ThemedText style={{ fontSize: 16, fontWeight: '700', color: colors.primaryText }}>
                     {t('projects.saveChanges')}
-                  </Text>
+                  </ThemedText>
                 </Pressable>
               </View>
             </View>

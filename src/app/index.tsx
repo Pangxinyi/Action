@@ -29,15 +29,18 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
+import ThemedText from '../components/Common/ThemedText';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import EventCard from '../components/Calendar/EventCard';
-import HourRow from '../components/Calendar/HourRow';
-import EventEditor from '../components/Calendar/EventEditor';
 import { clearAppData, exportDataAsJSON, loadAppData } from '../../utils/storage';
+import EventCard from '../components/Calendar/EventCard';
+import EventEditor from '../components/Calendar/EventEditor';
+import HourRow from '../components/Calendar/HourRow';
+
+// Alias `Text` to `ThemedText` so existing <Text> usages become themed without sweeping every tag.
+const Text = ThemedText;
 
 
 // --- CONSTANTS ---
