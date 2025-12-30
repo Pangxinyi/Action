@@ -1,11 +1,11 @@
 import { useThemeColors } from '@hooks/useThemeColors';
 import React from 'react';
-import { Pressable, Text, ViewStyle } from 'react-native';
+import { Pressable, Text, StyleProp, ViewStyle } from 'react-native';
 
 type Props = {
   title: string;
   onPress?: () => void;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   variant?: 'primary' | 'secondary' | 'ghost';
 };
 

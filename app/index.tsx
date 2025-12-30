@@ -542,9 +542,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           </View>
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Pressable style={[styles.todayButton, { backgroundColor: colors.backgroundTertiary }]} onPress={handleTodayClick}>
-            <ThemedText style={[styles.todayButtonText, { color: colors.text }]}>{t('calendar.today')}</ThemedText>
-          </Pressable>
+          <Button
+            title={t('calendar.today')}
+            onPress={handleTodayClick}
+            variant="secondary"
+            style={[styles.todayButton, { backgroundColor: colors.backgroundTertiary } as any]}
+          />
           <Pressable style={[styles.fabSmall, { backgroundColor: colors.primary }]} onPress={handleAddNow}>
             <Plus size={18} color={colors.primaryText} />
           </Pressable>
@@ -565,23 +568,29 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             style={[styles.calendarDropdown, { backgroundColor: colors.surface, shadowColor: colors.text }]}
           >
             <View style={styles.calendarHeader}>
-              <Pressable onPress={() => {
-                const prev = new Date(selectedDate);
-                prev.setMonth(prev.getMonth() - 1);
-                setSelectedDate(prev);
-              }}>
-                <ThemedText style={[styles.calendarNavText, { color: colors.text }]}>←</ThemedText>
-              </Pressable>
+              <Button
+                title="←"
+                onPress={() => {
+                  const prev = new Date(selectedDate);
+                  prev.setMonth(prev.getMonth() - 1);
+                  setSelectedDate(prev);
+                }}
+                variant="ghost"
+                style={{ paddingHorizontal: 8 }}
+              />
               <ThemedText style={[styles.calendarMonth, { color: colors.text }]}> 
                 {formatMonthYear(selectedDate)}
               </ThemedText>
-              <Pressable onPress={() => {
-                const next = new Date(selectedDate);
-                next.setMonth(next.getMonth() + 1);
-                setSelectedDate(next);
-              }}>
-                <ThemedText style={[styles.calendarNavText, { color: colors.text }]}>→</ThemedText>
-              </Pressable>
+              <Button
+                title="→"
+                onPress={() => {
+                  const next = new Date(selectedDate);
+                  next.setMonth(next.getMonth() + 1);
+                  setSelectedDate(next);
+                }}
+                variant="ghost"
+                style={{ paddingHorizontal: 8 }}
+              />
             </View>
 
             {/* Weekday labels */}
@@ -986,24 +995,16 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
           {(['Week', 'Month', 'Year'] as const).map((range) => {
             const active = timeRange === range;
             return (
-              <Pressable
+              <Button
                 key={range}
+                title={t(`analytics.${range.toLowerCase()}` as any)}
+                onPress={() => setTimeRange(range)}
+                variant={active ? 'secondary' : 'ghost'}
                 style={[
                   styles.toggleItem,
-                  active && [styles.toggleItemActive, { backgroundColor: colors.surface }],
-                ]}
-                onPress={() => setTimeRange(range)}
-              >
-                <ThemedText
-                  style={[
-                    styles.toggleText,
-                    { color: colors.textTertiary },
-                    active && [styles.toggleTextActive, { color: colors.text }],
-                  ]}
-                >
-                  {t(`analytics.${range.toLowerCase()}` as any)}
-                </ThemedText>
-              </Pressable>
+                  active && { backgroundColor: colors.surface } as any,
+                ] as any}
+              />
             );
           })}
         </View>
