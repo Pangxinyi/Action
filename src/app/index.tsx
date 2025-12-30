@@ -1085,14 +1085,15 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                                   const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
                                                       'july', 'august', 'september', 'october', 'november', 'december'];
                                   const isSelected = month === selectedMonth;
-                                  return (
-                                    <Pressable
+                                    return (
+                                    <Button
                                       key={month}
-                                      style={[styles.pickerItem, { borderBottomColor: colors.border }]}
                                       onPress={() => {
                                         setSelectedMonth(month);
                                         setShowPicker(false);
                                       }}
+                                      variant={isSelected ? 'secondary' : 'ghost'}
+                                      style={[styles.pickerItem, { borderBottomColor: colors.border }] as any}
                                     >
                                       <Text style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</Text>
                                       <Text style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
@@ -1101,25 +1102,26 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                                           : `${t(`months.${monthNames[month]}`)} ${selectedYear}`
                                         }
                                       </Text>
-                                    </Pressable>
+                                    </Button>
                                   );
                                 })
                               : availableYears.map((year) => {
                                   const isSelected = year === selectedYear;
-                                  return (
-                                    <Pressable
+                                    return (
+                                    <Button
                                       key={year}
-                                      style={[styles.pickerItem, { borderBottomColor: colors.border }]}
                                       onPress={() => {
                                         setSelectedYear(year);
                                         setShowPicker(false);
                                       }}
+                                      variant={isSelected ? 'secondary' : 'ghost'}
+                                      style={[styles.pickerItem, { borderBottomColor: colors.border }] as any}
                                     >
                                       <Text style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</Text>
                                       <Text style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
                                         {year}
                                       </Text>
-                                    </Pressable>
+                                    </Button>
                                   );
                                 })
                             }

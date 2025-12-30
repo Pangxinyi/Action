@@ -1,6 +1,7 @@
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import ThemedText from '../Common/ThemedText';
+import Button from '../Common/Button';
 
 export type EventItem = {
   id: number;
@@ -39,8 +40,9 @@ const EventCard: React.FC<Props> = ({ evt, top, height, colors, projects, onPres
   const linked = evt.projectId ? projects.find(p => p.id === evt.projectId) : null;
 
   return (
-    <Pressable
+    <Button
       onPress={() => onPress(evt)}
+      variant="ghost"
       style={{
         position: 'absolute',
         left: 12,
@@ -53,7 +55,7 @@ const EventCard: React.FC<Props> = ({ evt, top, height, colors, projects, onPres
         borderRadius: 8,
         padding: 8,
         overflow: 'hidden',
-      }}
+      } as any}
     >
       <ThemedText numberOfLines={showOnlyTitle ? 1 : showTitleAndTime ? 1 : 2} ellipsizeMode="tail" style={{ color: colors.text, fontWeight: '600' }}>
         {evt.details || evt.title}
@@ -71,7 +73,7 @@ const EventCard: React.FC<Props> = ({ evt, top, height, colors, projects, onPres
           <ThemedText numberOfLines={1} style={{ color: colors.textSecondary, fontSize: 12 }}>{linked.name}</ThemedText>
         </View>
       )}
-    </Pressable>
+    </Button>
   );
 };
 
