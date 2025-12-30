@@ -54,16 +54,12 @@ const EventEditor: React.FC<Props> = ({
       <View style={{ padding: 12 }}>
         <View style={{ marginBottom: 12 }}>
           <ThemedText variant="label" style={{ color: colors.textTertiary }}>{t('calendar.start')}</ThemedText>
-          <Pressable onPress={() => onOpenTimeEditor('start')}>
-            <ThemedText style={{ color: colors.text }}>{formatMinutes(local.start)}</ThemedText>
-          </Pressable>
+          <Button title={formatMinutes(local.start)} onPress={() => onOpenTimeEditor('start')} variant="ghost" style={{ padding: 0 }} />
         </View>
 
         <View style={{ marginBottom: 12 }}>
           <ThemedText variant="label" style={{ color: colors.textTertiary }}>{t('calendar.end')}</ThemedText>
-          <Pressable onPress={() => onOpenTimeEditor('end')}>
-            <ThemedText style={{ color: colors.text }}>{formatMinutes(local.end)}</ThemedText>
-          </Pressable>
+          <Button title={formatMinutes(local.end)} onPress={() => onOpenTimeEditor('end')} variant="ghost" style={{ padding: 0 }} />
         </View>
 
         {editingField && (
@@ -79,16 +75,16 @@ const EventEditor: React.FC<Props> = ({
                 const nearest = Math.round(current / 1) * 1;
                 const active = m === nearest;
                 return (
-                  <Pressable
+                  <Button
                     key={`${editingField}-${m}`}
+                    title={formatMinutes(m)}
                     onPress={() => {
                       if (editingField === 'start') setLocal({ ...local, start: m });
                       else setLocal({ ...local, end: m });
                     }}
+                    variant={active ? 'secondary' : 'ghost'}
                     style={{ padding: 8, backgroundColor: active ? colors.backgroundTertiary : colors.surface }}
-                  >
-                    <ThemedText style={{ color: active ? colors.text : colors.textTertiary }}>{formatMinutes(m)}</ThemedText>
-                  </Pressable>
+                  />
                 );
               })}
             </ScrollView>
@@ -114,19 +110,17 @@ const EventEditor: React.FC<Props> = ({
               const catColor = categories[catName];
               const isSelected = local.category === catName;
               return (
-                <Pressable
+                <Button
                   key={catName}
-                  style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: `${catColor}20`, borderColor: catColor, borderWidth: 2 }}
+                  title={catName}
                   onPress={() => setLocal({ ...local, category: catName, isNewCategory: false, newCategoryName: '' })}
-                >
-                  <ThemedText style={{ color: isSelected ? colors.primaryText : catColor }}>{catName}</ThemedText>
-                </Pressable>
+                  variant={isSelected ? 'secondary' : 'ghost'}
+                  style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: `${catColor}20`, borderColor: catColor, borderWidth: 2 }}
+                />
               );
             })}
 
-            <Pressable onPress={() => setLocal({ ...local, isNewCategory: true })} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-              <ThemedText variant="label" style={{ color: colors.textTertiary }}>{t('projects.newCategory')}</ThemedText>
-            </Pressable>
+            <Button title={t('projects.newCategory')} onPress={() => setLocal({ ...local, isNewCategory: true })} variant="ghost" style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }} />
           </View>
 
           {local.isNewCategory && (
@@ -159,9 +153,7 @@ const EventEditor: React.FC<Props> = ({
               </Pressable>
             ))}
 
-            <Pressable onPress={() => setLocal({ ...local, isNewProject: true })} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-              <ThemedText variant="label" style={{ color: colors.textTertiary }}>{t('projects.newProject')}</ThemedText>
-            </Pressable>
+            <Button title={t('projects.newProject')} onPress={() => setLocal({ ...local, isNewProject: true })} variant="ghost" style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border }} />
           </View>
         </View>
 
