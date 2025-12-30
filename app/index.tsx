@@ -2964,23 +2964,23 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
               {/* X-axis labels */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginLeft: CHART_PADDING.left, marginTop: 8, width: chartInnerWidth }}>
-                <Text style={{ fontSize: 10, color: colors.chartLabel }}>0%</Text>
-                <Text style={{ fontSize: 10, color: colors.chartLabel }}>25%</Text>
-                <Text style={{ fontSize: 10, color: colors.chartLabel }}>50%</Text>
-                <Text style={{ fontSize: 10, color: colors.chartLabel }}>75%</Text>
-                <Text style={{ fontSize: 10, color: colors.chartLabel }}>100%</Text>
+                <ThemedText style={{ fontSize: 10, color: colors.chartLabel }}>0%</ThemedText>
+                <ThemedText style={{ fontSize: 10, color: colors.chartLabel }}>25%</ThemedText>
+                <ThemedText style={{ fontSize: 10, color: colors.chartLabel }}>50%</ThemedText>
+                <ThemedText style={{ fontSize: 10, color: colors.chartLabel }}>75%</ThemedText>
+                <ThemedText style={{ fontSize: 10, color: colors.chartLabel }}>100%</ThemedText>
               </View>
               
               {/* X-axis label */}
-              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.chartLabel, textAlign: 'center', marginTop: 4 }}>
+              <ThemedText style={{ fontSize: 11, fontWeight: '600', color: colors.chartLabel, textAlign: 'center', marginTop: 4 }}>
                 {t('visualization.xAxis')}
-              </Text>
+              </ThemedText>
 
               {/* Y-axis labels */}
               <View style={{ position: 'absolute', left: 0, top: CHART_PADDING.top, bottom: CHART_PADDING.bottom + 40, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 1 }}>
-                <Text style={{ fontSize: 8, color: colors.chartLabel, fontWeight: '600' }}>100%</Text>
-                <Text style={{ fontSize: 8, color: colors.chartLabel, fontWeight: '600' }}>50%</Text>
-                <Text style={{ fontSize: 8, color: colors.chartLabel, fontWeight: '600' }}>0%</Text>
+                <ThemedText style={{ fontSize: 8, color: colors.chartLabel, fontWeight: '600' }}>100%</ThemedText>
+                <ThemedText style={{ fontSize: 8, color: colors.chartLabel, fontWeight: '600' }}>50%</ThemedText>
+                <ThemedText style={{ fontSize: 8, color: colors.chartLabel, fontWeight: '600' }}>0%</ThemedText>
               </View>
             </View>
           </View>
