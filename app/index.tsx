@@ -2731,8 +2731,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                 onPress={() => setShowDataManagement(!showDataManagement)}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showDataManagement ? 12 : 0 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.dataManagement')}</Text>
-                <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showDataManagement ? '▼' : '▶'}</Text>
+                <ThemedText variant="label" style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.dataManagement')}</ThemedText>
+                <ThemedText variant="label" style={{ fontSize: 12, color: colors.textTertiary }}>{showDataManagement ? '▼' : '▶'}</ThemedText>
               </Pressable>
               {showDataManagement && (
                 <View style={{ gap: 8 }}>
@@ -2740,21 +2740,21 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     onPress={handleImportData}
                     style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
                   >
-                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.text }}>{t('projects.importData')}</Text>
-                    <Text style={{ fontSize: 20, color: colors.text }}>↑</Text>
+                    <ThemedText style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.text }}>{t('projects.importData')}</ThemedText>
+                    <ThemedText style={{ fontSize: 20, color: colors.text }}>↑</ThemedText>
                   </Pressable>
                   <Pressable
                     onPress={handleExportData}
                     style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
                   >
-                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.text }}>{t('projects.exportData')}</Text>
-                    <Text style={{ fontSize: 20, color: colors.text }}>↓</Text>
+                    <ThemedText style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.text }}>{t('projects.exportData')}</ThemedText>
+                    <ThemedText style={{ fontSize: 20, color: colors.text }}>↓</ThemedText>
                   </Pressable>
                   <Pressable
                     onPress={handleClearData}
                     style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.error }}
                   >
-                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.accentText }}>{t('projects.clearAllData')}</Text>
+                    <ThemedText style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.accentText }}>{t('projects.clearAllData')}</ThemedText>
                     <Trash2 size={18} color={colors.accentText} />
                   </Pressable>
                 </View>
@@ -2770,8 +2770,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
   return (
     <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}>
       {/* Header */}
-      <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>{t('visualization.title')}</Text>
+        <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <ThemedText variant="title" style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>{t('visualization.title')}</ThemedText>
         <Pressable onPress={() => setShowSettings(true)} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.backgroundTertiary, justifyContent: 'center', alignItems: 'center' }}>
           <Settings size={18} color={colors.textTertiary} />
         </Pressable>
@@ -2780,26 +2780,19 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       {/* Empty state or Chart + Detail Card */}
       {projectDataPoints.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, textAlign: 'center' }}>
+          <ThemedText style={{ fontSize: 16, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, textAlign: 'center' }}>
             {t('projects.noProjectsYet')}
-          </Text>
-          <Text style={{ fontSize: 14, color: colors.textQuaternary, textAlign: 'center', lineHeight: 20, marginBottom: 24 }}>
+          </ThemedText>
+          <ThemedText style={{ fontSize: 14, color: colors.textQuaternary, textAlign: 'center', lineHeight: 20, marginBottom: 24 }}>
             {t('projects.noProjectsHint')}
-          </Text>
+          </ThemedText>
           {onGoToCalendar && (
-            <Pressable
+            <Button
+              title={t('projects.goToCalendar')}
               onPress={onGoToCalendar}
-              style={{
-                backgroundColor: colors.accent,
-                paddingHorizontal: 20,
-                paddingVertical: 12,
-                borderRadius: 12,
-              }}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentText }}>
-                {t('projects.goToCalendar')}
-              </Text>
-            </Pressable>
+              variant="primary"
+              style={{ paddingHorizontal: 20 }}
+            />
           )}
         </View>
       ) : (
