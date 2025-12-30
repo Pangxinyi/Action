@@ -995,7 +995,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 ]}
                 onPress={() => setTimeRange(range)}
               >
-                <Text
+                <ThemedText
                   style={[
                     styles.toggleText,
                     { color: colors.textTertiary },
@@ -1003,7 +1003,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                   ]}
                 >
                   {t(`analytics.${range.toLowerCase()}` as any)}
-                </Text>
+                </ThemedText>
               </Pressable>
             );
           })}
@@ -1024,10 +1024,10 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                         onPress={() => setShowPicker(true)}
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                       >
-                        <Text style={styles.analyticsSubtitle}>{getSubtitle()}</Text>
+                        <ThemedText style={styles.analyticsSubtitle}>{getSubtitle()}</ThemedText>
                         <View style={styles.pickerIconContainer}>
-                          <Text style={styles.pickerIconUp}>▲</Text>
-                          <Text style={styles.pickerIconDown}>▼</Text>
+                          <ThemedText style={styles.pickerIconUp}>▲</ThemedText>
+                          <ThemedText style={styles.pickerIconDown}>▼</ThemedText>
                         </View>
                       </Pressable>
                       
@@ -1055,13 +1055,13 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                                         setShowPicker(false);
                                       }}
                                     >
-                                      <Text style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</Text>
-                                      <Text style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
+                                      <ThemedText style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</ThemedText>
+                                      <ThemedText style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
                                         {i18n.language === 'zh' 
-                                          ? `${selectedYear}年${t(`months.${monthNames[month]}`)}`
-                                          : `${t(`months.${monthNames[month]}`)} ${selectedYear}`
+                                          ? `${selectedYear}年${t('months.' + monthNames[month])}`
+                                          : `${t('months.' + monthNames[month])} ${selectedYear}`
                                         }
-                                      </Text>
+                                      </ThemedText>
                                     </Pressable>
                                   );
                                 })
@@ -1076,10 +1076,10 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                                         setShowPicker(false);
                                       }}
                                     >
-                                      <Text style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</Text>
-                                      <Text style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
+                                      <ThemedText style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</ThemedText>
+                                      <ThemedText style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
                                         {year}
-                                      </Text>
+                                      </ThemedText>
                                     </Pressable>
                                   );
                                 })
