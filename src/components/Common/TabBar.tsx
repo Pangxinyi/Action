@@ -1,7 +1,8 @@
 import { AppThemeColors } from '@hooks/useThemeColors';
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import ThemedText from './ThemedText';
+import Button from './Button';
 
 type TabKey = 'calendar' | 'analytics' | 'projects';
 
@@ -17,10 +18,10 @@ const TabBar: React.FC<Props> = ({ activeTab, setActiveTab, colors, t, Icons }) 
   const mkTab = (key: TabKey, label: string, Icon: any) => {
     const active = activeTab === key;
     return (
-      <Pressable style={{ alignItems: 'center', padding: 8 }} onPress={() => setActiveTab(key)}>
+      <Button onPress={() => setActiveTab(key)} variant="ghost" style={{ alignItems: 'center', padding: 8 }}>
         <Icon size={24} strokeWidth={active ? 2.5 : 2} color={active ? colors.tabActive : colors.tabInactive} />
         <ThemedText style={{ color: active ? colors.tabActive : colors.tabInactive }}>{label}</ThemedText>
-      </Pressable>
+      </Button>
     );
   };
 
