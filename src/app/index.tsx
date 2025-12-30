@@ -2496,18 +2496,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: catColor }} />
                             <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.text }}>{catName}</Text>
                           </View>
-                          <Pressable
-                            onPress={() => setEditingCategory({ oldName: catName, newName: catName, color: catColor })}
-                            style={{ padding: 8, backgroundColor: colors.backgroundTertiary, borderRadius: 8 }}
-                          >
+                          <Button onPress={() => setEditingCategory({ oldName: catName, newName: catName, color: catColor })} variant="ghost" style={{ padding: 8, backgroundColor: colors.backgroundTertiary, borderRadius: 8 }}>
                             <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary }}>✎</Text>
-                          </Pressable>
-                          <Pressable
-                            onPress={() => handleDeleteCategory(catName)}
-                            style={{ padding: 8, backgroundColor: colors.errorLight, borderRadius: 8 }}
-                          >
+                          </Button>
+                          <Button onPress={() => handleDeleteCategory(catName)} variant="ghost" style={{ padding: 8, backgroundColor: colors.errorLight, borderRadius: 8 }}>
                             <Trash2 size={14} color={colors.error} />
-                          </Pressable>
+                          </Button>
                         </>
                       )}
                     </View>
