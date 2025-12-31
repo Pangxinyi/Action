@@ -52,6 +52,7 @@ import type {
 import { getContrastColor } from '../src/utils/color';
 import { formatMinutes, parseLocalDate } from '../src/utils/date';
 import { clearAppData, exportDataAsJSON, loadAppData } from '../utils/storage';
+import BottomSheet from '../src/components/BottomSheet';
 
 
 // --- CONSTANTS ---
@@ -588,20 +589,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       </ScrollView>
 
       {/* Event Modal */}
-      <Modal visible={isModalOpen && !!draftEvent} transparent animationType="slide">
-        <Pressable 
-          style={[styles.modalOverlay, { backgroundColor: colors.modalBackdrop }]}
-          onPress={() => {
-            setIsModalOpen(false);
-            setDraftEvent(null);
-            setEditingField(null);
-          }}
-        >
-          <View 
-            style={[styles.bottomSheetLarge, { backgroundColor: colors.surface }]}
-            onStartShouldSetResponder={() => true}
-            onResponderRelease={() => {}}
-          >
+      <BottomSheet isOpen={isModalOpen && !!draftEvent} onClose={() => { setIsModalOpen(false); setDraftEvent(null); setEditingField(null); }}>
             {/* 顶部标题 + 删除 + 关闭 */}
             <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.sheetTitle, { color: colors.text }]}>
@@ -1032,9 +1020,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
             {/* 底部主按钮 */}
             <PrimaryButton onPress={handleSave} label={draftEvent?.id ? t('calendar.save') : t('calendar.addEvent')} colors={colors} />
-          </View>
-        </Pressable>
-      </Modal>
+      </BottomSheet>
 
           </View>
   );
@@ -1582,30 +1568,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
 
       {/* Edit Project Modal */}
       {modalOpen && editingProject && (
-        <Modal
-          visible={modalOpen}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setModalOpen(false)}
-        >
-          <View style={{ flex: 1, backgroundColor: colors.modalBackdrop, justifyContent: 'flex-end' }}>
-            {/* Backdrop */}
-            <Pressable 
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-              onPress={() => setModalOpen(false)}
-            />
-            
-            {/* Content */}
-            <View 
-              style={{ 
-                backgroundColor: colors.surface, 
-                borderTopLeftRadius: 24, 
-                borderTopRightRadius: 24, 
-                paddingTop: 20,
-                paddingBottom: 40,
-                maxHeight: '80%',
-              }}
-            >
+          <BottomSheet isOpen={modalOpen} onClose={() => setModalOpen(false)} height={'80%'}>
               {/* Header */}
               <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1740,39 +1703,14 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                   });
                 })()}
               </ScrollView>
-            </View>
-          </View>
-        </Modal>
+          </BottomSheet>
       )}
 
       {/* Unassigned Events Modal */}
       {showUnassignedEvents && (() => {
         const unassignedEvents = filteredEvents.filter(evt => !evt.projectId);
         return (
-          <Modal
-            visible={showUnassignedEvents}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setShowUnassignedEvents(false)}
-          >
-            <View style={{ flex: 1, backgroundColor: colors.modalBackdrop, justifyContent: 'flex-end' }}>
-              {/* Backdrop */}
-              <Pressable 
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                onPress={() => setShowUnassignedEvents(false)}
-              />
-              
-              {/* Content */}
-              <View 
-                style={{ 
-                  backgroundColor: colors.surface, 
-                  borderTopLeftRadius: 24, 
-                  borderTopRightRadius: 24, 
-                  paddingTop: 20,
-                  paddingBottom: 40,
-                  maxHeight: '80%',
-                }}
-              >
+              <BottomSheet isOpen={showUnassignedEvents} onClose={() => setShowUnassignedEvents(false)} height={'80%'}>
                 {/* Header */}
                 <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1891,9 +1829,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                     })
                   )}
                 </ScrollView>
-              </View>
-            </View>
-          </Modal>
+            </BottomSheet>
         );
       })()}
 
@@ -1912,24 +1848,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
             animationType="slide"
             onRequestClose={() => setShowCategoryEvents(false)}
           >
-            <View style={{ flex: 1, backgroundColor: colors.modalBackdrop, justifyContent: 'flex-end' }}>
-              {/* Backdrop */}
-              <Pressable 
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                onPress={() => setShowCategoryEvents(false)}
-              />
-              
-              {/* Content */}
-              <View 
-                style={{ 
-                  backgroundColor: colors.surface, 
-                  borderTopLeftRadius: 24, 
-                  borderTopRightRadius: 24, 
-                  paddingTop: 20,
-                  paddingBottom: 40,
-                  maxHeight: '80%',
-                }}
-              >
+            <BottomSheet isOpen={showCategoryEvents} onClose={() => setShowCategoryEvents(false)} height={'80%'}>
                 {/* Header */}
                 <View style={{ paddingHorizontal: 24, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -2052,9 +1971,7 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                     })
                   )}
                 </ScrollView>
-              </View>
-            </View>
-          </Modal>
+            </BottomSheet>
         );
       })()}
     </View>
