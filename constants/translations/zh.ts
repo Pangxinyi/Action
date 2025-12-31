@@ -123,6 +123,7 @@ export default {
     accumulationLevel85: '核心积累',
     category: '类别',
     createNewCategory: '创建新类别',
+    noCategories: '暂无类别',
     categoryNamePlaceholder: '类别名称...',
     createAndAssign: '创建并分配',
     saveChanges: '保存更改',

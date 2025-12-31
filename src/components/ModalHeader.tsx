@@ -14,7 +14,7 @@ type ModalHeaderProps = {
 
 export const ModalHeader: React.FC<ModalHeaderProps> = ({ title, titleNode, subtitle, onClose, rightElement, colors }) => {
   return (
-    <View style={[styles.header, { borderBottomColor: colors.border }]}> 
+    <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}> 
       <View style={{ flex: 1, marginRight: 12 }}>
         {titleNode ? (
           titleNode
@@ -43,12 +43,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 12,
+    // Header owns its padding so it can span full width inside parent containers
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
   },
   subtitle: {

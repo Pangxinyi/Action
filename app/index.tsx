@@ -1,6 +1,8 @@
 import i18n from 'i18next';
 import {
   Archive,
+  Folder,
+  PackageOpen,
   Plus,
   Settings,
   Trash2,
@@ -32,6 +34,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import CalendarDropdown from '../src/components/CalendarDropdown';
+import EmptyState from '../src/components/EmptyState';
 import { EventCard } from '../src/components/EventCard';
 import Header from '../src/components/Header';
 import { ModalHeader } from '../src/components/ModalHeader';
@@ -1542,18 +1545,19 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
             />
             
             {/* Content */}
-            <View 
-              style={{ 
-                backgroundColor: colors.surface, 
-                borderTopLeftRadius: 24, 
-                borderTopRightRadius: 24, 
-                paddingTop: 20,
-                paddingBottom: 40,
-                maxHeight: '80%',
-              }}
-            >
-              {/* Header */}
-              <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
+              <View 
+                style={{ 
+                  backgroundColor: colors.surface, 
+                  borderTopLeftRadius: 24, 
+                  borderTopRightRadius: 24, 
+                  paddingTop: 0,
+                  paddingBottom: 0,
+                  paddingHorizontal: 0,
+                  overflow: 'hidden',
+                  maxHeight: '80%',
+                }}
+              >
+                {/* Header */}
                 <ModalHeader
                   title={editingProject.name}
                   subtitle={(() => {
@@ -1568,24 +1572,22 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                   onClose={() => setModalOpen(false)}
                   colors={colors}
                 />
-              </View>
 
-              {/* Events List */}
-              <ScrollView 
-                style={{ flexGrow: 1 }}
-                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
-                showsVerticalScrollIndicator={false}
-              >
+                {/* Events List */}
+                <ScrollView 
+                  style={{ flexGrow: 1 }}
+                  contentContainerStyle={{ padding: 24, paddingBottom: 24 }}
+                  showsVerticalScrollIndicator={false}
+                >
                 {(() => {
                   const projectEvents = filteredEvents.filter(evt => evt.projectId === editingProject.id);
                   
                   if (projectEvents.length === 0) {
                     return (
-                      <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                        <Text style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
-                          No events for this project
-                        </Text>
-                      </View>
+                      <EmptyState
+                        message={t('visualization.noEventsForProject') || 'No events for this project'}
+                        colors={colors}
+                      />
                     );
                   }
                   
@@ -1689,40 +1691,40 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                   backgroundColor: colors.surface, 
                   borderTopLeftRadius: 24, 
                   borderTopRightRadius: 24, 
-                  paddingTop: 20,
-                  paddingBottom: 40,
+                  paddingTop: 0,
+                  paddingBottom: 0,
+                  paddingHorizontal: 0,
+                  overflow: 'hidden',
                   maxHeight: '80%',
                 }}
               >
                 {/* Header */}
-                <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
-                  <ModalHeader
-                    title={t('calendar.uncategorized')}
-                    subtitle={(() => {
-                      const cnt = unassignedEvents.length;
-                      const totalMinutes = unassignedEvents.reduce((s, e) => s + (e.duration || 0), 0);
-                      const h = Math.floor(totalMinutes / 60);
-                      const m = totalMinutes % 60;
-                      const timeStr = h > 0 ? `${h}${t('common.hours')} ${m}${t('common.minutes')}` : `${m}${t('common.minutes')}`;
-                      return `${cnt} ${cnt === 1 ? t('visualization.event') : t('visualization.events')} · ${timeStr}`;
-                    })()}
-                    onClose={() => setShowUnassignedEvents(false)}
-                    colors={colors}
-                  />
-                </View>
+                <ModalHeader
+                  title={t('calendar.uncategorized')}
+                  subtitle={(() => {
+                    const cnt = unassignedEvents.length;
+                    const totalMinutes = unassignedEvents.reduce((s, e) => s + (e.duration || 0), 0);
+                    const h = Math.floor(totalMinutes / 60);
+                    const m = totalMinutes % 60;
+                    const timeStr = h > 0 ? `${h}${t('common.hours')} ${m}${t('common.minutes')}` : `${m}${t('common.minutes')}`;
+                    return `${cnt} ${cnt === 1 ? t('visualization.event') : t('visualization.events')} · ${timeStr}`;
+                  })()}
+                  onClose={() => setShowUnassignedEvents(false)}
+                  colors={colors}
+                />
 
                 {/* Events List */}
                 <ScrollView 
                   style={{ flexGrow: 1 }}
-                  contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
+                  contentContainerStyle={{ padding: 24, paddingBottom: 24 }}
                   showsVerticalScrollIndicator={false}
                 >
                   {unassignedEvents.length === 0 ? (
-                    <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
-                        {t('projects.noProjectsYet')}
-                      </Text>
-                    </View>
+                    <EmptyState
+                      message={t('projects.noProjectsYet')}
+                      icon={<PackageOpen size={28} color={colors.textTertiary} />}
+                      fullScreen={false}
+                    />
                   ) : (
                     unassignedEvents.map((evt, index) => {
                       const eventDate = parseLocalDate(evt.date);
@@ -1829,39 +1831,39 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                   backgroundColor: colors.surface, 
                   borderTopLeftRadius: 24, 
                   borderTopRightRadius: 24, 
-                  paddingTop: 20,
-                  paddingBottom: 40,
+                  paddingTop: 0,
+                  paddingBottom: 0,
+                  paddingHorizontal: 0,
+                  overflow: 'hidden',
                   maxHeight: '80%',
                 }}
               >
                 {/* Header */}
-                <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
-                  <ModalHeader
-                    title={selectedCategory === 'uncategorized' ? t('calendar.uncategorized') : selectedCategory}
-                    subtitle={`${categoryEvents.length} ${categoryEvents.length === 1 ? t('visualization.event') : t('visualization.events')} · ${(() => {
-                      const totalMinutes = categoryEvents.reduce((s, e) => s + (e.duration || 0), 0);
-                      const h = Math.floor(totalMinutes / 60);
-                      const m = totalMinutes % 60;
-                      if (h > 0) return `${h}${t('common.hours')} ${m}${t('common.minutes')}`;
-                      return `${m}${t('common.minutes')}`;
-                    })()}`}
-                    onClose={() => setShowCategoryEvents(false)}
-                    colors={colors}
-                  />
-                </View>
+                <ModalHeader
+                  title={selectedCategory === 'uncategorized' ? t('calendar.uncategorized') : selectedCategory}
+                  subtitle={`${categoryEvents.length} ${categoryEvents.length === 1 ? t('visualization.event') : t('visualization.events')} · ${(() => {
+                    const totalMinutes = categoryEvents.reduce((s, e) => s + (e.duration || 0), 0);
+                    const h = Math.floor(totalMinutes / 60);
+                    const m = totalMinutes % 60;
+                    if (h > 0) return `${h}${t('common.hours')} ${m}${t('common.minutes')}`;
+                    return `${m}${t('common.minutes')}`;
+                  })()}`}
+                  onClose={() => setShowCategoryEvents(false)}
+                  colors={colors}
+                />
 
                 {/* Events List */}
                 <ScrollView 
                   style={{ flexGrow: 1 }}
-                  contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
+                  contentContainerStyle={{ padding: 24, paddingBottom: 24 }}
                   showsVerticalScrollIndicator={false}
                 >
                   {categoryEvents.length === 0 ? (
-                    <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 15, color: colors.textQuaternary, textAlign: 'center' }}>
-                        {t('projects.noProjectsYet')}
-                      </Text>
-                    </View>
+                    <EmptyState
+                      message={t('projects.noProjectsYet')}
+                      icon={<PackageOpen size={28} color={colors.textTertiary} />}
+                      fullScreen={false}
+                    />
                   ) : (
                     categoryEvents.map((evt, index) => {
                       const eventDate = parseLocalDate(evt.date);
@@ -2541,16 +2543,14 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     return (
       <View style={{ flex: 1, backgroundColor: colors.modalBackdrop }}>
         <Pressable style={{ flex: 1 }} onPress={() => setShowSettings(false)} />
-        <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 24, paddingHorizontal: 16, maxHeight: '80%' }}>
-          <View style={{ paddingHorizontal: 0, marginBottom: 24 }}>
-            <ModalHeader
-              title={t('projects.settings')}
-              onClose={() => setShowSettings(false)}
-              colors={colors}
-            />
-          </View>
+        <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 0, paddingBottom: 0, paddingHorizontal: 0, overflow: 'hidden', maxHeight: '80%' }}>
+          <ModalHeader
+            title={t('projects.settings')}
+            onClose={() => setShowSettings(false)}
+            colors={colors}
+          />
           
-          <ScrollView contentContainerStyle={{ gap: 20 }}>
+          <ScrollView contentContainerStyle={{ padding: 24, gap: 20 }}>
             {/* Manage Categories */}
             <View>
               <Pressable 
@@ -2562,7 +2562,64 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
               </Pressable>
               {showManageCategories && (
                 <View style={{ gap: 8 }}>
-                  {Object.entries(categories).map(([catName, catColor]) => (
+                  {editingCategory?.oldName === '' ? (
+                    <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary, padding: 12, borderRadius: 12, gap: 8 }}>
+                      <TextInput
+                        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: colors.text }}
+                        value={editingCategory.newName}
+                        onChangeText={(text) => setEditingCategory({ ...editingCategory, newName: text })}
+                        placeholder={t('projects.categoryName')}
+                        placeholderTextColor={colors.textQuaternary}
+                        autoFocus
+                      />
+                      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                        {getCurrentThemeColors().map((color) => (
+                          <Pressable
+                            key={color}
+                            onPress={() => setEditingCategory({ ...editingCategory, color })}
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: 16,
+                              backgroundColor: color,
+                              borderWidth: editingCategory.color === color ? 3 : 0,
+                              borderColor: colors.primary,
+                            }}
+                          />
+                        ))}
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <Pressable
+                          onPress={handleUpdateCategory}
+                          style={{ flex: 1, backgroundColor: colors.accent, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accentText }}>{t('common.save')}</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => setEditingCategory(null)}
+                          style={{ flex: 1, backgroundColor: colors.backgroundTertiary, paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textTertiary }}>{t('common.cancel')}</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : Object.keys(categories).length === 0 ? (
+                    <EmptyState
+                      message={t('projects.noCategories', { defaultValue: 'No categories yet' })}
+                      icon={<PackageOpen size={28} color={colors.textTertiary} />}
+                      fullScreen={false}
+                      actionButton={(
+                        <Pressable
+                          onPress={() => setEditingCategory({ oldName: '', newName: '', color: getCurrentThemeColors()[0] })}
+                          style={{ backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 }}
+                        >
+                          <Text style={{ color: colors.accentText, fontWeight: '700' }}>{t('projects.addCategory', { defaultValue: 'Add Category' })}</Text>
+                        </Pressable>
+                      )}
+                      colors={colors}
+                    />
+                  ) : (
+                    Object.entries(categories).map(([catName, catColor]) => (
                     <View key={catName} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       {editingCategory?.oldName === catName ? (
                         <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary, padding: 12, borderRadius: 12, gap: 8 }}>
@@ -2625,7 +2682,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                         </>
                       )}
                     </View>
-                  ))}
+                  ))) }
                 </View>
               )}
             </View>
@@ -2642,9 +2699,25 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
               {showProjectManagement && (
                 <View style={{ gap: 8 }}>
                   {projects.filter(p => !p.archived).length === 0 ? (
-                    <Text style={{ fontSize: 13, color: colors.textQuaternary, textAlign: 'center', paddingVertical: 16 }}>
-                      {t('projects.noActiveProjects')}
-                    </Text>
+                    <EmptyState
+                      message={t('projects.noActiveProjects')}
+                      icon={<Folder size={20} color={colors.textTertiary} />}
+                      fullScreen={false}
+                      style={{ paddingVertical: 16 }}
+                      actionButton={(
+                        <Pressable
+                          onPress={() => {
+                            const newProj = { id: Date.now(), name: '', time: '0h 0m', category: null, hexColor: '#9CA3AF', percent: 100, x: 150, y: 150 };
+                            setProjects(prev => [...prev, newProj]);
+                            setEditingProject(newProj);
+                          }}
+                          style={{ backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 }}
+                        >
+                          <Text style={{ color: colors.accentText, fontWeight: '700' }}>{t('projects.addProject', { defaultValue: 'Add Project' })}</Text>
+                        </Pressable>
+                      )}
+                      colors={colors}
+                    />
                   ) : (
                     projects.filter(p => !p.archived).map((project) => (
                       <View key={project.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -2793,9 +2866,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
               {showArchivedProjects && (
                 <View style={{ gap: 8 }}>
                   {projects.filter(p => p.archived).length === 0 ? (
-                    <Text style={{ fontSize: 13, color: colors.textQuaternary, textAlign: 'center', paddingVertical: 16 }}>
-                      {t('projects.noArchivedProjects')}
-                    </Text>
+                    <EmptyState
+                      message={t('projects.noArchivedProjects')}
+                      icon={<Archive size={20} color={colors.textTertiary} />}
+                      fullScreen={false}
+                      style={{ paddingVertical: 16 }}
+                    />
                   ) : (
                     projects.filter(p => p.archived).map((project) => (
                       <View key={project.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -2932,14 +3008,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
 
       {/* Empty state or Chart + Detail Card */}
       {projectDataPoints.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, textAlign: 'center' }}>
-            {t('projects.noProjectsYet')}
-          </Text>
-          <Text style={{ fontSize: 14, color: colors.textQuaternary, textAlign: 'center', lineHeight: 20, marginBottom: 24 }}>
-            {t('projects.noProjectsHint')}
-          </Text>
-          {onGoToCalendar && (
+        <EmptyState
+          message={`${t('projects.noProjectsYet')}
+\n${t('projects.noProjectsHint')}`}
+          actionButton={onGoToCalendar ? (
             <Pressable
               onPress={onGoToCalendar}
               style={{
@@ -2953,8 +3025,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                 {t('projects.goToCalendar')}
               </Text>
             </Pressable>
-          )}
-        </View>
+          ) : undefined}
+          colors={colors}
+        />
       ) : (
         <ScrollView 
           style={{ flex: 1 }}
@@ -3227,53 +3300,53 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                 backgroundColor: colors.surface, 
                 borderTopLeftRadius: 24, 
                 borderTopRightRadius: 24, 
-                paddingTop: 20,
-                paddingBottom: 40,
+                paddingTop: 0,
+                paddingBottom: 0,
+                paddingHorizontal: 0,
+                overflow: 'hidden',
                 maxHeight: '80%',
               }}
             >
               {/* Header */}
-              <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
-                <ModalHeader
-                  titleNode={
-                    <TextInput
-                      style={{ 
-                        fontSize: 28, 
-                        fontWeight: '700', 
-                        color: colors.text,
-                        padding: 0,
-                        margin: 0,
-                      }}
-                      value={selectedNode.name}
-                      onChangeText={(text) => setSelectedNode({ ...selectedNode, name: text })}
-                      placeholder="Project Name"
-                      placeholderTextColor={colors.textQuaternary}
-                    />
-                  }
-                  subtitle={t('projects.editDetails')}
-                  onClose={() => setModalOpen(false)}
-                  rightElement={
-                    <Pressable 
-                      onPress={() => handleArchiveProject(selectedNode.id)}
-                      style={{ 
-                        width: 32, 
-                        height: 32, 
-                        borderRadius: 16, 
-                        backgroundColor: colors.warningLight, 
-                        justifyContent: 'center', 
-                        alignItems: 'center' 
-                      }}
-                    >
-                      <Archive size={18} color={colors.warning} />
-                    </Pressable>
-                  }
-                  colors={colors}
-                />
-              </View>
+              <ModalHeader
+                titleNode={
+                  <TextInput
+                    style={{ 
+                      fontSize: 28, 
+                      fontWeight: '700', 
+                      color: colors.text,
+                      padding: 0,
+                      margin: 0,
+                    }}
+                    value={selectedNode.name}
+                    onChangeText={(text) => setSelectedNode({ ...selectedNode, name: text })}
+                    placeholder="Project Name"
+                    placeholderTextColor={colors.textQuaternary}
+                  />
+                }
+                subtitle={t('projects.editDetails')}
+                onClose={() => setModalOpen(false)}
+                rightElement={
+                  <Pressable 
+                    onPress={() => handleArchiveProject(selectedNode.id)}
+                    style={{ 
+                      width: 32, 
+                      height: 32, 
+                      borderRadius: 16, 
+                      backgroundColor: colors.warningLight, 
+                      justifyContent: 'center', 
+                      alignItems: 'center' 
+                    }}
+                  >
+                    <Archive size={18} color={colors.warning} />
+                  </Pressable>
+                }
+                colors={colors}
+              />
 
               <ScrollView 
                 style={{ flexGrow: 1 }}
-                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 20 }}
+                contentContainerStyle={{ padding: 24, paddingBottom: 24 }}
                 showsVerticalScrollIndicator={false}
               >
                 {/* Accumulation (Progress) */}
@@ -3874,13 +3947,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 16,
+    paddingTop: 0,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+    overflow: 'hidden',
   },
   bottomSheetLarge: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 16,
+    paddingTop: 0,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+    overflow: 'hidden',
     // 原来是 maxHeight: '85%',
     height: '75%',             // 或者 '70%' / '80%'，看你喜欢多高
     flexDirection: 'column',

@@ -123,6 +123,7 @@ export default {
     accumulationLevel85: 'Core',
     category: 'Category',
     createNewCategory: 'Create New Category',
+    noCategories: 'No categories yet',
     categoryNamePlaceholder: 'Category name...',
     createAndAssign: 'Create & Assign',
     saveChanges: 'Save Changes',
