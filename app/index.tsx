@@ -32,6 +32,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import CalendarDropdown from '../src/components/CalendarDropdown';
+import { EventCard } from '../src/components/EventCard';
 import Header from '../src/components/Header';
 import { ModalHeader } from '../src/components/ModalHeader';
 import PrimaryButton from '../src/components/PrimaryButton';
@@ -127,22 +128,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
   // formatFullDate removed (unused)
 
-  // 获取事件的当前颜色（基于项目或分类）
-  const getEventColor = (evt: EventItem): string => {
-    // 优先从关联的项目获取颜色
-    if (evt.projectId) {
-      const project = projects.find(p => p.id === evt.projectId);
-      if (project) {
-        return project.hexColor;
-      }
-    }
-    // 其次从分类获取颜色
-    if (evt.category && categories[evt.category]) {
-      return categories[evt.category];
-    }
-    // 最后使用事件自己的颜色或默认颜色
-    return evt.hexColor || '#9CA3AF';
-  };
+
+
 
   // Date navigation functions
   const handlePrevDay = useCallback(() => {
@@ -529,54 +516,18 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             .map((evt) => {
             const top = evt.start * pixelsPerMinute;
             const height = evt.duration * pixelsPerMinute;
-            const eventColor = getEventColor(evt);
             if (top < 0) return null;
             const cardHeight = Math.max(20, height);
-            const showOnlyTitle = cardHeight <= 28;
-            const showTitleAndTime = cardHeight > 28 && cardHeight <= 44;
-            const showAll = cardHeight > 44;
             return (
-              <Pressable
+              <EventCard
                 key={evt.id}
-                onPress={() => handleEventPress(evt)}
-                style={[
-                  styles.eventCard,
-                  {
-                    top,
-                    height: cardHeight,
-                    backgroundColor: `${eventColor}99`,
-                    borderLeftColor: eventColor,
-                  },
-                ]}
-              >
-                {/* Title */}
-                <Text
-                  style={[styles.eventTitle, { color: colors.text }]}
-                  numberOfLines={showOnlyTitle ? 1 : showTitleAndTime ? 1 : 2}
-                  ellipsizeMode="tail"
-                >
-                  {evt.details || evt.title || t('calendar.newEvent')}
-                </Text>
-
-                {/* Time (only if enough height) */}
-                {(showTitleAndTime || showAll) && (
-                  <Text style={[styles.eventTime, { color: colors.textSecondary }]}>
-                    {formatMinutes(evt.start)} - {formatMinutes(evt.start + evt.duration)}
-                  </Text>
-                )}
-
-                {/* Project row (only if plenty of height) */}
-                {showAll && evt.projectId && (() => {
-                  const linked = projects.find(p => p.id === evt.projectId);
-                  if (!linked) return null;
-                  return (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: linked.hexColor, marginRight: 8 }} />
-                      <Text style={{ fontSize: 12, color: colors.textSecondary }} numberOfLines={1}>{linked.name}</Text>
-                    </View>
-                  );
-                })()}
-              </Pressable>
+                event={evt}
+                layout={{ top, height: cardHeight }}
+                colors={colors}
+                projects={projects}
+                styles={styles}
+                onPress={handleEventPress}
+              />
             );
           })}
 
