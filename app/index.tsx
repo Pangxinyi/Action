@@ -34,6 +34,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import CalendarDropdown from '../src/components/CalendarDropdown';
+import ColorPicker from '../src/components/ColorPicker';
 import EmptyState from '../src/components/EmptyState';
 import { EventCard } from '../src/components/EventCard';
 import Header from '../src/components/Header';
@@ -2572,22 +2573,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                         placeholderTextColor={colors.textQuaternary}
                         autoFocus
                       />
-                      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                        {getCurrentThemeColors().map((color) => (
-                          <Pressable
-                            key={color}
-                            onPress={() => setEditingCategory({ ...editingCategory, color })}
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: 16,
-                              backgroundColor: color,
-                              borderWidth: editingCategory.color === color ? 3 : 0,
-                              borderColor: colors.primary,
-                            }}
-                          />
-                        ))}
-                      </View>
+                      <ColorPicker
+                        colors={getCurrentThemeColors()}
+                        selectedColor={editingCategory.color}
+                        onSelect={(c) => setEditingCategory({ ...editingCategory, color: c })}
+                        size={32}
+                      />
                       <View style={{ flexDirection: 'row', gap: 8 }}>
                         <Pressable
                           onPress={handleUpdateCategory}
@@ -2630,22 +2621,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                             placeholder={t('projects.categoryName')}
                             placeholderTextColor={colors.textQuaternary}
                           />
-                          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                            {getCurrentThemeColors().map((color) => (
-                              <Pressable
-                                key={color}
-                                onPress={() => setEditingCategory({ ...editingCategory, color })}
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: 16,
-                                  backgroundColor: color,
-                                  borderWidth: editingCategory.color === color ? 3 : 0,
-                                  borderColor: colors.primary,
-                                }}
-                              />
-                            ))}
-                          </View>
+                          <ColorPicker
+                            colors={getCurrentThemeColors()}
+                            selectedColor={editingCategory.color}
+                            onSelect={(c) => setEditingCategory({ ...editingCategory, color: c })}
+                            size={32}
+                          />
                           <View style={{ flexDirection: 'row', gap: 8 }}>
                             <Pressable
                               onPress={handleUpdateCategory}
@@ -3529,30 +3510,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     {t('common.color')}
                   </Text>
 
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                    {getCurrentThemeColors().map((color) => {
-                      const isSelected = (selectedNode.newCategoryColor || getCurrentThemeColors()[0]) === color;
-                      return (
-                        <Pressable
-                          key={color}
-                          onPress={() => setSelectedNode({ ...selectedNode, newCategoryColor: color })}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 20,
-                            backgroundColor: color,
-                            borderWidth: isSelected ? 3 : 2,
-                            borderColor: isSelected ? colors.primary : colors.surface,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 4,
-                            elevation: 3,
-                          }}
-                        />
-                      );
-                    })}
-                  </View>
+                  <ColorPicker
+                    colors={getCurrentThemeColors()}
+                    selectedColor={selectedNode.newCategoryColor || getCurrentThemeColors()[0]}
+                    onSelect={(c) => setSelectedNode({ ...selectedNode, newCategoryColor: c })}
+                    size={40}
+                  />
 
                   <Pressable
                     onPress={() => {
