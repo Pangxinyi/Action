@@ -109,3 +109,4 @@ export type ProjectsViewProps = {
   onGoToCalendar?: () => void;
   colors: AppThemeColors;
 };
+

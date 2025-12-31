@@ -4,7 +4,7 @@ import type { HeaderProps } from '../types';
 
 const Header: React.FC<HeaderProps> = ({ title, subtitle, leftIcon, rightIcon, colors }) => {
   return (
-    <View style={[styles.header, colors && { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+    <View style={[styles.header, colors && { backgroundColor: colors.surface, borderBottomColor: colors.border }]}> 
       <View style={styles.headerLeft}>
         {leftIcon && <View style={{ marginRight: 8 }}>{leftIcon}</View>}
         <View>

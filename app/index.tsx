@@ -33,6 +33,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import CalendarDropdown from '../src/components/CalendarDropdown';
 import Header from '../src/components/Header';
+import { ModalHeader } from '../src/components/ModalHeader';
 import PrimaryButton from '../src/components/PrimaryButton';
 import SegmentedControl from '../src/components/SegmentedControl';
 import TabBar from '../src/components/TabBar';
@@ -603,28 +604,22 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             onResponderRelease={() => {}}
           >
             {/* 顶部标题 + 删除 + 关闭 */}
-            <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.sheetTitle, { color: colors.text }]}>
-                {draftEvent?.id ? t('calendar.editEvent') : t('calendar.addEvent')}
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                {draftEvent?.id && (
+            <ModalHeader
+              title={draftEvent?.id ? t('calendar.editEvent') : t('calendar.addEvent')}
+              onClose={() => {
+                setIsModalOpen(false);
+                setDraftEvent(null);
+                setEditingField(null);
+              }}
+              colors={colors}
+              rightElement={
+                draftEvent?.id && (
                   <Pressable style={styles.iconDanger} onPress={handleDelete}>
                     <Trash2 size={18} color={colors.error} />
                   </Pressable>
-                )}
-                <Pressable
-                  style={styles.iconButton}
-                  onPress={() => {
-                    setIsModalOpen(false);
-                    setDraftEvent(null);
-                    setEditingField(null); 
-                  }}
-                >
-                  <X size={20} color={colors.textTertiary} />
-                </Pressable>
-              </View>
-            </View>
+                )
+              }
+            />
 
             {draftEvent && (
               <ScrollView
@@ -1608,45 +1603,20 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
             >
               {/* Header */}
               <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flex: 1, marginRight: 12 }}>
-                    <Text
-                      numberOfLines={2}
-                      ellipsizeMode="tail"
-                      style={{ fontSize: 24, fontWeight: '700', color: colors.text, flexShrink: 1 }}
-                    >
-                      {editingProject.name}
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={{ fontSize: 14, color: colors.textTertiary, marginTop: 4 }}
-                    >
-                      {(() => {
-                        const projectEvents = filteredEvents.filter(evt => evt.projectId === editingProject.id);
-                        const cnt = projectEvents.length;
-                        const totalMinutes = projectEvents.reduce((s, e) => s + (e.duration || 0), 0);
-                        const h = Math.floor(totalMinutes / 60);
-                        const m = totalMinutes % 60;
-                        const timeStr = h > 0 ? `${h}${t('common.hours')} ${m}${t('common.minutes')}` : `${m}${t('common.minutes')}`;
-                        return `${cnt} ${cnt === 1 ? t('visualization.event') : t('visualization.events')} · ${timeStr}`;
-                      })()}
-                    </Text>
-                  </View>
-                  <Pressable 
-                    onPress={() => setModalOpen(false)}
-                    style={{ 
-                      width: 32, 
-                      height: 32, 
-                      borderRadius: 16, 
-                      backgroundColor: colors.backgroundTertiary, 
-                      justifyContent: 'center', 
-                      alignItems: 'center' 
-                    }}
-                  >
-                    <X size={18} color={colors.textTertiary} />
-                  </Pressable>
-                </View>
+                <ModalHeader
+                  title={editingProject.name}
+                  subtitle={(() => {
+                    const projectEvents = filteredEvents.filter(evt => evt.projectId === editingProject.id);
+                    const cnt = projectEvents.length;
+                    const totalMinutes = projectEvents.reduce((s, e) => s + (e.duration || 0), 0);
+                    const h = Math.floor(totalMinutes / 60);
+                    const m = totalMinutes % 60;
+                    const timeStr = h > 0 ? `${h}${t('common.hours')} ${m}${t('common.minutes')}` : `${m}${t('common.minutes')}`;
+                    return `${cnt} ${cnt === 1 ? t('visualization.event') : t('visualization.events')} · ${timeStr}`;
+                  })()}
+                  onClose={() => setModalOpen(false)}
+                  colors={colors}
+                />
               </View>
 
               {/* Events List */}
@@ -1775,36 +1745,19 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
               >
                 {/* Header */}
                 <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <View>
-                      <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
-                        {t('calendar.uncategorized')}
-                      </Text>
-                      <Text style={{ fontSize: 14, color: colors.textTertiary, marginTop: 4 }}>
-                        {(() => {
-                          const cnt = unassignedEvents.length;
-                          const totalMinutes = unassignedEvents.reduce((s, e) => s + (e.duration || 0), 0);
-                          const h = Math.floor(totalMinutes / 60);
-                          const m = totalMinutes % 60;
-                          const timeStr = h > 0 ? `${h}${t('common.hours')} ${m}${t('common.minutes')}` : `${m}${t('common.minutes')}`;
-                          return `${cnt} ${cnt === 1 ? t('visualization.event') : t('visualization.events')} · ${timeStr}`;
-                        })()}
-                      </Text>
-                    </View>
-                    <Pressable 
-                      onPress={() => setShowUnassignedEvents(false)}
-                      style={{ 
-                        width: 32, 
-                        height: 32, 
-                        borderRadius: 16, 
-                        backgroundColor: colors.backgroundTertiary, 
-                        justifyContent: 'center', 
-                        alignItems: 'center' 
-                      }}
-                    >
-                      <X size={18} color={colors.textTertiary} />
-                    </Pressable>
-                  </View>
+                  <ModalHeader
+                    title={t('calendar.uncategorized')}
+                    subtitle={(() => {
+                      const cnt = unassignedEvents.length;
+                      const totalMinutes = unassignedEvents.reduce((s, e) => s + (e.duration || 0), 0);
+                      const h = Math.floor(totalMinutes / 60);
+                      const m = totalMinutes % 60;
+                      const timeStr = h > 0 ? `${h}${t('common.hours')} ${m}${t('common.minutes')}` : `${m}${t('common.minutes')}`;
+                      return `${cnt} ${cnt === 1 ? t('visualization.event') : t('visualization.events')} · ${timeStr}`;
+                    })()}
+                    onClose={() => setShowUnassignedEvents(false)}
+                    colors={colors}
+                  />
                 </View>
 
                 {/* Events List */}
@@ -1931,37 +1884,19 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ projects, events, categor
                 }}
               >
                 {/* Header */}
-                <View style={{ paddingHorizontal: 24, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
-                          {selectedCategory === 'uncategorized' ? t('calendar.uncategorized') : selectedCategory}
-                        </Text>
-                        {/* Count + total duration */}
-                        <Text style={{ fontSize: 13, color: colors.textTertiary, marginTop: 4 }}>
-                          {`${categoryEvents.length} ${categoryEvents.length === 1 ? t('visualization.event') : t('visualization.events')} · ${(() => {
-                              const totalMinutes = categoryEvents.reduce((s, e) => s + (e.duration || 0), 0);
-                              const h = Math.floor(totalMinutes / 60);
-                              const m = totalMinutes % 60;
-                              if (h > 0) return `${h}${t('common.hours')} ${m}${t('common.minutes')}`;
-                              return `${m}${t('common.minutes')}`;
-                            })()}`}
-                        </Text>
-                      </View>
-                    </View>
-                  <Pressable 
-                    onPress={() => setShowCategoryEvents(false)}
-                    style={{ 
-                      width: 32, 
-                      height: 32, 
-                      borderRadius: 16, 
-                      backgroundColor: colors.backgroundTertiary, 
-                      justifyContent: 'center', 
-                      alignItems: 'center' 
-                    }}
-                  >
-                    <X size={18} color={colors.textTertiary} />
-                  </Pressable>
+                <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
+                  <ModalHeader
+                    title={selectedCategory === 'uncategorized' ? t('calendar.uncategorized') : selectedCategory}
+                    subtitle={`${categoryEvents.length} ${categoryEvents.length === 1 ? t('visualization.event') : t('visualization.events')} · ${(() => {
+                      const totalMinutes = categoryEvents.reduce((s, e) => s + (e.duration || 0), 0);
+                      const h = Math.floor(totalMinutes / 60);
+                      const m = totalMinutes % 60;
+                      if (h > 0) return `${h}${t('common.hours')} ${m}${t('common.minutes')}`;
+                      return `${m}${t('common.minutes')}`;
+                    })()}`}
+                    onClose={() => setShowCategoryEvents(false)}
+                    colors={colors}
+                  />
                 </View>
 
                 {/* Events List */}
@@ -2656,11 +2591,12 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       <View style={{ flex: 1, backgroundColor: colors.modalBackdrop }}>
         <Pressable style={{ flex: 1 }} onPress={() => setShowSettings(false)} />
         <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 24, paddingHorizontal: 16, maxHeight: '80%' }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{t('projects.settings')}</Text>
-            <Pressable onPress={() => setShowSettings(false)}>
-              <X size={24} color={colors.textTertiary} />
-            </Pressable>
+          <View style={{ paddingHorizontal: 0, marginBottom: 24 }}>
+            <ModalHeader
+              title={t('projects.settings')}
+              onClose={() => setShowSettings(false)}
+              colors={colors}
+            />
           </View>
           
           <ScrollView contentContainerStyle={{ gap: 20 }}>
@@ -3347,8 +3283,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
             >
               {/* Header */}
               <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                  <View style={{ flex: 1, marginRight: 16 }}>
+                <ModalHeader
+                  titleNode={
                     <TextInput
                       style={{ 
                         fontSize: 28, 
@@ -3362,8 +3298,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                       placeholder="Project Name"
                       placeholderTextColor={colors.textQuaternary}
                     />
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  }
+                  subtitle={t('projects.editDetails')}
+                  onClose={() => setModalOpen(false)}
+                  rightElement={
                     <Pressable 
                       onPress={() => handleArchiveProject(selectedNode.id)}
                       style={{ 
@@ -3377,22 +3315,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
                     >
                       <Archive size={18} color={colors.warning} />
                     </Pressable>
-                    <Pressable 
-                      onPress={() => setModalOpen(false)}
-                      style={{ 
-                        width: 32, 
-                        height: 32, 
-                        borderRadius: 16, 
-                        backgroundColor: colors.backgroundTertiary, 
-                        justifyContent: 'center', 
-                        alignItems: 'center' 
-                      }}
-                    >
-                      <X size={18} color={colors.textTertiary} />
-                    </Pressable>
-                  </View>
-                </View>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textTertiary }}>{t('projects.editDetails')}</Text>
+                  }
+                  colors={colors}
+                />
               </View>
 
               <ScrollView 

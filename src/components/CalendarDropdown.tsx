@@ -16,8 +16,7 @@ type Props = {
 
 const CalendarDropdown: React.FC<Props> = ({ selectedDate, setSelectedDate, firstDay, calendarDays, formatMonthYear, formatWeekday, t, colors, onClose }) => {
   return (
-    <View style={[styles.calendarDropdown, { backgroundColor: colors.surface, shadowColor: colors.text }]}
-    >
+    <View style={[styles.calendarDropdown, { backgroundColor: colors.surface, shadowColor: colors.text }]}> 
       <View style={styles.calendarHeader}>
         <Pressable onPress={() => {
           const prev = new Date(selectedDate);

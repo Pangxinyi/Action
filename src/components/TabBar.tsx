@@ -24,7 +24,7 @@ const TabBar: React.FC<Props> = ({ activeTab, setActiveTab, colors }) => {
   };
 
   return (
-    <View style={[styles.tabBar, { backgroundColor: colors.tabBar, borderColor: colors.border }]}>
+    <View style={[styles.tabBar, { backgroundColor: colors.tabBar, borderColor: colors.border }]}> 
       {mkTab('calendar', t('tabs.calendar'), CalendarIcon)}
       {mkTab('analytics', t('tabs.analytics'), PieChart)}
       {mkTab('projects', t('tabs.projects'), Network)}
