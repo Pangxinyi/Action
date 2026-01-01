@@ -28,7 +28,7 @@ export default {
     hours: '小时',
     newEvent: '新建事件',
     editEvent: '编辑事件',
-    sun: '天',
+    sun: '日',
     mon: '一',
     tue: '二',
     wed: '三',
