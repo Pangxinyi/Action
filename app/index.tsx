@@ -43,6 +43,7 @@ import PrimaryButton from '../src/components/PrimaryButton';
 import SegmentedControl from '../src/components/SegmentedControl';
 import TabBar from '../src/components/TabBar';
 import { COLOR_THEMES, NODE_SIZE, TIME_STEP_MIN } from '../src/constants/theme';
+import { EventEditForm } from '../src/features/calendar/components/EventEditForm';
 import type {
   AnalyticsViewProps,
   CalendarViewProps,
@@ -56,7 +57,7 @@ import type {
   TimeRangeType
 } from '../src/types';
 import { getContrastColor } from '../src/utils/color';
-import { formatMinutes, parseLocalDate } from '../src/utils/date';
+import { parseLocalDate } from '../src/utils/date';
 import { clearAppData, exportDataAsJSON, loadAppData } from '../utils/storage';
 
 
@@ -108,7 +109,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const [draftEvent, setDraftEvent] = useState<DraftEvent | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
-  const timeListRef = useRef<ScrollView | null>(null);
 
   // 获取当前主题的颜色数组
   const themeColors = COLOR_THEMES[selectedColorScheme as keyof typeof COLOR_THEMES] || COLOR_THEMES.default;
@@ -183,15 +183,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   }, [editingField]);
 
 
-
-  const timeOptions = useMemo(
-    () =>
-      Array.from(
-        { length: (48 * 60) / TIME_STEP_MIN }, // 支持跨越午夜的事件（最多48小时）
-        (_, i) => i * TIME_STEP_MIN,
-      ),
-    [],
-  );
   const pixelsPerMinute = 1;
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -388,11 +379,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   // handleReset removed (unused)
 
 
-  const openTimeEditor = (field: 'start' | 'end') => {
-    setEditingField(field);
-  };
-
-
   const handleSelectTime = (field: 'start' | 'end', minutes: number) => {
     if (!draftEvent) return;
 
@@ -473,6 +459,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             t={t}
             colors={colors}
             onClose={() => setIsCalendarOpen(false)}
+            events={events}
+            categories={categories}
           />
         </>
       )}
@@ -577,411 +565,23 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             />
 
             {draftEvent && (
-              <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ paddingBottom: 24 }}
-              >
-                {/* ---- 时间大卡片 ---- */}
-                {/* ---- 时间大卡片 ---- */}
-                <View style={[styles.card, styles.timeCard, { backgroundColor: colors.backgroundSecondary }]}>
-                  <View style={styles.timeHeaderRow}>
-                    <Text style={[styles.timeHeaderLabel, { color: colors.textTertiary }]}>{t('calendar.start')}</Text>
-                    <Text style={[styles.timeHeaderLabel, { color: colors.textTertiary }]}>{t('calendar.end')}</Text>
-                  </View>
-
-                  <View style={styles.timeMainRow}>
-                    {/* START */}
-                    <Pressable
-                      style={styles.timeBlock}
-                      onPress={() => openTimeEditor('start')}
-                    >
-                      <Text style={[styles.timeBig, { color: colors.text }]}>
-                        {formatMinutes(draftEvent.start)}
-                      </Text>
-                    </Pressable>
-
-                    <Text style={[styles.timeArrow, { color: colors.textTertiary }]}>→</Text>
-
-                    {/* END */}
-                    <Pressable
-                      style={styles.timeBlock}
-                      onPress={() => openTimeEditor('end')}
-                    >
-                      <Text style={[styles.timeBig, { color: colors.text }]}>
-                        {formatMinutes(draftEvent.end)}
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-
-                {/* 👉 下拉时间选择器，类似 Google Calendar 的选择列表 */}
-                {editingField && (
-                  <View style={[styles.timePickerContainer, { backgroundColor: colors.backgroundTertiary, borderColor: colors.border }]}>
-                    <Text style={[styles.timePickerTitle, { color: colors.textTertiary }]}>
-                      {editingField === 'start'
-                        ? t('calendar.startTime')
-                        : t('calendar.duration')}
-                    </Text>
-                    <ScrollView
-                      key={editingField}
-                      ref={timeListRef}
-                      style={{ maxHeight: 260 }}
-                      scrollEnabled={true}
-                      showsVerticalScrollIndicator={false}
-                      contentContainerStyle={{ paddingVertical: 0 }}
-                      onContentSizeChange={(width, height) => {
-                        if (height === 0) return;
-                        
-                        // Only scroll if we have an active editing field
-                        if (!editingField || !draftEvent) return;
-                        
-                        const current =
-                          editingField === 'start' ? draftEvent.start : draftEvent.end;
-                        const nearestIndex = Math.round(current / TIME_STEP_MIN);
-                        const totalItems = (48 * 60) / TIME_STEP_MIN; // 支持跨越午夜的事件
-                        const actualRowHeight = height / totalItems;
-                        const scrollY = nearestIndex * actualRowHeight;
-
-                        timeListRef.current?.scrollTo({ y: scrollY, animated: false });
-                      }}
-                    >
-                      {timeOptions.map((m) => {
-                        const current =
-                          editingField === 'start'
-                            ? draftEvent.start
-                            : draftEvent.end;
-
-                        const nearest =
-                          Math.round(current / TIME_STEP_MIN) * TIME_STEP_MIN;
-                        const active = m === nearest;
-
-                        return (
-                          <Pressable
-                            key={`${editingField}-${m}`}
-                            style={[
-                              styles.timeOptionRow,
-                              { backgroundColor: colors.surface },
-                              active && [styles.timeOptionRowActive, { backgroundColor: colors.backgroundTertiary }],
-                            ]}
-                            onPress={() => handleSelectTime(editingField, m)}
-                          >
-                            <Text
-                              style={[
-                                styles.timeOptionText,
-                                { color: colors.textTertiary },
-                                active && [styles.timeOptionTextActive, { color: colors.text }],
-                              ]}
-                            >
-                              {formatMinutes(m)}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-                )}
-
-
-
-
-                {/* ---- Event Details / Tag ---- */}
-                <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                  <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('calendar.details')}</Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                    placeholder={t('calendar.details')}
-                    placeholderTextColor={colors.textQuaternary}
-                    value={draftEvent.details || ''}
-                    onChangeText={(txt) =>
-                      setDraftEvent({ ...draftEvent, details: txt })
-                    }
-                    multiline
-                  />
-                </View>
-
-                {/* ---- Event Category ---- */}
-                <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                  <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('calendar.category')}</Text>
-                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                    {Object.keys(categories).map((catName) => {
-                      const catColor = categories[catName];
-                      const isSelected = draftEvent.category === catName;
-                      return (
-                        <Pressable
-                          key={catName}
-                          style={[
-                            {
-                              paddingHorizontal: 12,
-                              paddingVertical: 6,
-                              borderRadius: 8,
-                              backgroundColor: `${catColor}20`,
-                              borderColor: catColor,
-                              borderWidth: 2,
-                            },
-                            isSelected && { backgroundColor: catColor, borderColor: catColor },
-                          ]}
-                          onPress={() => {
-                            setDraftEvent({ 
-                              ...draftEvent, 
-                              category: catName,
-                              isNewCategory: false,
-                              newCategoryName: '',
-                            });
-                          }}
-                        >
-                          <Text
-                            style={[
-                              { color: catColor, fontWeight: '600', fontSize: 12 },
-                              isSelected && { color: colors.primaryText },
-                            ]}
-                          >
-                            {catName}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                    
-                    <Pressable
-                      style={[
-                        styles.newProjectChip,
-                        { borderColor: colors.border },
-                        draftEvent.isNewCategory && [styles.newProjectChipActive, { borderColor: colors.accent }],
-                      ]}
-                      onPress={() =>
-                        setDraftEvent({ ...draftEvent, isNewCategory: true })
-                      }
-                    >
-                      <Plus
-                        size={14}
-                        color={
-                          draftEvent.isNewCategory ? colors.accent : colors.textTertiary
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.newProjectText,
-                          { color: colors.textTertiary },
-                          draftEvent.isNewCategory && { color: colors.accent },
-                        ]}
-                      >
-                        {t('projects.newCategory')}
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  {draftEvent.isNewCategory && (
-                    <View style={{ marginTop: 12, gap: 8 }}>
-                      <TextInput
-                        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                        placeholder={t('projects.categoryName')}
-                        placeholderTextColor={colors.textQuaternary}
-                        value={draftEvent.newCategoryName || ''}
-                        onChangeText={(txt) =>
-                          setDraftEvent({ ...draftEvent, newCategoryName: txt })
-                        }
-                      />
-                      <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}>
-                        {t('common.color')}
-                      </Text>
-                      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                        {themeColors.map((color) => (
-                          <Pressable
-                            key={color}
-                            style={[
-                              {
-                                width: 36,
-                                height: 36,
-                                borderRadius: 8,
-                                backgroundColor: color,
-                              },
-                              draftEvent.newCategoryColor === color && {
-                                borderColor: colors.primary,
-                                borderWidth: 3,
-                              },
-                            ]}
-                            onPress={() =>
-                              setDraftEvent({ ...draftEvent, newCategoryColor: color })
-                            }
-                          />
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                </View>
-
-                {/* ---- Project 选择 ---- */}
-                <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-                  <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('calendar.project')}</Text>
-                  <Text style={{ fontSize: 12, color: colors.textQuaternary, marginBottom: 12, lineHeight: 16 }}>
-                    {t('calendar.projectHint')}
-                  </Text>
-                  <View style={styles.projectGrid}>
-                    {projects.map((p) => {
-                      const active =
-                        !draftEvent.isNewProject &&
-                        draftEvent.selectedProjectId === p.id;
-                      return (
-                        <Pressable
-                          key={p.id}
-                          style={[
-                            styles.projectChip,
-                            { backgroundColor: colors.surface, borderColor: colors.border },
-                            active && [styles.projectChipActive, { borderColor: colors.accent, backgroundColor: colors.accentLight }],
-                          ]}
-                          onPress={() =>
-                            setDraftEvent({
-                              ...draftEvent,
-                              isNewProject: false,
-                              selectedProjectId: p.id,
-                            })
-                          }
-                        >
-                          <View
-                            style={[
-                              styles.projectDot,
-                              { backgroundColor: p.hexColor },
-                            ]}
-                          />
-                          <Text
-                            numberOfLines={1}
-                            style={[styles.projectChipText, { color: colors.text }]}
-                          >
-                            {p.name}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-
-                    <Pressable
-                      style={[
-                        styles.newProjectChip,
-                        { borderColor: colors.border },
-                        draftEvent.isNewProject && [styles.newProjectChipActive, { borderColor: colors.accent }],
-                      ]}
-                      onPress={() =>
-                        setDraftEvent({ ...draftEvent, isNewProject: true })
-                      }
-                    >
-                      <Plus
-                        size={14}
-                        color={
-                          draftEvent.isNewProject ? colors.accent : colors.textTertiary
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.newProjectText,
-                          { color: colors.textTertiary },
-                          draftEvent.isNewProject && { color: colors.accent },
-                        ]}
-                      >
-                        {t('projects.newProject')}
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  {draftEvent.isNewProject && (
-                    <>
-                      <TextInput
-                        style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-                        placeholder={t('projects.projectName')}
-                        placeholderTextColor={colors.textQuaternary}
-                        value={draftEvent.newProjectName}
-                        onChangeText={(txt) =>
-                          setDraftEvent({ ...draftEvent, newProjectName: txt })
-                        }
-                      />
-                      
-                      {/* Accumulation Slider */}
-                      <View style={{ marginTop: 16, paddingHorizontal: 4 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                            {t('projects.accumulation')}
-                          </Text>
-                          <View style={{ 
-                            paddingHorizontal: 10, 
-                            paddingVertical: 3, 
-                            borderRadius: 10, 
-                            backgroundColor: colors.backgroundTertiary 
-                          }}>
-                            <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>
-                              {Math.round(draftEvent.newProjectPercent)}%
-                            </Text>
-                          </View>
-                        </View>
-
-                        <Text style={{ fontSize: 11, color: colors.textTertiary, lineHeight: 16, marginBottom: 12 }}>
-                          {t('projects.accumulationHint')}
-                        </Text>
-
-                        {/* Slider */}
-                        <View 
-                          style={{ height: 40, justifyContent: 'center', marginBottom: 6 }}
-                          onStartShouldSetResponder={() => true}
-                          onResponderGrant={(e) => {
-                            const locationX = e.nativeEvent.locationX;
-                            const containerWidth = 327; // Approximate width
-                            const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
-                            setDraftEvent({ ...draftEvent, newProjectPercent: Math.round(newPercent) });
-                          }}
-                          onResponderMove={(e) => {
-                            const locationX = e.nativeEvent.locationX;
-                            const containerWidth = 327;
-                            const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
-                            setDraftEvent({ ...draftEvent, newProjectPercent: Math.round(newPercent) });
-                          }}
-                        >
-                          <View style={{ 
-                            height: 6, 
-                            backgroundColor: colors.border, 
-                            borderRadius: 3,
-                            overflow: 'hidden',
-                          }}>
-                            <View style={{ 
-                              height: '100%', 
-                              width: `${draftEvent.newProjectPercent}%`, 
-                              backgroundColor: colors.accent,
-                              borderRadius: 3,
-                            }} />
-                          </View>
-                          
-                          {/* Draggable Handle */}
-                          <View 
-                            style={{ 
-                              position: 'absolute',
-                              left: `${draftEvent.newProjectPercent}%`,
-                              transform: [{ translateX: -10 }],
-                              width: 20,
-                              height: 20,
-                              borderRadius: 10,
-                              backgroundColor: colors.surface,
-                              borderWidth: 2,
-                              borderColor: colors.accent,
-                              shadowColor: colors.text,
-                              shadowOffset: { width: 0, height: 1 },
-                              shadowOpacity: 0.15,
-                              shadowRadius: 3,
-                              elevation: 3,
-                            }}
-                          />
-                        </View>
-
-                        {/* Scale Labels */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 1 }}>
-                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
-                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
-                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
-                          <Text style={{ fontSize: 9, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
-                        </View>
-                      </View>
-                    </>
-                  )}
-                </View>
-              </ScrollView>
+              <EventEditForm
+                draftEvent={draftEvent}
+                setDraftEvent={setDraftEvent}
+                projects={projects}
+                categories={categories}
+                themeColors={themeColors}
+                colors={colors}
+                editingField={editingField}
+                setEditingField={setEditingField}
+                onSelectTime={handleSelectTime}
+              />
             )}
 
             {/* 底部主按钮 */}
-            <PrimaryButton onPress={handleSave} label={draftEvent?.id ? t('calendar.save') : t('calendar.addEvent')} colors={colors} />
+            <View style={{ paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8, backgroundColor: colors.surface }}>
+              <PrimaryButton onPress={handleSave} label={draftEvent?.id ? t('calendar.save') : t('calendar.addEvent')} colors={colors} />
+            </View>
           </View>
         </Pressable>
       </Modal>
@@ -2041,15 +1641,24 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
     const dataPoints: ProjectDataPoint[] = [];
 
     projects.forEach(project => {
-      // Skip archived projects
+      // Only archived projects should be hidden
       if (project.archived) return;
       
-      const metrics = projectMetrics.get(project.id);
-      if (!metrics || metrics.duration === 0) return; // Skip projects with no time in range
+      // Get metrics, or use default "zero" metrics if no data in range
+      const metrics = projectMetrics.get(project.id) || { duration: 0, lastEventDate: new Date(0) };
+      
+      // 🔥 核心修改：不再跳过没有时间的项目
+      // 之前的逻辑：if (!metrics || metrics.duration === 0) return;
+      // 这是错的！没有投入时间的项目也应该显示，只是贴在 X=0 的位置
 
       const durationHours = metrics.duration / 60;
       const share = totalDuration > 0 ? metrics.duration / totalDuration : 0;
-      const daysSinceLastEvent = Math.floor((today.getTime() - metrics.lastEventDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Calculate days since last event
+      // If never active (lastEventDate is epoch), set to a large number for visual indication
+      const daysSinceLastEvent = metrics.duration > 0 
+        ? Math.floor((today.getTime() - metrics.lastEventDate.getTime()) / (1000 * 60 * 60 * 24))
+        : 999; // No data = very inactive, bubble will be faded
 
       dataPoints.push({
         id: project.id,
@@ -2058,9 +1667,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
         color: getCategoryColor(project.category),
         durationHours,
         share,
-        accumulation: project.percent,
+        accumulation: project.percent, // Accumulation is still valid even if share is 0!
         recentActivity: daysSinceLastEvent,
-        x: share, // Use share directly (0-1 range)
+        x: share, // If no time, this will be 0 (left edge)
         y: project.percent / 100, // Normalize to 0-1
       });
     });
@@ -2135,7 +1744,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
       let totalImported = 0;
       let totalProjectsCreated = 0;
       const newCategories: CategoryMap = { ...categories };
-      let colorIndex = Object.keys(newCategories).length;
+      let colorIndex = Object.keys(categories).filter(name => name !== 'uncategorized').length;
       const allNewEvents: EventItem[] = [];
       const newProjects: Project[] = [...projects];
       const themeColors = getCurrentThemeColors();
@@ -2535,6 +2144,16 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({ projects, events, categorie
         hexColor: project.category && updatedCategories[project.category] 
           ? updatedCategories[project.category] 
           : '#9CA3AF'
+      }))
+    );
+    
+    // Update events' hexColor to match new theme colors
+    setEvents(prevEvents =>
+      prevEvents.map(event => ({
+        ...event,
+        hexColor: event.category && updatedCategories[event.category]
+          ? updatedCategories[event.category]
+          : event.hexColor // keep original if no category match
       }))
     );
   };
@@ -3614,10 +3233,13 @@ const App: React.FC = () => {
     return i18n?.language || 'en';
   };
 
-  const [categories, setCategories] = useState<CategoryMap>(() => getDefaultCategories(getInitialLanguage()));
+  const [categories, setCategories] = useState<CategoryMap>({});
 
   // Initialize data persistence
-  useAppData(projects, events, categories, setProjects, setEvents, setCategories);
+  useAppData(projects, events, categories, setProjects, setEvents, setCategories, () => {
+    // If categories are still empty after loading, use defaults
+    setCategories(prev => Object.keys(prev).length === 0 ? getDefaultCategories(getInitialLanguage()) : prev);
+  });
 
   
 
@@ -3998,173 +3620,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
-  sectionLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '600',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  timeCard: {
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    backgroundColor: '#F9FAFB',
-    marginBottom: 12,
-  },
-    timePickerContainer: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E7EB',
-    marginBottom: 12,
-  },
-  timePickerTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  timeOptionRow: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    marginBottom: 4,
-  },
-  timeOptionRowActive: {
-    backgroundColor: '#111827',
-  },
-  timeOptionText: {
-    fontSize: 14,
-    color: '#111827',
-  },
-  timeOptionTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-
-  timeHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  timeHeaderLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    letterSpacing: 1,
-  },
-  timeMainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  timeBlock: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  timeBig: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  timeArrow: {
-    fontSize: 18,
-    color: '#9CA3AF',
-    paddingHorizontal: 4,
-  },
-  timeAdjustRowOuter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  timeAdjustGroup: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  timeInput: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#111827',
-    textAlign: 'center',
-    minWidth: 80,
-  },
-
-  smallChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
-  },
-  smallChipText: {
-    fontSize: 11,
-    color: '#4B5563',
-  },
-  projectGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-  },
-  projectChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    maxWidth: '48%',
-  },
-  projectChipActive: {
-    borderColor: '#111827',
-    backgroundColor: '#E5E7EB',
-  },
-  projectChipText: {
-    fontSize: 13,
-    color: '#111827',
-  },
-  projectDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    marginRight: 6,
-  },
-  newProjectChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
-    gap: 4,
-  },
-  newProjectChipActive: {
-    borderColor: '#2563EB',
-    backgroundColor: '#DBEAFE',
-  },
-  newProjectText: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  input: {
-    marginTop: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
-    fontSize: 14,
-    color: '#111827',
-  },
+  // Form-related styles moved to EventEditForm.tsx
   primaryButton: {
     marginTop: 8,
     marginBottom: 8,
@@ -4369,6 +3825,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     marginRight: 8,
+  },
+  projectDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    marginRight: 6,
   },
   projectRowName: {
     fontSize: 14,
