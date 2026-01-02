@@ -121,6 +121,7 @@ export default {
     accumulationLevel30: '维持',
     accumulationLevel60: '成长',
     accumulationLevel85: '核心积累',
+    color: '颜色',
     category: '类别',
     createNewCategory: '创建新类别',
     noCategories: '暂无类别',

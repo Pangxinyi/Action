@@ -121,6 +121,7 @@ export default {
     accumulationLevel30: 'Maintain',
     accumulationLevel60: 'Growth',
     accumulationLevel85: 'Core',
+    color: 'Color',
     category: 'Category',
     createNewCategory: 'Create New Category',
     noCategories: 'No categories yet',

@@ -52,7 +52,7 @@ const DailyTimeline: React.FC<Props> = ({
     const minutesSinceStart = now.getHours() * 60 + now.getMinutes();
     const scrollPos = minutesSinceStart * PIXELS_PER_MINUTE;
     scrollRef.current.scrollTo({ y: Math.max(0, scrollPos), animated: false });
-  }, []);
+  }, [scrollRef]);
 
   // Scroll when date changes
   useEffect(() => {
@@ -71,7 +71,7 @@ const DailyTimeline: React.FC<Props> = ({
       scrollPos = 6 * 60 * PIXELS_PER_MINUTE; // Default to 6:00 for other days
     }
     scrollRef.current.scrollTo({ y: Math.max(0, scrollPos), animated: true });
-  }, [selectedDate]);
+  }, [selectedDate, scrollRef]);
 
   // Filter events for selected date
   const selectedDateStr = `${selectedDate.getFullYear()}-${String(
