@@ -1,5 +1,5 @@
-import { ThemeColors } from '@constants/theme';
 import { useColorScheme } from 'react-native';
+import { ThemeColors } from '../constants/theme';
 
 /**
  * Custom hook that returns theme colors based on the current system color scheme.

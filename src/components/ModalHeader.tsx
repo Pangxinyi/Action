@@ -1,7 +1,7 @@
-import type { AppThemeColors } from '@hooks/useThemeColors';
 import { X } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { AppThemeColors } from '../hooks/useThemeColors';
 
 type ModalHeaderProps = {
   title?: string;

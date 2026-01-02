@@ -3,7 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { AppThemeColors } from '@hooks/useThemeColors';
+import type { AppThemeColors } from '../../../../hooks/useThemeColors';
 
 type Props = {
   onImport: () => void;

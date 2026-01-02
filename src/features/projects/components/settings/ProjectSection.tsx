@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
-import type { AppThemeColors } from '@hooks/useThemeColors';
+import type { AppThemeColors } from '../../../../hooks/useThemeColors';
 import type { CategoryMap, Project } from '../../../../types';
 import { ActiveProjectList } from './ActiveProjectList';
 import { ArchivedProjectList } from './ArchivedProjectList';

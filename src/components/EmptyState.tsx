@@ -1,6 +1,6 @@
-import { useThemeColors } from '@hooks/useThemeColors';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useThemeColors } from '../hooks/useThemeColors';
 
 type Props = {
   message: React.ReactNode | string;

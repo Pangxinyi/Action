@@ -4,8 +4,8 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
-import type { AppThemeColors } from '@hooks/useThemeColors';
 import { EmptyState } from '../../../../components/EmptyState';
+import type { AppThemeColors } from '../../../../hooks/useThemeColors';
 import type { CategoryMap, Project } from '../../../../types';
 import { ProjectEditItem, type EditingProject } from './ProjectEditItem';
 import { ProjectViewItem } from './ProjectViewItem';

@@ -1,5 +1,5 @@
-import type { AppThemeColors } from '@hooks/useThemeColors';
 import type React from 'react';
+import type { AppThemeColors } from '../hooks/useThemeColors';
 
 export type CategoryMap = {
   [categoryName: string]: string;

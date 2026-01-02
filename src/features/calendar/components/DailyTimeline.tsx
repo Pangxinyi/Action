@@ -1,8 +1,8 @@
-import type { AppThemeColors } from '@hooks/useThemeColors';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { EventCard } from '../../../../src/components/EventCard';
 import type { EventItem, Project } from '../../../../src/types';
+import type { AppThemeColors } from '../../../hooks/useThemeColors';
 
 type Props = {
   events: EventItem[];
@@ -57,21 +57,51 @@ const DailyTimeline: React.FC<Props> = ({
   // Scroll when date changes
   useEffect(() => {
     if (!scrollRef.current) return;
-    const now = new Date();
-    const isToday =
-      selectedDate.getFullYear() === now.getFullYear() &&
-      selectedDate.getMonth() === now.getMonth() &&
-      selectedDate.getDate() === now.getDate();
 
-    let scrollPos = 0;
-    if (isToday) {
-      const minutesSinceStart = now.getHours() * 60 + now.getMinutes();
-      scrollPos = minutesSinceStart * PIXELS_PER_MINUTE;
+    // 1. Format selected date string (YYYY-MM-DD)
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const selectedDateStr = `${year}-${month}-${day}`;
+
+    // 2. Filter events for the selected day
+    const todaysEvents = events.filter((e) => e.date === selectedDateStr);
+
+    let targetScrollY = 0;
+
+    if (todaysEvents.length > 0) {
+      // ✅ Case A: Has events on this day
+      // Find earliest start time (in minutes)
+      const earliestStart = Math.min(...todaysEvents.map((e) => e.start));
+      
+      // Calculate scroll position with buffer
+      // earliestStart * PIXELS_PER_MINUTE (event position)
+      // - 100 (buffer: shows event in upper-middle area, not at top edge)
+      targetScrollY = earliestStart * PIXELS_PER_MINUTE - 100;
     } else {
-      scrollPos = 6 * 60 * PIXELS_PER_MINUTE; // Default to 6:00 for other days
+      // ✅ Case B: No events on this day (keep original logic)
+      const now = new Date();
+      const isToday =
+        selectedDate.getFullYear() === now.getFullYear() &&
+        selectedDate.getMonth() === now.getMonth() &&
+        selectedDate.getDate() === now.getDate();
+
+      if (isToday) {
+        // If today with no events, scroll to current time
+        const minutesSinceStart = now.getHours() * 60 + now.getMinutes();
+        targetScrollY = minutesSinceStart * PIXELS_PER_MINUTE - 200; // Center it
+      } else {
+        // If other day with no events, scroll to 6:00 AM
+        targetScrollY = 6 * 60 * PIXELS_PER_MINUTE;
+      }
     }
-    scrollRef.current.scrollTo({ y: Math.max(0, scrollPos), animated: true });
-  }, [selectedDate, scrollRef]);
+
+    // Prevent scrolling to negative area
+    targetScrollY = Math.max(0, targetScrollY);
+
+    // Execute scroll
+    scrollRef.current.scrollTo({ y: targetScrollY, animated: true });
+  }, [selectedDate, scrollRef]); // ⚠️ Note: Only depends on selectedDate, not events
 
   // Filter events for selected date
   const selectedDateStr = `${selectedDate.getFullYear()}-${String(

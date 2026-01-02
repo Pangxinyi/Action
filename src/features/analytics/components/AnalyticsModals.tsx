@@ -2,10 +2,10 @@ import { PackageOpen } from 'lucide-react-native';
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
-import type { AppThemeColors } from '@hooks/useThemeColors';
 import { BottomSheet } from '../../../components/BottomSheet';
 import { EmptyState } from '../../../components/EmptyState';
 import { ModalHeader } from '../../../components/ModalHeader';
+import type { AppThemeColors } from '../../../hooks/useThemeColors';
 import type { CategoryMap, EventItem, Project } from '../../../types';
 import { parseLocalDate } from '../../../utils/date';
 

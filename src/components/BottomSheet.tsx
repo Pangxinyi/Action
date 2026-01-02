@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import { DimensionValue, Modal, Pressable, StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@hooks/useThemeColors';
+import { useThemeColors } from '../hooks/useThemeColors';
 
 type BottomSheetProps = {
   isOpen: boolean;

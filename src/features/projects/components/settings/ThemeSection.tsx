@@ -2,8 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { AppThemeColors } from '@hooks/useThemeColors';
 import { COLOR_THEMES } from '../../../../constants/theme';
+import type { AppThemeColors } from '../../../../hooks/useThemeColors';
 
 type Props = {
   selectedColorScheme: string;

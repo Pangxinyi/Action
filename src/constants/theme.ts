@@ -1,3 +1,6 @@
+// src/constants/theme.ts
+
+// 1. 核心常量 (来自你的新版本，逻辑必须)
 export const COLOR_THEMES = {
   default: ['#BFA2DB', '#879DE2', '#A8E6CF', '#E6B8B7', '#E6C8DC', '#EFD9CE'],
   seaside: [ '#3698BF', '#D9D3B4', '#D97C2B', '#ac3c2dff', '#FADB85', '#8F9779'],
@@ -10,124 +13,138 @@ export const COLOR_THEMES = {
 export const NODE_SIZE = 72;
 export const TIME_STEP_MIN = 1;
 
-export const Colors = {
-  light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: '#0a7ea4',
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: '#0a7ea4',
-  },
-  dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: '#fff',
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: '#fff',
-  },
-};
+
+const tintColorLight = '#000000'; 
+const tintColorDark = '#fff';
 
 export const ThemeColors = {
   light: {
-    // Backgrounds
+    // Background colors
     background: '#FFFFFF',
     backgroundSecondary: '#F9FAFB',
     backgroundTertiary: '#F3F4F6',
+    
+    // Surface colors (cards, modals, etc.)
     surface: '#FFFFFF',
     surfaceSecondary: '#F9FAFB',
+    surfaceHover: '#F3F4F6',
+    surfacePressed: '#E5E7EB',
     
     // Text colors
-    text: '#11181C',
-    textSecondary: '#4B5563',
+    text: '#111827',
+    textSecondary: '#374151',
     textTertiary: '#6B7280',
     textQuaternary: '#9CA3AF',
     textInverse: '#FFFFFF',
     
-    // Accent colors
-    accent: '#0a7ea4',
+    // Border colors
+    border: '#E5E7EB',
+    borderSecondary: '#D1D5DB',
+    borderFocus: '#000000',
+    
+    // Primary actions (重要：恢复为黑色)
+    primary: '#000000', 
+    primaryText: '#FFFFFF',
+    
+    // Accent colors (用于选中状态，保持蓝色或者用原版配置)
+    accent: '#0a7ea4', // Expo 蓝，或者你可以改成 '#000000'
     accentLight: '#E0F2FE',
     accentText: '#FFFFFF',
     
-    // Primary colors
-    primary: '#0a7ea4',
-    primaryText: '#FFFFFF',
-    
     // Status colors
-    error: '#DC2626',
-    errorLight: '#FEE2E2',
-    warning: '#F59E0B',
-    warningLight: '#FEF3C7',
     success: '#10B981',
     successLight: '#D1FAE5',
+    warning: '#F59E0B',
+    warningLight: '#FEF3C7',
+    error: '#EF4444',
+    errorLight: '#FEE2E2',
     
-    // Border & divider
-    border: '#E5E7EB',
-    divider: '#E5E7EB',
-    
-    // Chart colors
-    chartGrid: '#E5E7EB',
-    chartLabel: '#6B7280',
-    
-    // Modal
-    modalBackdrop: 'rgba(0, 0, 0, 0.5)',
+    // Calendar specific
+    nowLine: '#EF4444',
+    eventCardBg: 'rgba(0,0,0,0.03)',
     
     // Tab bar
     tabBar: '#FFFFFF',
-    tabActive: '#0a7ea4',
-    tabInactive: '#687076',
+    tabInactive: '#6B7280',
+    tabActive: '#000000',
     tabIconDefault: '#687076',
-    tabIconSelected: '#0a7ea4',
+    tabIconSelected: tintColorLight,
+    
+    // Modal
+    modalBackdrop: 'rgba(0,0,0,0.4)',
+    
+    // Chart
+    chartGrid: '#E5E7EB',
+    chartLabel: '#9CA3AF',
+    
+    // Icons
+    icon: '#687076',
+    tint: tintColorLight,
   },
   dark: {
-    // Backgrounds
-    background: '#151718',
-    backgroundSecondary: '#1F2123',
-    backgroundTertiary: '#2A2C2E',
-    surface: '#1F2123',
-    surfaceSecondary: '#2A2C2E',
+    // Background colors
+    background: '#0F0F0F',
+    backgroundSecondary: '#1A1A1A',
+    backgroundTertiary: '#262626',
+    
+    // Surface colors
+    surface: '#000000',
+    surfaceSecondary: '#0A0A0A',
+    surfaceHover: '#333333',
+    surfacePressed: '#404040',
     
     // Text colors
-    text: '#ECEDEE',
-    textSecondary: '#D1D5DB',
+    text: '#F9FAFB',
+    textSecondary: '#E5E7EB',
     textTertiary: '#9CA3AF',
     textQuaternary: '#6B7280',
-    textInverse: '#11181C',
+    textInverse: '#111827',
+    
+    // Border colors
+    border: '#0A0A0A',
+    borderSecondary: '#111111',
+    borderFocus: '#FFFFFF',
+    
+    // Primary actions
+    primary: '#FFFFFF',
+    primaryText: '#111827',
     
     // Accent colors
     accent: '#38BDF8',
     accentLight: '#1E3A5F',
-    accentText: '#11181C',
-    
-    // Primary colors
-    primary: '#38BDF8',
-    primaryText: '#11181C',
+    accentText: '#FFFFFF',
     
     // Status colors
-    error: '#EF4444',
-    errorLight: '#451A1A',
-    warning: '#FBBF24',
-    warningLight: '#3D2F0A',
     success: '#34D399',
-    successLight: '#0D3025',
+    successLight: '#064E3B',
+    warning: '#FBBF24',
+    warningLight: '#78350F',
+    error: '#F87171',
+    errorLight: '#7F1D1D',
     
-    // Border & divider
-    border: '#374151',
-    divider: '#374151',
-    
-    // Chart colors
-    chartGrid: '#374151',
-    chartLabel: '#9CA3AF',
-    
-    // Modal
-    modalBackdrop: 'rgba(0, 0, 0, 0.7)',
+    // Calendar specific
+    nowLine: '#F87171',
+    eventCardBg: 'rgba(255,255,255,0.05)',
     
     // Tab bar
-    tabBar: '#1F2123',
-    tabActive: '#38BDF8',
-    tabInactive: '#9BA1A6',
+    tabBar: '#000000',
+    tabInactive: '#6B7280',
+    tabActive: '#FFFFFF',
     tabIconDefault: '#9BA1A6',
-    tabIconSelected: '#38BDF8',
+    tabIconSelected: tintColorDark,
+    
+    // Modal
+    modalBackdrop: 'rgba(0,0,0,0.7)',
+    
+    // Chart
+    chartGrid: '#333333',
+    chartLabel: '#6B7280',
+    
+    // Icons
+    icon: '#9BA1A6',
+    tint: tintColorDark,
   },
 };
+
+// 导出类型，方便 TS 推断
+export type ThemeColorKey = keyof typeof ThemeColors.light;

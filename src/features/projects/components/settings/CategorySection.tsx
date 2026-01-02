@@ -4,9 +4,9 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 
-import type { AppThemeColors } from '@hooks/useThemeColors';
 import { ColorPicker } from '../../../../components/ColorPicker';
 import { EmptyState } from '../../../../components/EmptyState';
+import type { AppThemeColors } from '../../../../hooks/useThemeColors';
 import type { CategoryMap, EventItem, Project } from '../../../../types';
 
 export type CategorySectionProps = {

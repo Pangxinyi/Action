@@ -3,8 +3,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
-import type { AppThemeColors } from '@hooks/useThemeColors';
 import { EmptyState } from '../../../../components/EmptyState';
+import type { AppThemeColors } from '../../../../hooks/useThemeColors';
 import type { Project } from '../../../../types';
 
 type Props = {

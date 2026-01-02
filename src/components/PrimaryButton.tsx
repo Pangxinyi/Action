@@ -1,6 +1,6 @@
-import type { AppThemeColors } from '@hooks/useThemeColors';
 import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import type { AppThemeColors } from '../hooks/useThemeColors';
 
 type Props = {
   onPress: () => void;

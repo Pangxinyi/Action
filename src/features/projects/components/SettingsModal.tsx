@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import type { AppThemeColors } from '@hooks/useThemeColors';
 import { ModalHeader } from '../../../components/ModalHeader';
+import type { AppThemeColors } from '../../../hooks/useThemeColors';
 import type { CategoryMap, EventItem, Project } from '../../../types';
 import { useDataManagement } from '../hooks/useDataManagement';
 import { CategorySection } from './settings/CategorySection';

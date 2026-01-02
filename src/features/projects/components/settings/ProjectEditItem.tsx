@@ -3,8 +3,8 @@ import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import type { AppThemeColors } from '@hooks/useThemeColors';
 import { ColorPicker } from '../../../../components/ColorPicker';
+import type { AppThemeColors } from '../../../../hooks/useThemeColors';
 import type { CategoryMap, Project } from '../../../../types';
 
 export type EditingProject = Pick<Project, 'id' | 'name' | 'category' | 'hexColor' | 'percent'>;
