@@ -1,6 +1,6 @@
 import i18n from 'i18next';
 import { Plus, Trash2 } from 'lucide-react-native';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -66,23 +66,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     setSelectedDate(new Date());
   };
 
-  const panResponderRef = useRef<any>(null);
-  useEffect(() => {
-    panResponderRef.current = PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        return Math.abs(gestureState.dx) > 10;
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        const minDistance = 50;
-        if (gestureState.dx > minDistance) {
-          handlePrevDay();
-        } else if (gestureState.dx < -minDistance) {
-          handleNextDay();
-        }
-      },
-    });
-  }, [selectedDate, handlePrevDay, handleNextDay]);
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+
+        // Core interception logic
+        onMoveShouldSetPanResponder: (evt, gestureState) => {
+          // If modal is open, return false (release interception) and let touch events pass through to Modal
+          if (isModalOpen) return false;
+
+          // Otherwise, check if it's a horizontal swipe
+          return Math.abs(gestureState.dx) > 10;
+        },
+
+        onPanResponderRelease: (evt, gestureState) => {
+          const minDistance = 50;
+          if (gestureState.dx > minDistance) {
+            handlePrevDay();
+          } else if (gestureState.dx < -minDistance) {
+            handleNextDay();
+          }
+        },
+      }),
+    // Dependencies: recreate PanResponder when these states change
+    [isModalOpen, handlePrevDay, handleNextDay],
+  );
 
   const openNewEventAt = (totalMinutes: number) => {
     const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(
@@ -234,7 +243,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }} {...panResponderRef.current?.panHandlers}>
+    <View style={{ flex: 1, backgroundColor: colors.background }} {...panResponder.panHandlers}>
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <Pressable 
           style={styles.headerLeft} 
@@ -282,6 +291,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         colors={colors}
         onSlotPress={handleSlotPress}
         onEventPress={handleEventPress}
+        isScrollEnabled={!isModalOpen}
       />
 
       <Modal visible={isModalOpen && !!draftEvent} transparent animationType="slide">

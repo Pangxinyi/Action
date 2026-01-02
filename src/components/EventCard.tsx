@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { AppThemeColors } from '../hooks/useThemeColors';
 import type { EventItem, Project } from '../types';
 import { formatMinutes } from '../utils/date';
@@ -9,11 +9,10 @@ type Props = {
   layout: { top: number; height: number };
   colors: AppThemeColors;
   projects?: Project[];
-  styles: any; // parent styles object (keeps original styling)
   onPress: (e: EventItem) => void;
 };
 
-export const EventCard = React.memo(function EventCard({ event, layout, colors, projects, styles, onPress }: Props) {
+export const EventCard = React.memo(function EventCard({ event, layout, colors, projects, onPress }: Props) {
   const { top, height } = layout;
   const cardHeight = Math.max(20, height);
 
@@ -29,7 +28,7 @@ export const EventCard = React.memo(function EventCard({ event, layout, colors, 
     <Pressable
       onPress={() => onPress(event)}
       style={[
-        styles.eventCard,
+        styles.card,
         {
           top,
           height: cardHeight,
@@ -40,7 +39,7 @@ export const EventCard = React.memo(function EventCard({ event, layout, colors, 
     >
       {/* Title */}
       <Text
-        style={[styles.eventTitle, { color: colors.text }]}
+        style={[styles.title, { color: colors.text }]}
         numberOfLines={isStandardCard && cardHeight > 80 ? 2 : 1} // Allow 2 lines for title if height > 80
         ellipsizeMode="tail"
       >
@@ -49,7 +48,7 @@ export const EventCard = React.memo(function EventCard({ event, layout, colors, 
 
       {/* Time */}
       {!isTinyCard && (
-        <Text style={[styles.eventTime, { color: colors.textSecondary }]}> 
+        <Text style={[styles.time, { color: colors.textSecondary }]}> 
           {formatMinutes(event.start)} - {formatMinutes(event.start + event.duration)}
         </Text>
       )}
@@ -73,6 +72,30 @@ export const EventCard = React.memo(function EventCard({ event, layout, colors, 
       )}
     </Pressable>
   );
+});
+
+const styles = StyleSheet.create({
+  card: {
+    position: 'absolute',
+    left: 60,
+    right: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    justifyContent: 'flex-start',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+  },
+  title: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  time: {
+    fontSize: 10,
+  },
 });
 
 

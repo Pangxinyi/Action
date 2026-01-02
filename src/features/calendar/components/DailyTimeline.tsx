@@ -12,6 +12,7 @@ type Props = {
   onSlotPress: (hour: number, minute: number) => void;
   onEventPress: (event: EventItem) => void;
   scrollRef?: React.RefObject<ScrollView | null>;
+  isScrollEnabled?: boolean;
 };
 
 const PIXELS_PER_MINUTE = 1;
@@ -25,6 +26,7 @@ const DailyTimeline: React.FC<Props> = ({
   onSlotPress,
   onEventPress,
   scrollRef: externalScrollRef,
+  isScrollEnabled = true,
 }) => {
   const internalScrollRef = useRef<ScrollView | null>(null);
   const scrollRef = externalScrollRef || internalScrollRef;
@@ -115,6 +117,7 @@ const DailyTimeline: React.FC<Props> = ({
       ref={scrollRef}
       style={{ flex: 1 }}
       contentContainerStyle={{ paddingBottom: 24 }}
+      scrollEnabled={isScrollEnabled}
     >
       <View style={{ minHeight: 1440, paddingHorizontal: 12, paddingTop: 0 }}>
         {/* Hour rows */}
@@ -163,7 +166,6 @@ const DailyTimeline: React.FC<Props> = ({
               layout={{ top, height: cardHeight }}
               colors={colors}
               projects={projects}
-              styles={styles}
               onPress={onEventPress}
             />
           );
@@ -218,30 +220,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
     marginLeft: -3,
     marginTop: -3,
-  },
-  // EventCard needs these styles passed to it
-  eventCard: {
-    position: 'absolute',
-    left: 60,
-    right: 16,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    justifyContent: 'flex-start',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 2,
-  },
-  eventTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  eventTime: {
-    fontSize: 10,
-    color: '#6B7280',
   },
 });
 
