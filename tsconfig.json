@@ -7,16 +7,16 @@
     "baseUrl": ".",
     "paths": {
       "@components/*": [
-        "components/*"
+        "src/components/*"
       ],
       "@hooks/*": [
-        "hooks/*"
+        "src/hooks/*"
       ],
       "@constants/*": [
-        "constants/*"
+        "src/constants/*"
       ],
       "@utils/*": [
-        "utils/*"
+        "src/utils/*"
       ]
     }
   },

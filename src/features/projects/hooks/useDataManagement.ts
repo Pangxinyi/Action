@@ -6,7 +6,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Platform } from 'react-native';
 
-import { clearAppData, exportDataAsJSON, loadAppData } from '../../../../utils/storage';
+import { clearAppData, exportDataAsJSON, loadAppData } from 'src/utils/storage';
 import type { CategoryMap, EventItem, Project } from '../../../types';
 
 type UseDataManagementParams = {

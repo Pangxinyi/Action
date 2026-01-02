@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useEffect, useRef } from 'react';
-import { AppData, loadAppData, saveAppData } from '../utils/storage';
+import { AppData, loadAppData, saveAppData } from 'src/utils/storage';
 
 import { debounce } from 'lodash';
 
@@ -26,6 +26,7 @@ export const useAppData = (
       onLoaded?.();
     };
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
@@ -47,7 +48,7 @@ export const useAppData = (
       };
       debouncedSave(data);
     }
-  }, [projects, events, categories]);
+  }, [projects, events, categories, debouncedSave]);
 
   return { isLoaded: isLoaded.current };
 };

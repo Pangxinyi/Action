@@ -20,4 +20,3 @@ export function useThemeColors() {
  * Type for the theme colors object
  */
 export type AppThemeColors = typeof ThemeColors.light;
-
