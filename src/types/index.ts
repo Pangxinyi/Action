@@ -19,6 +19,7 @@ export type Project = {
   archived?: boolean;
   newCategoryName?: string;
   newCategoryColor?: string;
+  isNewCategory?: boolean;
 };
 
 export type EventItem = {

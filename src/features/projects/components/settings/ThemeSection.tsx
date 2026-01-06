@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -9,6 +9,8 @@ type Props = {
   selectedColorScheme: string;
   onSelectScheme: (scheme: string) => void;
   colors: AppThemeColors;
+  isOpen: boolean;
+  onToggle: () => void;
 };
 
 const styles = StyleSheet.create({
@@ -24,9 +26,8 @@ const styles = StyleSheet.create({
   },
 });
 
-export const ThemeSection: React.FC<Props> = ({ selectedColorScheme, onSelectScheme, colors }) => {
+export const ThemeSection: React.FC<Props> = ({ selectedColorScheme, onSelectScheme, colors, isOpen, onToggle }) => {
   const { t } = useTranslation();
-  const [isOpen, setIsOpen] = useState(false);
 
   const themeOptions = useMemo(
     () => [
@@ -43,7 +44,7 @@ export const ThemeSection: React.FC<Props> = ({ selectedColorScheme, onSelectSch
   return (
     <View>
       <Pressable
-        onPress={() => setIsOpen((prev) => !prev)}
+        onPress={onToggle}
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: isOpen ? 12 : 0 }}
       >
         <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>

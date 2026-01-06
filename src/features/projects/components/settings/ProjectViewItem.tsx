@@ -15,7 +15,7 @@ type Props = {
 export const ProjectViewItem: React.FC<Props> = ({ project, colors, onEdit, onArchive }) => {
   return (
     <View style={styles.row}> 
-      <View style={[styles.projectRow, { backgroundColor: colors.backgroundSecondary }]}> 
+      <View style={[styles.projectRow, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}> 
         <View style={[styles.projectRowLeft]}> 
           <View style={[styles.projectDot, { backgroundColor: project.hexColor }]} />
           <View style={{ flex: 1 }}>
@@ -54,7 +54,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E7EB',
   },
   projectRowLeft: {
     flexDirection: 'row',

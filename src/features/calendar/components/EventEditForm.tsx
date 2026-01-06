@@ -1,15 +1,17 @@
 import { Plus } from 'lucide-react-native';
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
+import CategorySelector from '../../../components/CategorySelector';
+import { KeyboardSafeScroll } from '../../../components/KeyboardSafeScroll';
 import { TIME_STEP_MIN } from '../../../constants/theme';
 import type { CategoryMap, DraftEvent, Project } from '../../../types';
 import { formatMinutes } from '../../../utils/date';
@@ -56,10 +58,10 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
   onSelectTime,
 }) => {
   const { t } = useTranslation();
-  const timeListRef = useRef<ScrollView | null>(null);
+  const timeListRef = useRef<FlatList>(null);
 
   // Time options for picker (supports events spanning midnight)
-  const timeOptions = React.useMemo(
+  const timeOptions = useMemo(
     () =>
       Array.from(
         { length: (48 * 60) / TIME_STEP_MIN },
@@ -70,12 +72,47 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
 
   const openTimeEditor = (field: 'start' | 'end') => {
     setEditingField(field);
+    // 延时一下滚动，等待 UI 渲染
+    setTimeout(() => {
+      if (!timeListRef.current) return;
+      const current = field === 'start' ? draftEvent.start : draftEvent.end;
+      const index = Math.floor(current / TIME_STEP_MIN);
+      timeListRef.current.scrollToIndex({ index, animated: false, viewPosition: 0.5 });
+    }, 50);
+  };
+
+  // 渲染时间项，提取出来以提升性能
+  const renderTimeItem = ({ item: m }: { item: number }) => {
+    const current = editingField === 'start' ? draftEvent.start : draftEvent.end;
+    const nearest = Math.round(current / TIME_STEP_MIN) * TIME_STEP_MIN;
+    const active = m === nearest;
+
+    return (
+      <Pressable
+        style={[
+          styles.timeOptionRow,
+          { backgroundColor: colors.surface },
+          active && [styles.timeOptionRowActive, { backgroundColor: colors.backgroundTertiary }],
+        ]}
+        onPress={() => onSelectTime(editingField!, m)}
+      >
+        <Text
+          style={[
+            styles.timeOptionText,
+            { color: colors.textTertiary },
+            active && [styles.timeOptionTextActive, { color: colors.text }],
+          ]}
+        >
+          {formatMinutes(m)}
+        </Text>
+      </Pressable>
+    );
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1 }}
+    <KeyboardSafeScroll
       contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+      nestedScrollEnabled={true}
     >
       {/* ---- 时间大卡片 ---- */}
       <View style={[styles.card, styles.timeCard, { backgroundColor: colors.backgroundSecondary }]}>
@@ -109,7 +146,7 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
         </View>
       </View>
 
-      {/* 👉 下拉时间选择器 */}
+      {/* 👉 优化后的下拉时间选择器 */}
       {editingField && (
         <View style={[styles.timePickerContainer, { backgroundColor: colors.backgroundTertiary, borderColor: colors.border }]}>
           <Text style={[styles.timePickerTitle, { color: colors.textTertiary }]}>
@@ -117,60 +154,22 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
               ? t('calendar.startTime')
               : t('calendar.duration')}
           </Text>
-          <ScrollView
-            key={editingField}
-            ref={timeListRef}
-            style={{ maxHeight: 260 }}
-            scrollEnabled={true}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingVertical: 0 }}
-            onContentSizeChange={(width, height) => {
-              if (height === 0) return;
-              if (!editingField || !draftEvent) return;
-              
-              const current =
-                editingField === 'start' ? draftEvent.start : draftEvent.end;
-              const nearestIndex = Math.round(current / TIME_STEP_MIN);
-              const totalItems = (48 * 60) / TIME_STEP_MIN;
-              const actualRowHeight = height / totalItems;
-              const scrollY = nearestIndex * actualRowHeight;
-
-              timeListRef.current?.scrollTo({ y: scrollY, animated: false });
-            }}
-          >
-            {timeOptions.map((m) => {
-              const current =
-                editingField === 'start'
-                  ? draftEvent.start
-                  : draftEvent.end;
-
-              const nearest =
-                Math.round(current / TIME_STEP_MIN) * TIME_STEP_MIN;
-              const active = m === nearest;
-
-              return (
-                <Pressable
-                  key={`${editingField}-${m}`}
-                  style={[
-                    styles.timeOptionRow,
-                    { backgroundColor: colors.surface },
-                    active && [styles.timeOptionRowActive, { backgroundColor: colors.backgroundTertiary }],
-                  ]}
-                  onPress={() => onSelectTime(editingField, m)}
-                >
-                  <Text
-                    style={[
-                      styles.timeOptionText,
-                      { color: colors.textTertiary },
-                      active && [styles.timeOptionTextActive, { color: colors.text }],
-                    ]}
-                  >
-                    {formatMinutes(m)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          
+          {/* 使用 FlatList 替换 ScrollView，性能大幅提升 */}
+          <View style={{ height: 260 }}>
+            <FlatList
+              ref={timeListRef}
+              data={timeOptions}
+              renderItem={renderTimeItem}
+              keyExtractor={(item) => `${editingField}-${item}`}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
+              initialNumToRender={15}
+              getItemLayout={(data, index) => (
+                { length: 44, offset: 44 * index, index }
+              )}
+            />
+          </View>
         </View>
       )}
 
@@ -189,114 +188,23 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
         />
       </View>
 
-      {/* ---- Event Category ---- */}
+      {/* ---- Event Category (using CategorySelector) ---- */}
       <View style={[styles.card, { backgroundColor: colors.backgroundSecondary }]}>
-        <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('calendar.category')}</Text>
-        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-          {Object.keys(categories).map((catName) => {
-            const catColor = categories[catName];
-            const isSelected = draftEvent.category === catName;
-            return (
-              <Pressable
-                key={catName}
-                style={[
-                  {
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 8,
-                    backgroundColor: `${catColor}20`,
-                    borderColor: catColor,
-                    borderWidth: 2,
-                  },
-                  isSelected && { backgroundColor: catColor, borderColor: catColor },
-                ]}
-                onPress={() => {
-                  setDraftEvent({ 
-                    ...draftEvent, 
-                    category: catName,
-                    isNewCategory: false,
-                    newCategoryName: '',
-                  });
-                }}
-              >
-                <Text
-                  style={[
-                    { color: catColor, fontWeight: '600', fontSize: 12 },
-                    isSelected && { color: colors.primaryText },
-                  ]}
-                >
-                  {catName}
-                </Text>
-              </Pressable>
-            );
-          })}
-          
-          <Pressable
-            style={[
-              styles.newProjectChip,
-              { borderColor: colors.border },
-              draftEvent.isNewCategory && [styles.newProjectChipActive, { borderColor: colors.accent }],
-            ]}
-            onPress={() =>
-              setDraftEvent({ ...draftEvent, isNewCategory: true })
-            }
-          >
-            <Plus
-              size={14}
-              color={
-                draftEvent.isNewCategory ? colors.accent : colors.textTertiary
-              }
-            />
-            <Text
-              style={[
-                styles.newProjectText,
-                { color: colors.textTertiary },
-                draftEvent.isNewCategory && { color: colors.accent },
-              ]}
-            >
-              {t('projects.newCategory')}
-            </Text>
-          </Pressable>
-        </View>
-
-        {draftEvent.isNewCategory && (
-          <View style={{ marginTop: 12, gap: 8 }}>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
-              placeholder={t('projects.categoryName')}
-              placeholderTextColor={colors.textQuaternary}
-              value={draftEvent.newCategoryName || ''}
-              onChangeText={(txt) =>
-                setDraftEvent({ ...draftEvent, newCategoryName: txt })
-              }
-            />
-            <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}>
-              {t('common.color')}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-              {themeColors.map((color) => (
-                <Pressable
-                  key={color}
-                  style={[
-                    {
-                      width: 36,
-                      height: 36,
-                      borderRadius: 8,
-                      backgroundColor: color,
-                    },
-                    draftEvent.newCategoryColor === color && {
-                      borderColor: colors.primary,
-                      borderWidth: 3,
-                    },
-                  ]}
-                  onPress={() =>
-                    setDraftEvent({ ...draftEvent, newCategoryColor: color })
-                  }
-                />
-              ))}
-            </View>
-          </View>
-        )}
+        <CategorySelector
+          categories={categories}
+          selectedCategory={draftEvent.category ?? null}
+          onSelectCategory={(catName) =>
+            setDraftEvent({ ...draftEvent, category: catName ?? undefined, isNewCategory: false, newCategoryName: '' })
+          }
+          onCreateCategory={() => setDraftEvent({ ...draftEvent, isNewCategory: true })}
+          isNewCategory={draftEvent.isNewCategory}
+          newCategoryName={draftEvent.newCategoryName || ''}
+          setNewCategoryName={(name) => setDraftEvent({ ...draftEvent, newCategoryName: name })}
+          newCategoryColor={draftEvent.newCategoryColor}
+          setNewCategoryColor={(color) => setDraftEvent({ ...draftEvent, newCategoryColor: color })}
+          themeColors={themeColors}
+          colors={colors}
+        />
       </View>
 
       {/* ---- Project 选择 ---- */}
@@ -345,8 +253,8 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
           <Pressable
             style={[
               styles.newProjectChip,
-              { borderColor: colors.border },
-              draftEvent.isNewProject && [styles.newProjectChipActive, { borderColor: colors.accent }],
+              { borderColor: colors.border, backgroundColor: colors.surface },
+              draftEvent.isNewProject && [styles.newProjectChipActive, { borderColor: colors.accent, backgroundColor: colors.accentLight }],
             ]}
             onPress={() =>
               setDraftEvent({ ...draftEvent, isNewProject: true })
@@ -404,10 +312,11 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
                 {t('projects.accumulationHint')}
               </Text>
 
-              {/* Slider */}
+              {/* Slider 容器优化: 增加 Capture 确保按下滑块时 ScrollView 绝对不会动 */}
               <View 
                 style={{ height: 40, justifyContent: 'center', marginBottom: 6 }}
-                onStartShouldSetResponder={() => true}
+                onStartShouldSetResponderCapture={() => true}
+                onMoveShouldSetResponderCapture={() => true}
                 onResponderGrant={(e) => {
                   const locationX = e.nativeEvent.locationX;
                   const containerWidth = 327;
@@ -467,7 +376,7 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
           </>
         )}
       </View>
-    </ScrollView>
+    </KeyboardSafeScroll>
   );
 };
 
@@ -594,13 +503,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
     gap: 4,
   },
   newProjectChipActive: {
-    borderColor: '#2563EB',
-    backgroundColor: '#DBEAFE',
   },
   newProjectText: {
     fontSize: 13,

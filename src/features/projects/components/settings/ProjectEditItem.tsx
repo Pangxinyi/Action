@@ -1,9 +1,9 @@
 import type { Dispatch, SetStateAction } from 'react';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { ColorPicker } from '../../../../components/ColorPicker';
+import AccumulationSlider from '../../../../components/AccumulationSlider';
 import type { AppThemeColors } from '../../../../hooks/useThemeColors';
 import type { CategoryMap, Project } from '../../../../types';
 
@@ -27,18 +27,12 @@ export const ProjectEditItem: React.FC<Props> = ({
   onCancel,
 }) => {
   const { t } = useTranslation();
-  const [sliderWidth, setSliderWidth] = useState(280);
 
   const categoryEntries = useMemo(() => Object.entries(categories), [categories]);
   const palette = useMemo(() => {
     const uniqueColors = Array.from(new Set(categoryEntries.map(([, color]) => color)));
     return uniqueColors.length > 0 ? uniqueColors : ['#9CA3AF', '#3B82F6', '#10B981', '#F59E0B'];
   }, [categoryEntries]);
-
-  const handlePercentChange = (x: number) => {
-    const newPercent = Math.max(0, Math.min(100, (x / sliderWidth) * 100));
-    setEditingProject((prev) => (prev ? { ...prev, percent: Math.round(newPercent) } : prev));
-  };
 
   const handleSave = () => {
     const trimmed = editingProject.name.trim();
@@ -60,23 +54,6 @@ export const ProjectEditItem: React.FC<Props> = ({
       />
 
       <View style={styles.chipRow}>
-        <Pressable
-          onPress={() =>
-            setEditingProject((prev) => (prev ? { ...prev, category: null, hexColor: '#9CA3AF' } : prev))
-          }
-          style={({ pressed }) => [
-            styles.chip,
-            {
-              backgroundColor: !editingProject.category ? colors.text : colors.surface,
-              borderColor: !editingProject.category ? colors.text : colors.border,
-              opacity: pressed ? 0.85 : 1,
-            },
-          ]}
-        >
-          <Text style={{ fontSize: 12, fontWeight: '600', color: !editingProject.category ? colors.textInverse : colors.textTertiary }}>
-            {t('projects.uncategorized')}
-          </Text>
-        </Pressable>
         {categoryEntries.map(([catName, catColor]) => {
           const isSelected = editingProject.category === catName;
           return (
@@ -102,46 +79,16 @@ export const ProjectEditItem: React.FC<Props> = ({
         })}
       </View>
 
-      <View style={styles.sectionHeader}> 
-        <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('projects.accumulation')}</Text>
-        <Text style={[styles.sectionValue, { color: colors.text }]}>{Math.round(editingProject.percent)}%</Text>
-      </View>
-      <View
-        style={styles.sliderContainer}
-        onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width || sliderWidth)}
-        onStartShouldSetResponder={() => true}
-        onResponderGrant={(e) => handlePercentChange(e.nativeEvent.locationX)}
-        onResponderMove={(e) => handlePercentChange(e.nativeEvent.locationX)}
-      >
-        <View style={[styles.sliderTrack, { backgroundColor: colors.backgroundTertiary }]}>
-          <View
-            style={[
-              styles.sliderFill,
-              { width: `${editingProject.percent}%`, backgroundColor: editingProject.hexColor },
-            ]}
-          />
-        </View>
-        <View
-          style={[
-            styles.sliderThumb,
-            {
-              left: `${editingProject.percent}%`,
-              backgroundColor: colors.surface,
-              borderColor: editingProject.hexColor,
-            },
-          ]}
-        />
-      </View>
-
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{t('projects.color')}</Text>
-      </View>
-      <ColorPicker
-        colors={palette}
-        selectedColor={editingProject.hexColor}
-        onSelect={(c) => setEditingProject((prev) => (prev ? { ...prev, hexColor: c } : prev))}
-        size={28}
+      <AccumulationSlider
+        percent={editingProject.percent}
+        hexColor={editingProject.hexColor}
+        onChangePercent={(newPercent) => 
+          setEditingProject((prev) => (prev ? { ...prev, percent: newPercent } : prev))
+        }
+        colors={colors}
       />
+
+      {/* color picker removed — color is determined by selected category or defaults */}
 
       <View style={styles.actionsRow}>
         <View style={styles.buttonFlex}>

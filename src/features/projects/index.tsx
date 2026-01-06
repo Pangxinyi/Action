@@ -1,11 +1,15 @@
 import { Archive, Settings, X } from 'lucide-react-native';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { ColorPicker } from '../../components/ColorPicker';
+import AccumulationSlider from '../../components/AccumulationSlider';
+import { BottomSheet } from '../../components/BottomSheet';
+import CategorySelector from '../../components/CategorySelector';
 import { EmptyState } from '../../components/EmptyState';
+import { KeyboardSafeScroll } from '../../components/KeyboardSafeScroll';
 import { ModalHeader } from '../../components/ModalHeader';
+import PrimaryButton from '../../components/PrimaryButton';
 import SegmentedControl from '../../components/SegmentedControl';
 import { COLOR_THEMES } from '../../constants/theme';
 import type { CategoryMap, Project, ProjectDataPoint, ProjectsViewProps, TimeRangeType } from '../../types';
@@ -229,46 +233,28 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     );
   };
 
-  if (showSettings) {
-    return (
-      <SettingsModal
-        visible={showSettings}
-        onClose={() => setShowSettings(false)}
-        setShowSettings={setShowSettings}
-        projects={projects}
-        categories={categories}
-        setProjects={setProjects}
-        setCategories={setCategories}
-        setEvents={setEvents}
-        selectedColorScheme={selectedColorScheme}
-        onSelectColorScheme={handleSelectColorScheme}
-        getCurrentThemeColors={getCurrentThemeColors}
-        onArchiveProject={handleArchiveProject}
-        onUnarchiveProject={handleUnarchiveProject}
-        onDeleteProject={handleDeleteProject}
-        colors={colors}
-      />
-    );
-  }
-
   return (
     <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}>
       <View
         style={{
           paddingHorizontal: 16,
           paddingVertical: 12,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.border,
           flexDirection: 'row',
+          alignItems: 'flex-end',
           justifyContent: 'space-between',
-          alignItems: 'center',
           backgroundColor: colors.surface,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
         }}
       >
-        <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>{t('visualization.title')}</Text>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: colors.text }}>{t('visualization.title')}</Text>
         <Pressable
           onPress={() => setShowSettings(true)}
-          style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.backgroundTertiary, justifyContent: 'center', alignItems: 'center' }}
+          style={{
+            padding: 8,
+            borderRadius: 999,
+            backgroundColor: colors.backgroundTertiary,
+          }}
         >
           <Settings size={18} color={colors.textTertiary} />
         </Pressable>
@@ -277,7 +263,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
       {projectDataPoints.length === 0 ? (
         <EmptyState
           message={`${t('projects.noProjectsYet')}
-\n${t('projects.noProjectsHint')}`}
+${t('projects.noProjectsHint')}`}
           actionButton={
             onGoToCalendar ? (
               <Pressable
@@ -498,244 +484,144 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
         </ScrollView>
       )}
 
+      <SettingsModal
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        setShowSettings={setShowSettings}
+        projects={projects}
+        categories={categories}
+        setProjects={setProjects}
+        setCategories={setCategories}
+        setEvents={setEvents}
+        selectedColorScheme={selectedColorScheme}
+        onSelectColorScheme={handleSelectColorScheme}
+        getCurrentThemeColors={getCurrentThemeColors}
+        onArchiveProject={handleArchiveProject}
+        onUnarchiveProject={handleUnarchiveProject}
+        onDeleteProject={handleDeleteProject}
+        colors={colors}
+      />
+
       {modalOpen && selectedNode && (
-        <Modal visible={modalOpen} transparent animationType="slide" onRequestClose={() => setModalOpen(false)}>
-          <Pressable style={{ flex: 1, backgroundColor: colors.modalBackdrop, justifyContent: 'flex-end' }} onPress={() => setModalOpen(false)}>
-            <View
-              style={{
-                backgroundColor: colors.surface,
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                paddingTop: 0,
-                paddingBottom: 0,
-                paddingHorizontal: 0,
-                overflow: 'hidden',
-                maxHeight: '80%',
-              }}
-            >
-              <ModalHeader
-                titleNode={
-                  <TextInput
-                    style={{ fontSize: 28, fontWeight: '700', color: colors.text, padding: 0, margin: 0 }}
-                    value={selectedNode.name}
-                    onChangeText={(text) => setSelectedNode({ ...selectedNode, name: text })}
-                    placeholder="Project Name"
-                    placeholderTextColor={colors.textQuaternary}
-                  />
-                }
-                subtitle={t('projects.editDetails')}
-                onClose={() => setModalOpen(false)}
-                rightElement={
-                  <Pressable
-                    onPress={() => handleArchiveProject(selectedNode.id)}
-                    style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.warningLight, justifyContent: 'center', alignItems: 'center' }}
-                  >
-                    <Archive size={18} color={colors.warning} />
-                  </Pressable>
-                }
+        <BottomSheet
+          isOpen={modalOpen && !!selectedNode}
+          onClose={() => setModalOpen(false)}
+          paddingTop={0}
+        >
+          <ModalHeader
+            titleNode={
+              <TextInput
+                style={{ fontSize: 22, fontWeight: '700', color: colors.text, padding: 0, margin: 0 }}
+                value={selectedNode.name}
+                onChangeText={(text) => setSelectedNode({ ...selectedNode, name: text })}
+                placeholder={t('projects.projectNamePlaceholder')}
+                placeholderTextColor={colors.textQuaternary}
+              />
+            }
+            subtitle={t('projects.editDetails')}
+            onClose={() => setModalOpen(false)}
+            colors={colors}
+            rightElement={
+              <Pressable
+                onPress={() => handleArchiveProject(selectedNode.id)}
+                style={{
+                  padding: 8,
+                  borderRadius: 999,
+                  backgroundColor: colors.warningLight,
+                }}
+              >
+                <Archive size={18} color={colors.warning} />
+              </Pressable>
+            }
+          />
+
+          <KeyboardSafeScroll
+            style={{ flexGrow: 1 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+          >
+            {/* 1. AccumulationSlider 容器：使用 colors.backgroundSecondary 替代 #F9FAFB */}
+            <View style={{
+              backgroundColor: colors.backgroundSecondary, // <--- 修复点：跟随主题
+              borderRadius: 16,
+              padding: 12,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: colors.border, // <--- 修复点：跟随主题
+              marginBottom: 12,
+            }}>
+              <AccumulationSlider
+                percent={selectedNode.percent}
+                hexColor={selectedNode.hexColor}
+                onChangePercent={(newPercent) => setSelectedNode({ ...selectedNode, percent: newPercent })}
                 colors={colors}
               />
-
-              <ScrollView style={{ flexGrow: 1 }} contentContainerStyle={{ padding: 24, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-                <View style={{ marginBottom: 32 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      {t('projects.accumulation')}
-                    </Text>
-                    <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, backgroundColor: selectedNode.percent >= 100 ? colors.success : colors.backgroundTertiary }}>
-                      <Text style={{ fontSize: 18, fontWeight: '800', color: selectedNode.percent >= 100 ? colors.accentText : colors.text }}>
-                        {Math.round(selectedNode.percent)}%
-                      </Text>
-                    </View>
-                  </View>
-
-                  <Text style={{ fontSize: 12, color: colors.textTertiary, lineHeight: 18, marginBottom: 16 }}>{t('projects.accumulationHint')}</Text>
-
-                  <View
-                    style={{ height: 48, justifyContent: 'center', marginBottom: 8 }}
-                    onStartShouldSetResponder={() => true}
-                    onResponderGrant={(e) => {
-                      const locationX = e.nativeEvent.locationX;
-                      const containerWidth = 327;
-                      const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
-                      setSelectedNode({ ...selectedNode, percent: Math.round(newPercent) });
-                    }}
-                    onResponderMove={(e) => {
-                      const locationX = e.nativeEvent.locationX;
-                      const containerWidth = 327;
-                      const newPercent = Math.max(0, Math.min(100, (locationX / containerWidth) * 100));
-                      setSelectedNode({ ...selectedNode, percent: Math.round(newPercent) });
-                    }}
-                  >
-                    <View style={{ height: 8, backgroundColor: colors.backgroundTertiary, borderRadius: 4, overflow: 'hidden' }}>
-                      <View style={{ height: '100%', width: `${selectedNode.percent}%`, backgroundColor: selectedNode.hexColor, borderRadius: 4 }} />
-                    </View>
-
-                    <View
-                      style={{
-                        position: 'absolute',
-                        left: `${selectedNode.percent}%`,
-                        transform: [{ translateX: -12 }],
-                        width: 24,
-                        height: 24,
-                        borderRadius: 12,
-                        backgroundColor: colors.surface,
-                        borderWidth: 3,
-                        borderColor: selectedNode.hexColor,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 4,
-                        elevation: 4,
-                      }}
-                    />
-                  </View>
-
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 }}>
-                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel0')}</Text>
-                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel30')}</Text>
-                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel60')}</Text>
-                    <Text style={{ fontSize: 10, color: colors.textQuaternary, fontWeight: '600' }}>{t('projects.accumulationLevel85')}</Text>
-                  </View>
-                </View>
-
-                <View style={{ marginBottom: 32 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
-                    {t('projects.category')}
-                  </Text>
-
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    <Pressable
-                      onPress={() => setSelectedNode({ ...selectedNode, category: null, hexColor: '#9CA3AF' })}
-                      style={{
-                        paddingHorizontal: 16,
-                        paddingVertical: 10,
-                        borderRadius: 20,
-                        backgroundColor: !selectedNode.category ? colors.text : colors.backgroundSecondary,
-                        borderWidth: 2,
-                        borderColor: !selectedNode.category ? colors.text : colors.border,
-                      }}
-                    >
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: !selectedNode.category ? colors.textInverse : colors.textTertiary }}>
-                        {t('projects.uncategorized')}
-                      </Text>
-                    </Pressable>
-
-                    {Object.entries(categories).map(([catName, catColor]) => {
-                      const isSelected = selectedNode.category === catName;
-                      return (
-                        <Pressable
-                          key={catName}
-                          onPress={() => setSelectedNode({ ...selectedNode, category: catName, hexColor: catColor })}
-                          style={{
-                            paddingHorizontal: 16,
-                            paddingVertical: 10,
-                            borderRadius: 20,
-                            backgroundColor: isSelected ? catColor : colors.surface,
-                            borderWidth: 2,
-                            borderColor: catColor,
-                          }}
-                        >
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: isSelected ? colors.accentText : catColor }}>{catName}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-
-                <View style={{ backgroundColor: colors.backgroundSecondary, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: colors.border }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
-                    {t('projects.createNewCategory')}
-                  </Text>
-
-                  <TextInput
-                    style={{
-                      backgroundColor: colors.surface,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      borderRadius: 12,
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      fontSize: 15,
-                      fontWeight: '500',
-                      color: colors.text,
-                      marginBottom: 16,
-                    }}
-                    placeholder={t('projects.categoryNamePlaceholder')}
-                    placeholderTextColor={colors.textQuaternary}
-                    value={selectedNode.newCategoryName || ''}
-                    onChangeText={(text) => setSelectedNode({ ...selectedNode, newCategoryName: text })}
-                  />
-
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textTertiary, marginBottom: 12 }}>{t('common.color')}</Text>
-
-                  <ColorPicker
-                    colors={getCurrentThemeColors()}
-                    selectedColor={selectedNode.newCategoryColor || getCurrentThemeColors()[0]}
-                    onSelect={(c) => setSelectedNode({ ...selectedNode, newCategoryColor: c })}
-                    size={40}
-                  />
-
-                  <Pressable
-                    onPress={() => {
-                      if (selectedNode.newCategoryName?.trim()) {
-                        const newCatName = selectedNode.newCategoryName.trim();
-                        const newCatColor = selectedNode.newCategoryColor || getCurrentThemeColors()[0];
-                        setCategories((prev) => ({ ...prev, [newCatName]: newCatColor }));
-                        setSelectedNode({
-                          ...selectedNode,
-                          category: newCatName,
-                          hexColor: newCatColor,
-                          newCategoryName: '',
-                          newCategoryColor: undefined,
-                        });
-                      }
-                    }}
-                    style={{
-                      backgroundColor: selectedNode.newCategoryName?.trim() ? colors.accent : colors.backgroundTertiary,
-                      paddingVertical: 14,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                    }}
-                    disabled={!selectedNode.newCategoryName?.trim()}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 15,
-                        fontWeight: '700',
-                        color: selectedNode.newCategoryName?.trim() ? colors.accentText : colors.textQuaternary,
-                      }}
-                    >
-                      {t('projects.createAndAssign')}
-                    </Text>
-                  </Pressable>
-                </View>
-              </ScrollView>
-
-              <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-                <Pressable
-                  onPress={() => {
-                    setProjects((prev) => prev.map((p) => (p.id === selectedNode.id ? selectedNode : p)));
-                    setModalOpen(false);
-                  }}
-                  style={{
-                    backgroundColor: colors.primary,
-                    paddingVertical: 16,
-                    borderRadius: 16,
-                    alignItems: 'center',
-                    shadowColor: colors.text,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 8,
-                    elevation: 4,
-                  }}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primaryText }}>{t('projects.saveChanges')}</Text>
-                </Pressable>
-              </View>
             </View>
-          </Pressable>
-        </Modal>
+
+            {/* 2. CategorySelector 容器：同样修复背景色 */}
+            <View style={{
+              backgroundColor: colors.backgroundSecondary, // <--- 修复点
+              borderRadius: 16,
+              padding: 12,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: colors.border, // <--- 修复点
+              marginBottom: 12,
+            }}>
+              <CategorySelector
+                categories={categories}
+                selectedCategory={selectedNode.category}
+                onSelectCategory={(catName) =>
+                  setSelectedNode({
+                    ...selectedNode,
+                    category: catName,
+                    hexColor: (catName ? categories[catName] : null) || '#9CA3AF',
+                    isNewCategory: false,
+                    newCategoryName: '',
+                  })
+                }
+                onCreateCategory={() =>
+                  setSelectedNode({ ...selectedNode, isNewCategory: true, newCategoryName: '' })
+                }
+                isNewCategory={selectedNode.isNewCategory} // 新增：传入 isNewCategory
+                newCategoryName={selectedNode.newCategoryName || ''}
+                setNewCategoryName={(name) => setSelectedNode({ ...selectedNode, newCategoryName: name })}
+                newCategoryColor={selectedNode.newCategoryColor}
+                setNewCategoryColor={(color) => setSelectedNode({ ...selectedNode, newCategoryColor: color })}
+                themeColors={getCurrentThemeColors()}
+                colors={colors}
+              />
+            </View>
+          </KeyboardSafeScroll>
+
+          <View style={{ paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8, backgroundColor: colors.surface }}>
+            <PrimaryButton
+              onPress={() => {
+                if (selectedNode.isNewCategory && selectedNode.newCategoryName?.trim()) {
+                  const newCatName = selectedNode.newCategoryName.trim();
+                  const newCatColor = selectedNode.newCategoryColor || getCurrentThemeColors()[0];
+                  setCategories((prev) => ({ ...prev, [newCatName]: newCatColor }));
+                  setProjects((prev) =>
+                    prev.map((p) =>
+                      p.id === selectedNode.id
+                        ? {
+                            ...selectedNode,
+                            category: newCatName,
+                            hexColor: newCatColor,
+                            newCategoryName: '',
+                            newCategoryColor: undefined,
+                            isNewCategory: false,
+                          }
+                        : p
+                    )
+                  );
+                } else {
+                  setProjects((prev) => prev.map((p) => (p.id === selectedNode.id ? selectedNode : p)));
+                }
+                setModalOpen(false);
+              }}
+              label={t('projects.saveChanges')}
+              colors={colors}
+            />
+          </View>
+        </BottomSheet>
       )}
     </View>
   );

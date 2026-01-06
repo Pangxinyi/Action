@@ -17,6 +17,8 @@ export type CategorySectionProps = {
   setEvents: Dispatch<SetStateAction<EventItem[]>>;
   colors: AppThemeColors;
   getCurrentThemeColors: () => readonly string[];
+  isOpen: boolean;
+  onToggle: () => void;
 };
 
 export const CategorySection: React.FC<CategorySectionProps> = ({
@@ -27,9 +29,10 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   setEvents,
   colors,
   getCurrentThemeColors,
+  isOpen,
+  onToggle,
 }) => {
   const { t } = useTranslation();
-  const [isOpen, setIsOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<{ oldName: string; newName: string; color: string } | null>(null);
 
   const sortedCategories = useMemo(() => Object.entries(categories), [categories]);
@@ -85,7 +88,7 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
   return (
     <View>
       <Pressable
-        onPress={() => setIsOpen((prev) => !prev)}
+        onPress={onToggle}
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: isOpen ? 12 : 0 }}
       >
         <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
@@ -176,7 +179,6 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
                     onChangeText={(text) => setEditingCategory({ ...editingCategory, newName: text })}
                     placeholder={t('projects.categoryName')}
                     placeholderTextColor={colors.textQuaternary}
-                    autoFocus
                   />
                   <ColorPicker
                     colors={getCurrentThemeColors()}

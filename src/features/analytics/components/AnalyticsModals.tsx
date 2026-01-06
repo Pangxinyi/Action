@@ -64,7 +64,7 @@ const AnalyticsModals: React.FC<AnalyticsModalsProps> = ({
         })();
 
         return (
-          <BottomSheet isOpen={modalOpen} onClose={onCloseEditProject} height="80%">
+          <BottomSheet isOpen={modalOpen} onClose={onCloseEditProject}>
             <ModalHeader
               title={editingProject.name}
               subtitle={projectSubtitle}
@@ -162,7 +162,7 @@ const AnalyticsModals: React.FC<AnalyticsModalsProps> = ({
         })();
 
         return (
-          <BottomSheet isOpen={showUnassignedEvents} onClose={onCloseUnassigned} height="80%">
+          <BottomSheet isOpen={showUnassignedEvents} onClose={onCloseUnassigned}>
             <ModalHeader
               title={t('calendar.uncategorized')}
               subtitle={subtitle}
@@ -260,7 +260,7 @@ const AnalyticsModals: React.FC<AnalyticsModalsProps> = ({
         })();
 
         return (
-          <BottomSheet isOpen={showCategoryEvents} onClose={onCloseCategory} height="80%">
+          <BottomSheet isOpen={showCategoryEvents} onClose={onCloseCategory}>
             <ModalHeader
               title={selectedCategory === 'uncategorized' ? t('calendar.uncategorized') : selectedCategory}
               subtitle={`${categoryEvents.length} ${categoryEvents.length === 1 ? t('visualization.event') : t('visualization.events')} · ${subtitle}`}

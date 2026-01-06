@@ -62,11 +62,16 @@ export const ActiveProjectList: React.FC<Props> = ({ projects, categories, setPr
         );
       }
 
+      // When creating a new project, if no category was selected (null/undefined),
+      // treat it as explicit 'uncategorized' on save.
+      const finalCategory = updated.category ?? 'uncategorized';
+      const finalHex = updated.hexColor || categories[finalCategory] || '#9CA3AF';
+
       const newProject: Project = {
         id: updated.id,
         name: updated.name,
-        category: updated.category,
-        hexColor: updated.hexColor,
+        category: finalCategory,
+        hexColor: finalHex,
         percent: updated.percent,
         time: '0h 0m',
         x: 150,

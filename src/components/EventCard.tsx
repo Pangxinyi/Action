@@ -18,7 +18,6 @@ export const EventCard = React.memo(function EventCard({ event, layout, colors, 
 
   // Adjusted thresholds for compact display
   const isTinyCard = cardHeight < 30;
-  const isMediumCard = cardHeight >= 30 && cardHeight < 50;
   const isStandardCard = cardHeight >= 50;
 
   const eventColor = event.hexColor || '#000000';

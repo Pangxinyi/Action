@@ -4,6 +4,8 @@ import { initReactI18next } from 'react-i18next';
 import en from './translations/en';
 import zh from './translations/zh';
 
+/* eslint import/no-named-as-default-member: off */
+
 // 2. 简单的系统语言检测函数
 const getSystemLanguage = () => {
   try {

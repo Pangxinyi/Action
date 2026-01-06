@@ -2,11 +2,13 @@ import i18n from 'i18next';
 import { Plus, Trash2 } from 'lucide-react-native';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { BottomSheet } from '../../components/BottomSheet';
 import { ModalHeader } from '../../components/ModalHeader';
 import PrimaryButton from '../../components/PrimaryButton';
 import { COLOR_THEMES, TIME_STEP_MIN } from '../../constants/theme';
+import { useThemeColors } from '../../hooks/useThemeColors';
 import type { CalendarViewProps, DraftEvent, EventItem, Project } from '../../types';
 import CalendarDropdown from './components/CalendarDropdown';
 import DailyTimeline from './components/DailyTimeline';
@@ -23,6 +25,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   colors,
 }) => {
   const { t } = useTranslation();
+  const { isDark } = useThemeColors();
   const [editingField, setEditingField] = useState<'start' | 'end' | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -271,18 +274,30 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </View>
       </View>
 
-      <CalendarDropdown
-        isOpen={isCalendarOpen}
-        selectedDate={selectedDate}
-        setSelectedDate={setSelectedDate}
-        onClose={() => setIsCalendarOpen(false)}
-        formatMonthYear={formatMonthYear}
-        formatWeekday={formatWeekday}
-        t={t}
-        colors={colors}
-        events={events}
-        categories={categories}
-      />
+      {isCalendarOpen && (
+        <>
+          {/* Fullscreen transparent overlay */}
+          <Pressable
+            onPress={() => setIsCalendarOpen(false)}
+            style={styles.overlay}
+          />
+
+          {/* Calendar dropdown */}
+          <CalendarDropdown
+            isOpen={isCalendarOpen}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            onClose={() => setIsCalendarOpen(false)}
+            formatMonthYear={formatMonthYear}
+            formatWeekday={formatWeekday}
+            t={t}
+            colors={colors}
+            events={events}
+            categories={categories}
+            isDark={isDark}
+          />
+        </>
+      )}
 
       <DailyTimeline
         events={events}
@@ -294,57 +309,50 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         isScrollEnabled={!isModalOpen}
       />
 
-      <Modal visible={isModalOpen && !!draftEvent} transparent animationType="slide">
-        <Pressable 
-          style={[styles.modalOverlay, { backgroundColor: colors.modalBackdrop }]}
-          onPress={() => {
+      <BottomSheet
+        isOpen={isModalOpen && !!draftEvent}
+        onClose={() => {
+          setIsModalOpen(false);
+          setDraftEvent(null);
+          setEditingField(null);
+        }}
+        paddingTop={0}
+      >
+        <ModalHeader
+          title={draftEvent?.id ? t('calendar.editEvent') : t('calendar.addEvent')}
+          onClose={() => {
             setIsModalOpen(false);
             setDraftEvent(null);
             setEditingField(null);
           }}
-        >
-          <View 
-            style={[styles.bottomSheetLarge, { backgroundColor: colors.surface }]}
-            onStartShouldSetResponder={() => true}
-            onResponderRelease={() => {}}
-          >
-            <ModalHeader
-              title={draftEvent?.id ? t('calendar.editEvent') : t('calendar.addEvent')}
-              onClose={() => {
-                setIsModalOpen(false);
-                setDraftEvent(null);
-                setEditingField(null);
-              }}
-              colors={colors}
-              rightElement={
-                draftEvent?.id && (
-                  <Pressable style={styles.iconDanger} onPress={handleDelete}>
-                    <Trash2 size={18} color={colors.error} />
-                  </Pressable>
-                )
-              }
-            />
+          colors={colors}
+          rightElement={
+            draftEvent?.id && (
+              <Pressable style={styles.iconDanger} onPress={handleDelete}>
+                <Trash2 size={18} color={colors.error} />
+              </Pressable>
+            )
+          }
+        />
 
-            {draftEvent && (
-              <EventEditForm
-                draftEvent={draftEvent}
-                setDraftEvent={setDraftEvent}
-                projects={projects}
-                categories={categories}
-                themeColors={themeColors}
-                colors={colors}
-                editingField={editingField}
-                setEditingField={setEditingField}
-                onSelectTime={handleSelectTime}
-              />
-            )}
+        {draftEvent && (
+          <EventEditForm
+            draftEvent={draftEvent}
+            setDraftEvent={setDraftEvent}
+            projects={projects}
+            categories={categories}
+            themeColors={themeColors}
+            colors={colors}
+            editingField={editingField}
+            setEditingField={setEditingField}
+            onSelectTime={handleSelectTime}
+          />
+        )}
 
-            <View style={{ paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8, backgroundColor: colors.surface }}>
-              <PrimaryButton onPress={handleSave} label={draftEvent?.id ? t('calendar.save') : t('calendar.addEvent')} colors={colors} />
-            </View>
-          </View>
-        </Pressable>
-      </Modal>
+        <View style={{ paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8, backgroundColor: colors.surface }}>
+          <PrimaryButton onPress={handleSave} label={draftEvent?.id ? t('calendar.save') : t('calendar.addEvent')} colors={colors} />
+        </View>
+      </BottomSheet>
     </View>
   );
 };
@@ -395,20 +403,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'flex-end',
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'transparent',
+    zIndex: 10,
   },
-  bottomSheetLarge: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 0,
-    paddingHorizontal: 0,
-    paddingBottom: 0,
-    overflow: 'hidden',
-    height: '75%',
-    flexDirection: 'column',
+  calendarDropdown: {
+    zIndex: 20,
   },
 });

@@ -1,8 +1,9 @@
 import type { Dispatch, SetStateAction } from 'react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { BottomSheet } from '../../../components/BottomSheet';
+import { KeyboardSafeScroll } from '../../../components/KeyboardSafeScroll';
 import { ModalHeader } from '../../../components/ModalHeader';
 import type { AppThemeColors } from '../../../hooks/useThemeColors';
 import type { CategoryMap, EventItem, Project } from '../../../types';
@@ -48,7 +49,12 @@ export const SettingsModal: React.FC<Props> = ({
   colors,
 }) => {
   const { t } = useTranslation();
-  const [showDataManagement, setShowDataManagement] = useState(false);
+  type SectionType = 'category' | 'project' | 'theme' | 'data' | null;
+  const [activeSection, setActiveSection] = useState<SectionType>(null);
+
+  const toggleSection = (section: SectionType) => {
+    setActiveSection((prev) => (prev === section ? null : section));
+  };
 
   const { handleImportData, handleExportData, handleClearData } = useDataManagement({
     projects,
@@ -63,62 +69,55 @@ export const SettingsModal: React.FC<Props> = ({
   if (!visible) return null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.modalBackdrop }}>
-      <Pressable style={{ flex: 1 }} onPress={onClose} />
-      <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 0, paddingBottom: 0, paddingHorizontal: 0, overflow: 'hidden', maxHeight: '80%' }}>
-        <ModalHeader
-          title={t('projects.settings')}
-          onClose={onClose}
+    <BottomSheet isOpen={visible} onClose={onClose} paddingTop={0}>
+      <ModalHeader
+        title={t('projects.settings')}
+        onClose={onClose}
+        colors={colors}
+      />
+      
+      <KeyboardSafeScroll contentContainerStyle={{ padding: 24, gap: 20, paddingBottom: 64 }}>
+        <CategorySection
+          categories={categories}
+          setCategories={setCategories}
+          projects={projects}
+          setProjects={setProjects}
+          setEvents={setEvents}
           colors={colors}
+          getCurrentThemeColors={getCurrentThemeColors}
+          isOpen={activeSection === 'category'}
+          onToggle={() => toggleSection('category')}
         />
-        
-        <ScrollView contentContainerStyle={{ padding: 24, gap: 20 }}>
-          <CategorySection
-            categories={categories}
-            setCategories={setCategories}
-            projects={projects}
-            setProjects={setProjects}
-            setEvents={setEvents}
-            colors={colors}
-            getCurrentThemeColors={getCurrentThemeColors}
-          />
 
-          <ProjectSection
-            projects={projects}
-            categories={categories}
-            setProjects={setProjects}
-            onArchive={onArchiveProject}
-            onUnarchive={onUnarchiveProject}
-            onDelete={onDeleteProject}
-            colors={colors}
-          />
+        <ProjectSection
+          projects={projects}
+          categories={categories}
+          setProjects={setProjects}
+          onArchive={onArchiveProject}
+          onUnarchive={onUnarchiveProject}
+          onDelete={onDeleteProject}
+          colors={colors}
+          isOpen={activeSection === 'project'}
+          onToggle={() => toggleSection('project')}
+        />
 
-          <ThemeSection
-            selectedColorScheme={selectedColorScheme}
-            onSelectScheme={onSelectColorScheme}
-            colors={colors}
-          />
-
-          <View>
-            <Pressable 
-              onPress={() => setShowDataManagement(!showDataManagement)}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: showDataManagement ? 12 : 0 }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('projects.dataManagement')}</Text>
-              <Text style={{ fontSize: 12, color: colors.textTertiary }}>{showDataManagement ? '▼' : '▶'}</Text>
-            </Pressable>
-            {showDataManagement && (
-              <DataSection
-                colors={colors}
-                onImport={handleImportData}
-                onExport={handleExportData}
-                onClear={handleClearData}
-              />
-            )}
-          </View>
-        </ScrollView>
-      </View>
-    </View>
+        <ThemeSection
+          selectedColorScheme={selectedColorScheme}
+          onSelectScheme={onSelectColorScheme}
+          colors={colors}
+          isOpen={activeSection === 'theme'}
+          onToggle={() => toggleSection('theme')}
+        />
+        <DataSection
+          colors={colors}
+          onImport={handleImportData}
+          onExport={handleExportData}
+          onClear={handleClearData}
+          isOpen={activeSection === 'data'}
+          onToggle={() => toggleSection('data')}
+        />
+      </KeyboardSafeScroll>
+    </BottomSheet>
   );
 };
 

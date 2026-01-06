@@ -103,6 +103,7 @@ const DailyTimeline: React.FC<Props> = ({
 
     // Execute scroll
     scrollRef.current.scrollTo({ y: targetScrollY, animated: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, scrollRef]); // ⚠️ Note: Only depends on selectedDate, not events
 
   // Filter events for selected date

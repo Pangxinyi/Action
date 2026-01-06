@@ -1,6 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import * as Localization from 'expo-localization';
+import * as SystemUI from 'expo-system-ui';
+
 import {
   LogBox,
   StatusBar,
@@ -59,6 +61,18 @@ const App: React.FC = () => {
 
   useAppData(projects, events, categories, setProjects, setEvents, setCategories, handleDataLoaded);
 
+  // 当主题颜色变化时，同步原生根视图的背景色（避免切出/切回出现白条）
+  useEffect(() => {
+    const setRootBackground = async () => {
+      try {
+        await SystemUI.setBackgroundColorAsync(colors.background);
+      } catch (e) {
+        // ignore if SystemUI is unavailable
+      }
+    };
+    setRootBackground();
+  }, [colors.background]);
+
   let content: React.ReactNode;
   if (activeTab === 'calendar') {
     content = (
@@ -80,7 +94,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={{ backgroundColor: colors.background }}>
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={[styles.appContainer, { backgroundColor: colors.background }]}>

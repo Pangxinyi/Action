@@ -14,6 +14,7 @@ type Props = {
   colors: AppThemeColors;
   events: EventItem[];
   categories: CategoryMap;
+  isDark: boolean;
 };
 
 const CalendarDropdown: React.FC<Props> = ({
@@ -27,6 +28,7 @@ const CalendarDropdown: React.FC<Props> = ({
   colors,
   events,
   categories,
+  isDark,
 }) => {
   if (!isOpen) return null;
 
@@ -59,12 +61,6 @@ const CalendarDropdown: React.FC<Props> = ({
 
   return (
     <>
-      {/* Overlay backdrop - closes calendar when tapped */}
-      <Pressable
-        style={[styles.calendarBackdrop, { backgroundColor: colors.modalBackdrop }]}
-        onPress={onClose}
-      />
-
       <View style={[styles.calendarDropdown, { backgroundColor: colors.surface, shadowColor: colors.text }]}>
         <View style={styles.calendarHeader}>
           <Pressable onPress={handlePrevMonth}>
@@ -167,14 +163,6 @@ const CalendarDropdown: React.FC<Props> = ({
 };
 
 const styles = StyleSheet.create({
-  calendarBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 999,
-  },
   calendarDropdown: {
     position: 'absolute',
     top: 80,
