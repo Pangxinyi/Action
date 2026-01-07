@@ -85,6 +85,7 @@ export default {
     week: 'Week',
     month: 'Month',
     year: 'Year',
+    swipeHint: 'Swipe right to view history',
   },
 
   // Projects view

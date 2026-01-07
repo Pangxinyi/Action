@@ -85,6 +85,7 @@ export default {
     week: '周',
     month: '月',
     year: '年',
+    swipeHint: '左滑查看历史记录',
   },
 
   // Projects view

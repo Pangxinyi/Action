@@ -9,6 +9,7 @@ import { parseLocalDate } from '../../utils/date';
 import AnalyticsModals from './components/AnalyticsModals';
 import ProjectList from './components/ProjectList';
 import StackedBarChart from './components/StackedBarChart';
+import TimeRangeStrip from './components/TimeRangeStrip';
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   projects,
@@ -23,9 +24,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   // Provide a local `t` that delegates to `i18n.t` so translation calls remain safe
   const t = (key: string, opts?: any) => (i18n && typeof (i18n as any).t === 'function' ? (i18n as any).t(key, opts) : key);
   const [timeRange, setTimeRange] = useState<'Week' | 'Month' | 'Year'>('Week');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [showPicker, setShowPicker] = useState(false);
+  const [selectedOffset, setSelectedOffset] = useState(0); // 0 = current, -1 previous, etc.
   const [distributionMode, setDistributionMode] = useState<'project' | 'category'>('category');
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -45,33 +44,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         t('calendar.sun'),
       ];
 
-  const availableYears = useMemo(() => {
-    const years = new Set<number>();
-    events.forEach(evt => {
-      years.add(parseLocalDate(evt.date).getFullYear());
-    });
-    return Array.from(years).sort((a, b) => b - a);
-  }, [events]);
-
-  const availableMonths = useMemo(() => {
-    const months = new Set<number>();
-    events.forEach(evt => {
-      const date = parseLocalDate(evt.date);
-      if (date.getFullYear() === selectedYear) {
-        months.add(date.getMonth());
-      }
-    });
-    return Array.from(months).sort((a, b) => b - a);
-  }, [events, selectedYear]);
+  
 
   const filteredEvents = useMemo(() => {
+    const now = new Date();
     if (timeRange === 'Week') {
-      const today = new Date();
-      const dayOfWeek = today.getDay();
+      const dayOfWeek = now.getDay();
       const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
 
-      const monday = new Date(today);
-      monday.setDate(today.getDate() - daysFromMonday);
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - daysFromMonday + selectedOffset * 7);
       monday.setHours(0, 0, 0, 0);
 
       const sunday = new Date(monday);
@@ -85,17 +67,23 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     }
 
     if (timeRange === 'Month') {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() + selectedOffset);
+      const year = d.getFullYear();
+      const month = d.getMonth();
       return events.filter((evt) => {
         const eventDate = parseLocalDate(evt.date);
-        return eventDate.getMonth() === selectedMonth && eventDate.getFullYear() === selectedYear;
+        return eventDate.getMonth() === month && eventDate.getFullYear() === year;
       });
     }
 
+    // Year
+    const year = new Date(now).getFullYear() + selectedOffset;
     return events.filter((evt) => {
       const eventDate = parseLocalDate(evt.date);
-      return eventDate.getFullYear() === selectedYear;
+      return eventDate.getFullYear() === year;
     });
-  }, [events, timeRange, selectedMonth, selectedYear]);
+  }, [events, timeRange, selectedOffset]);
 
   const stackedChartData = useMemo(() => {
     const barCount = timeRange === 'Week' ? 7 : timeRange === 'Year' ? 12 : 5;
@@ -152,6 +140,46 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     return ['1', '8', '15', '22', '29'];
   })();
 
+  const earliestEventDate = useMemo(() => {
+    if (!events || events.length === 0) return new Date();
+    let minTs: number | null = null;
+    events.forEach((evt) => {
+      try {
+        const d = parseLocalDate(evt.date);
+        const t = d.getTime();
+        if (minTs === null || t < minTs) minTs = t;
+      } catch {
+        // ignore parse errors
+      }
+    });
+    return minTs ? new Date(minTs) : new Date();
+  }, [events]);
+
+  const showSwipeHint = useMemo(() => {
+    if (!events || events.length === 0) return false;
+    const now = new Date();
+    if (timeRange === 'Week') {
+      const dayOfWeek = now.getDay();
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - daysFromMonday);
+      monday.setHours(0, 0, 0, 0);
+      return events.some((evt) => parseLocalDate(evt.date) < monday);
+    }
+
+    if (timeRange === 'Month') {
+      const d = new Date(now);
+      const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      return events.some((evt) => parseLocalDate(evt.date) < startOfMonth);
+    }
+
+    // Year
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    startOfYear.setHours(0, 0, 0, 0);
+    return events.some((evt) => parseLocalDate(evt.date) < startOfYear);
+  }, [events, timeRange]);
+
   const totalMinutes = filteredEvents.reduce((sum, evt) => sum + evt.duration, 0);
   const totalHours = Math.floor(totalMinutes / 60);
   const totalMins = totalMinutes % 60;
@@ -199,17 +227,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     .filter((c) => c.duration > 0)
     .sort((a, b) => b.duration - a.duration);
 
-  const getSubtitle = () => {
-    if (timeRange === 'Week') return t('analytics.thisWeek');
-    if (timeRange === 'Month') {
-      const monthNames = ['jan', 'feb', 'mar', 'apr', 'mayShort', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-      const monthStr = t(`months.${monthNames[selectedMonth]}`).toUpperCase();
-      return i18n.language === 'zh'
-        ? t(`months.${['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'][selectedMonth]}`)
-        : `${monthStr} ${selectedYear}`;
-    }
-    return `${selectedYear}`;
-  };
+  
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}>
@@ -218,7 +236,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       <ScrollView
         style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}
         contentContainerStyle={{ paddingBottom: 24 }}
-        onScrollBeginDrag={() => showPicker && setShowPicker(false)}
       >
         <SegmentedControl
           options={([
@@ -233,92 +250,33 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
         <View style={[styles.analyticsCard, { backgroundColor: colors.surface }]}>
           <View style={styles.analyticsHeader}>
-            <View style={{ position: 'relative' }}>
+            <View>
               <Text style={[styles.analyticsTitle, { color: colors.text }]}>{t('analytics.totalTime')}</Text>
-              {timeRange === 'Week' ? (
-                <Text style={[styles.analyticsSubtitle, { color: colors.textTertiary }]}>{getSubtitle()}</Text>
-              ) : (
-                <>
-                  {(timeRange === 'Month' && availableMonths.length > 1) ||
-                   (timeRange === 'Year' && availableYears.length > 1) ? (
-                    <>
-                      <Pressable
-                        onPress={() => setShowPicker(true)}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                      >
-                        <Text style={styles.analyticsSubtitle}>{getSubtitle()}</Text>
-                        <View style={styles.pickerIconContainer}>
-                          <Text style={styles.pickerIconUp}>▲</Text>
-                          <Text style={styles.pickerIconDown}>▼</Text>
-                        </View>
-                      </Pressable>
-
-                      {showPicker && (
-                        <>
-                          <Pressable
-                            style={{ position: 'absolute', top: -200, left: -200, right: -200, bottom: -500, zIndex: 999 }}
-                            onPress={() => setShowPicker(false)}
-                          />
-                          <View style={[styles.pickerDropdown, { zIndex: 1000, backgroundColor: colors.surface, borderColor: colors.border }]}>
-                            <ScrollView style={{ maxHeight: 132 }} nestedScrollEnabled>
-                              {timeRange === 'Month'
-                                ? availableMonths.map((month) => {
-                                    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-                                    const isSelected = month === selectedMonth;
-                                    return (
-                                      <Pressable
-                                        key={month}
-                                        style={[styles.pickerItem, { borderBottomColor: colors.border }]}
-                                        onPress={() => {
-                                          setSelectedMonth(month);
-                                          setShowPicker(false);
-                                        }}
-                                      >
-                                        <Text style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</Text>
-                                        <Text style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
-                                          {i18n.language === 'zh'
-                                            ? `${selectedYear}年${t(`months.${monthNames[month]}`)}`
-                                            : `${t(`months.${monthNames[month]}`)} ${selectedYear}`}
-                                        </Text>
-                                      </Pressable>
-                                    );
-                                  })
-                                : availableYears.map((year) => {
-                                    const isSelected = year === selectedYear;
-                                    return (
-                                      <Pressable
-                                        key={year}
-                                        style={[styles.pickerItem, { borderBottomColor: colors.border }]}
-                                        onPress={() => {
-                                          setSelectedYear(year);
-                                          setShowPicker(false);
-                                        }}
-                                      >
-                                        <Text style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</Text>
-                                        <Text style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
-                                          {year}
-                                        </Text>
-                                      </Pressable>
-                                    );
-                                  })}
-                            </ScrollView>
-                          </View>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <Text style={[styles.analyticsSubtitle, { color: colors.textTertiary }]}>{getSubtitle()}</Text>
-                  )}
-                </>
+              {showSwipeHint && (
+                <Text style={[styles.analyticsSubtitle, { color: colors.textQuaternary }]}>{t('analytics.swipeHint')}</Text>
               )}
             </View>
-            <Text style={[styles.analyticsValue, { color: colors.text }]}>
-              {totalHours}
-              <Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.hours')}</Text>
-              {' '}{totalMins}
-              <Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.minutes')}</Text>
-            </Text>
+
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={[styles.analyticsValue, { color: colors.text }]}>
+                {totalHours}
+                <Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.hours')}</Text>
+                {' '}{totalMins}
+                <Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.minutes')}</Text>
+              </Text>
+            </View>
           </View>
+
+          <View style={{ marginTop: 1, marginBottom: 10, width: '100%' }}>
+            <TimeRangeStrip
+              timeRange={timeRange}
+              selectedOffset={selectedOffset}
+              onSelectOffset={setSelectedOffset}
+              minDate={earliestEventDate}
+              colors={colors}
+            />
+          </View>
+
           <StackedBarChart
             stackedChartData={stackedChartData}
             chartTotals={chartTotals}
@@ -425,7 +383,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   analyticsTitle: {
     fontSize: 16,
@@ -493,7 +451,7 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
   },
   analyticsValue: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: '#111827',
   },
