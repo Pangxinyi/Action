@@ -83,7 +83,7 @@ export const ThemeColors = {
   },
   dark: {
     // Background colors
-    background: '#0F0F0F',
+    background: '#000000',
     backgroundSecondary: '#1A1A1A',
     backgroundTertiary: '#262626',
     

@@ -29,10 +29,7 @@ export const ProjectEditItem: React.FC<Props> = ({
   const { t } = useTranslation();
 
   const categoryEntries = useMemo(() => Object.entries(categories), [categories]);
-  const palette = useMemo(() => {
-    const uniqueColors = Array.from(new Set(categoryEntries.map(([, color]) => color)));
-    return uniqueColors.length > 0 ? uniqueColors : ['#9CA3AF', '#3B82F6', '#10B981', '#F59E0B'];
-  }, [categoryEntries]);
+  // Palette was removed: color is determined by selected category or defaults
 
   const handleSave = () => {
     const trimmed = editingProject.name.trim();

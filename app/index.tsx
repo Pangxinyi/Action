@@ -4,10 +4,10 @@ import * as Localization from 'expo-localization';
 import * as SystemUI from 'expo-system-ui';
 
 import {
-  LogBox,
-  StatusBar,
-  StyleSheet,
-  View
+    LogBox,
+    StatusBar,
+    StyleSheet,
+    View
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useAppData } from 'src/hooks/useAppData';
@@ -66,9 +66,9 @@ const App: React.FC = () => {
     const setRootBackground = async () => {
       try {
         await SystemUI.setBackgroundColorAsync(colors.background);
-      } catch (e) {
-        // ignore if SystemUI is unavailable
-      }
+      } catch {
+          // ignore if SystemUI is unavailable
+        }
     };
     setRootBackground();
   }, [colors.background]);

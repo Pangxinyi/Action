@@ -9,7 +9,6 @@ import { parseLocalDate } from '../../utils/date';
 import AnalyticsModals from './components/AnalyticsModals';
 import ProjectList from './components/ProjectList';
 import StackedBarChart from './components/StackedBarChart';
-import TimeRangeStrip from './components/TimeRangeStrip';
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   projects,
@@ -23,8 +22,23 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const { i18n } = useTranslation();
   // Provide a local `t` that delegates to `i18n.t` so translation calls remain safe
   const t = (key: string, opts?: any) => (i18n && typeof (i18n as any).t === 'function' ? (i18n as any).t(key, opts) : key);
+  
+  // 获取本周一的日期字符串
+  const getThisWeekMonday = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - daysFromMonday);
+    monday.setHours(0, 0, 0, 0);
+    return monday.toISOString().split('T')[0];
+  };
+  
   const [timeRange, setTimeRange] = useState<'Week' | 'Month' | 'Year'>('Week');
-  const [selectedOffset, setSelectedOffset] = useState(0); // 0 = current, -1 previous, etc.
+  const [selectedWeek, setSelectedWeek] = useState(getThisWeekMonday());
+  const [selectedMonth, setSelectedMonth] = useState({ month: new Date().getMonth(), year: new Date().getFullYear() });
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [showPicker, setShowPicker] = useState(false);
   const [distributionMode, setDistributionMode] = useState<'project' | 'category'>('category');
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -44,16 +58,56 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         t('calendar.sun'),
       ];
 
-  
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    const currentYear = new Date().getFullYear();
+    events.forEach(evt => {
+      years.add(parseLocalDate(evt.date).getFullYear());
+    });
+    years.add(selectedYear);
+    years.add(currentYear);
+    return Array.from(years).sort((a, b) => b - a);
+  }, [events, selectedYear]);
+
+  const availableMonths = useMemo(() => {
+    const monthYearSet = new Set<string>();
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    events.forEach(evt => {
+      const date = parseLocalDate(evt.date);
+      monthYearSet.add(`${date.getFullYear()}-${date.getMonth()}`);
+    });
+    monthYearSet.add(`${selectedMonth.year}-${selectedMonth.month}`);
+    monthYearSet.add(`${currentYear}-${currentMonth}`);
+    return Array.from(monthYearSet)
+      .map(str => {
+        const [year, month] = str.split('-').map(Number);
+        return { month, year };
+      })
+      .sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month));
+  }, [events, selectedMonth]);
+
+  const availableWeeks = useMemo(() => {
+    const weekSet = new Set<string>();
+    const thisWeekMonday = getThisWeekMonday();
+    events.forEach(evt => {
+      const date = parseLocalDate(evt.date);
+      const dayOfWeek = date.getDay();
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const monday = new Date(date);
+      monday.setDate(date.getDate() - daysFromMonday);
+      monday.setHours(0, 0, 0, 0);
+      weekSet.add(monday.toISOString().split('T')[0]);
+    });
+    weekSet.add(selectedWeek);
+    weekSet.add(thisWeekMonday);
+    return Array.from(weekSet).sort((a, b) => b.localeCompare(a));
+  }, [events, selectedWeek]);
 
   const filteredEvents = useMemo(() => {
-    const now = new Date();
     if (timeRange === 'Week') {
-      const dayOfWeek = now.getDay();
-      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - daysFromMonday + selectedOffset * 7);
+      const monday = new Date(selectedWeek);
       monday.setHours(0, 0, 0, 0);
 
       const sunday = new Date(monday);
@@ -67,23 +121,17 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     }
 
     if (timeRange === 'Month') {
-      const d = new Date(now);
-      d.setMonth(d.getMonth() + selectedOffset);
-      const year = d.getFullYear();
-      const month = d.getMonth();
       return events.filter((evt) => {
         const eventDate = parseLocalDate(evt.date);
-        return eventDate.getMonth() === month && eventDate.getFullYear() === year;
+        return eventDate.getMonth() === selectedMonth.month && eventDate.getFullYear() === selectedMonth.year;
       });
     }
 
-    // Year
-    const year = new Date(now).getFullYear() + selectedOffset;
     return events.filter((evt) => {
       const eventDate = parseLocalDate(evt.date);
-      return eventDate.getFullYear() === year;
+      return eventDate.getFullYear() === selectedYear;
     });
-  }, [events, timeRange, selectedOffset]);
+  }, [events, timeRange, selectedWeek, selectedMonth, selectedYear]);
 
   const stackedChartData = useMemo(() => {
     const barCount = timeRange === 'Week' ? 7 : timeRange === 'Year' ? 12 : 5;
@@ -140,46 +188,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     return ['1', '8', '15', '22', '29'];
   })();
 
-  const earliestEventDate = useMemo(() => {
-    if (!events || events.length === 0) return new Date();
-    let minTs: number | null = null;
-    events.forEach((evt) => {
-      try {
-        const d = parseLocalDate(evt.date);
-        const t = d.getTime();
-        if (minTs === null || t < minTs) minTs = t;
-      } catch {
-        // ignore parse errors
-      }
-    });
-    return minTs ? new Date(minTs) : new Date();
-  }, [events]);
-
-  const showSwipeHint = useMemo(() => {
-    if (!events || events.length === 0) return false;
-    const now = new Date();
-    if (timeRange === 'Week') {
-      const dayOfWeek = now.getDay();
-      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - daysFromMonday);
-      monday.setHours(0, 0, 0, 0);
-      return events.some((evt) => parseLocalDate(evt.date) < monday);
-    }
-
-    if (timeRange === 'Month') {
-      const d = new Date(now);
-      const startOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
-      startOfMonth.setHours(0, 0, 0, 0);
-      return events.some((evt) => parseLocalDate(evt.date) < startOfMonth);
-    }
-
-    // Year
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    startOfYear.setHours(0, 0, 0, 0);
-    return events.some((evt) => parseLocalDate(evt.date) < startOfYear);
-  }, [events, timeRange]);
-
   const totalMinutes = filteredEvents.reduce((sum, evt) => sum + evt.duration, 0);
   const totalHours = Math.floor(totalMinutes / 60);
   const totalMins = totalMinutes % 60;
@@ -227,7 +235,36 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     .filter((c) => c.duration > 0)
     .sort((a, b) => b.duration - a.duration);
 
-  
+  const getSubtitle = () => {
+    if (timeRange === 'Week') {
+      const thisWeekMonday = getThisWeekMonday();
+      if (selectedWeek === thisWeekMonday) {
+        return t('analytics.thisWeek');
+      }
+      const monday = new Date(selectedWeek);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      
+      if (i18n.language === 'zh') {
+        const format = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+        return `${format(monday)} - ${format(sunday)}`;
+      } else {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const formatEn = (d: Date) => `${monthNames[d.getMonth()]} ${d.getDate()}`;
+        if (monday.getMonth() === sunday.getMonth()) {
+          return `${monthNames[monday.getMonth()]} ${monday.getDate()}-${sunday.getDate()}`;
+        }
+        return `${formatEn(monday)} - ${formatEn(sunday)}`;
+      }
+    }
+    if (timeRange === 'Month') {
+      const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+      return i18n.language === 'zh'
+        ? `${selectedMonth.year}年${t(`months.${monthNames[selectedMonth.month]}`)}`
+        : `${t(`months.${monthNames[selectedMonth.month]}`)} ${selectedMonth.year}`;
+    }
+    return `${selectedYear}`;
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}>
@@ -236,6 +273,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       <ScrollView
         style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}
         contentContainerStyle={{ paddingBottom: 24 }}
+        onScrollBeginDrag={() => showPicker && setShowPicker(false)}
       >
         <SegmentedControl
           options={([
@@ -250,33 +288,128 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
         <View style={[styles.analyticsCard, { backgroundColor: colors.surface }]}>
           <View style={styles.analyticsHeader}>
-            <View>
+            <View style={{ position: 'relative' }}>
               <Text style={[styles.analyticsTitle, { color: colors.text }]}>{t('analytics.totalTime')}</Text>
-              {showSwipeHint && (
-                <Text style={[styles.analyticsSubtitle, { color: colors.textQuaternary }]}>{t('analytics.swipeHint')}</Text>
-              )}
+              {((timeRange === 'Week' && availableWeeks.length > 1) ||
+                (timeRange === 'Month' && availableMonths.length > 1) ||
+                (timeRange === 'Year' && availableYears.length > 1)) ? (
+                    <>
+                      <Pressable
+                        onPress={() => setShowPicker(true)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                      >
+                        <Text style={styles.analyticsSubtitle}>{getSubtitle()}</Text>
+                        <View style={styles.pickerIconContainer}>
+                          <Text style={styles.pickerIconUp}>▲</Text>
+                          <Text style={styles.pickerIconDown}>▼</Text>
+                        </View>
+                      </Pressable>
+
+                      {showPicker && (
+                        <>
+                          <Pressable
+                            style={{ position: 'absolute', top: -200, left: -200, right: -200, bottom: -500, zIndex: 999 }}
+                            onPress={() => setShowPicker(false)}
+                          />
+                          <View style={[styles.pickerDropdown, { zIndex: 1000, backgroundColor: colors.surface, shadowColor: colors.text }]}>
+                            <ScrollView style={{ maxHeight: 132 }} nestedScrollEnabled>
+                              {timeRange === 'Week'
+                                ? availableWeeks.map((weekStart) => {
+                                    const thisWeekMonday = getThisWeekMonday();
+                                    const isThisWeek = weekStart === thisWeekMonday;
+                                    const monday = new Date(weekStart);
+                                    const sunday = new Date(monday);
+                                    sunday.setDate(monday.getDate() + 6);
+                                    
+                                    let displayText;
+                                    if (isThisWeek) {
+                                      displayText = t('analytics.thisWeek');
+                                    } else if (i18n.language === 'zh') {
+                                      const format = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+                                      displayText = `${format(monday)} - ${format(sunday)}`;
+                                    } else {
+                                      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                      const formatEn = (d: Date) => `${monthNames[d.getMonth()]} ${d.getDate()}`;
+                                      if (monday.getMonth() === sunday.getMonth()) {
+                                        displayText = `${monthNames[monday.getMonth()]} ${monday.getDate()}-${sunday.getDate()}`;
+                                      } else {
+                                        displayText = `${formatEn(monday)} - ${formatEn(sunday)}`;
+                                      }
+                                    }
+                                    
+                                    const isSelected = weekStart === selectedWeek;
+                                    return (
+                                      <Pressable
+                                        key={weekStart}
+                                        style={[styles.pickerItem, { borderBottomColor: colors.border }]}
+                                        onPress={() => {
+                                          setSelectedWeek(weekStart);
+                                          setShowPicker(false);
+                                        }}
+                                      >
+                                        <Text style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</Text>
+                                        <Text style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
+                                          {displayText}
+                                        </Text>
+                                      </Pressable>
+                                    );
+                                  })
+                                : timeRange === 'Month'
+                                  ? availableMonths.map((monthYear) => {
+                                    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+                                    const isSelected = monthYear.month === selectedMonth.month && monthYear.year === selectedMonth.year;
+                                    return (
+                                      <Pressable
+                                        key={`${monthYear.year}-${monthYear.month}`}
+                                        style={[styles.pickerItem, { borderBottomColor: colors.border }]}
+                                        onPress={() => {
+                                          setSelectedMonth(monthYear);
+                                          setShowPicker(false);
+                                        }}
+                                      >
+                                        <Text style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</Text>
+                                        <Text style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
+                                          {i18n.language === 'zh'
+                                            ? `${monthYear.year}年${t(`months.${monthNames[monthYear.month]}`)}`
+                                            : `${t(`months.${monthNames[monthYear.month]}`)} ${monthYear.year}`}
+                                        </Text>
+                                      </Pressable>
+                                    );
+                                  })
+                                  : availableYears.map((year) => {
+                                    const isSelected = year === selectedYear;
+                                    return (
+                                      <Pressable
+                                        key={year}
+                                        style={[styles.pickerItem, { borderBottomColor: colors.border }]}
+                                        onPress={() => {
+                                          setSelectedYear(year);
+                                          setShowPicker(false);
+                                        }}
+                                      >
+                                        <Text style={[styles.pickerCheck, { color: colors.accent }]}>{isSelected ? '✓' : ''}</Text>
+                                        <Text style={[styles.pickerItemText, { color: colors.text }, isSelected && [styles.pickerItemSelected, { color: colors.accent }]]}>
+                                          {year}
+                                        </Text>
+                                      </Pressable>
+                                    );
+                                  })}
+                            </ScrollView>
+                          </View>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <Text style={[styles.analyticsSubtitle, { color: colors.textTertiary }]}>{getSubtitle()}</Text>
+                  )}
             </View>
-
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={[styles.analyticsValue, { color: colors.text }]}>
-                {totalHours}
-                <Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.hours')}</Text>
-                {' '}{totalMins}
-                <Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.minutes')}</Text>
-              </Text>
-            </View>
+            <Text style={[styles.analyticsValue, { color: colors.text }]}>
+              {totalHours}
+              <Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.hours')}</Text>
+              {' '}{totalMins}
+              <Text style={[styles.analyticsValueUnit, { color: colors.textTertiary }]}>{t('common.minutes')}</Text>
+            </Text>
           </View>
-
-          <View style={{ marginTop: 1, marginBottom: 10, width: '100%' }}>
-            <TimeRangeStrip
-              timeRange={timeRange}
-              selectedOffset={selectedOffset}
-              onSelectOffset={setSelectedOffset}
-              minDate={earliestEventDate}
-              colors={colors}
-            />
-          </View>
-
           <StackedBarChart
             stackedChartData={stackedChartData}
             chartTotals={chartTotals}
@@ -383,7 +516,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   analyticsTitle: {
     fontSize: 16,
@@ -414,7 +547,7 @@ const styles = StyleSheet.create({
   },
   pickerDropdown: {
     position: 'absolute',
-    top: 38,
+    top: 42,
     left: 0,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -422,10 +555,11 @@ const styles = StyleSheet.create({
     maxHeight: 132,
     overflow: 'hidden',
     shadowColor: '#000',
+    shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowRadius: 8,
+    elevation: 5,
+    paddingVertical: 4,
     zIndex: 1000,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -451,7 +585,7 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
   },
   analyticsValue: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: '#111827',
   },
