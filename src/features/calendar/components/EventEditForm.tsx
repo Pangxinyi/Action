@@ -2,12 +2,12 @@ import { Plus } from 'lucide-react-native';
 import React, { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from 'react-native';
 
 import CategorySelector from '../../../components/CategorySelector';
@@ -58,7 +58,7 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
   onSelectTime,
 }) => {
   const { t } = useTranslation();
-  const timeListRef = useRef<FlatList>(null);
+  const timeScrollRef = useRef<ScrollView>(null);
 
   // Time options for picker (supports events spanning midnight)
   const timeOptions = useMemo(
@@ -72,41 +72,6 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
 
   const openTimeEditor = (field: 'start' | 'end') => {
     setEditingField(field);
-    // 延时一下滚动，等待 UI 渲染
-    setTimeout(() => {
-      if (!timeListRef.current) return;
-      const current = field === 'start' ? draftEvent.start : draftEvent.end;
-      const index = Math.floor(current / TIME_STEP_MIN);
-      timeListRef.current.scrollToIndex({ index, animated: false, viewPosition: 0.5 });
-    }, 50);
-  };
-
-  // 渲染时间项，提取出来以提升性能
-  const renderTimeItem = ({ item: m }: { item: number }) => {
-    const current = editingField === 'start' ? draftEvent.start : draftEvent.end;
-    const nearest = Math.round(current / TIME_STEP_MIN) * TIME_STEP_MIN;
-    const active = m === nearest;
-
-    return (
-      <Pressable
-        style={[
-          styles.timeOptionRow,
-          { backgroundColor: colors.surface },
-          active && [styles.timeOptionRowActive, { backgroundColor: colors.backgroundTertiary }],
-        ]}
-        onPress={() => onSelectTime(editingField!, m)}
-      >
-        <Text
-          style={[
-            styles.timeOptionText,
-            { color: colors.textTertiary },
-            active && [styles.timeOptionTextActive, { color: colors.text }],
-          ]}
-        >
-          {formatMinutes(m)}
-        </Text>
-      </Pressable>
-    );
   };
 
   return (
@@ -155,21 +120,56 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
               : t('calendar.duration')}
           </Text>
           
-          {/* 使用 FlatList 替换 ScrollView，性能大幅提升 */}
-          <View style={{ height: 260 }}>
-            <FlatList
-              ref={timeListRef}
-              data={timeOptions}
-              renderItem={renderTimeItem}
-              keyExtractor={(item) => `${editingField}-${item}`}
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled={true}
-              initialNumToRender={15}
-              getItemLayout={(data, index) => (
-                { length: 44, offset: 44 * index, index }
-              )}
-            />
-          </View>
+          {/* 使用 ScrollView 替换 FlatList 以避免 VirtualizedList 嵌套警告 */}
+          <ScrollView
+            key={editingField}
+            ref={timeScrollRef}
+            style={{ maxHeight: 260 }}
+            scrollEnabled={true}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 0 }}
+            nestedScrollEnabled={true}
+            onContentSizeChange={(width, height) => {
+              if (height === 0) return;
+              if (!editingField || !draftEvent) return;
+              
+              const current = editingField === 'start' ? draftEvent.start : draftEvent.end;
+              const nearestIndex = Math.round(current / TIME_STEP_MIN);
+              const totalItems = (48 * 60) / TIME_STEP_MIN;
+              const actualRowHeight = height / totalItems;
+              const scrollY = nearestIndex * actualRowHeight;
+
+              timeScrollRef.current?.scrollTo({ y: scrollY, animated: false });
+            }}
+          >
+            {timeOptions.map((m) => {
+              const current = editingField === 'start' ? draftEvent.start : draftEvent.end;
+              const nearest = Math.round(current / TIME_STEP_MIN) * TIME_STEP_MIN;
+              const active = m === nearest;
+
+              return (
+                <Pressable
+                  key={`${editingField}-${m}`}
+                  style={[
+                    styles.timeOptionRow,
+                    { backgroundColor: colors.surface },
+                    active && [styles.timeOptionRowActive, { backgroundColor: colors.backgroundTertiary }],
+                  ]}
+                  onPress={() => onSelectTime(editingField, m)}
+                >
+                  <Text
+                    style={[
+                      styles.timeOptionText,
+                      { color: colors.textTertiary },
+                      active && [styles.timeOptionTextActive, { color: colors.text }],
+                    ]}
+                  >
+                    {formatMinutes(m)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
       )}
 

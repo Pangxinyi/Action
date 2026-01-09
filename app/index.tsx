@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
-import * as Localization from 'expo-localization';
 import * as SystemUI from 'expo-system-ui';
 
 import {
@@ -14,7 +13,7 @@ import { useAppData } from 'src/hooks/useAppData';
 import { useThemeColors } from 'src/hooks/useThemeColors';
 import 'src/i18n/i18n';
 import TabBar from '../src/components/TabBar';
-import { getDefaultCategories } from '../src/constants/categories';
+
 import { AnalyticsView } from '../src/features/analytics';
 import { CalendarView } from '../src/features/calendar';
 import { ProjectsView } from '../src/features/projects';
@@ -30,20 +29,6 @@ import type { CategoryMap, EventItem, Project, TabKey } from '../src/types';
 // Suppress known SafeAreaView deprecation warnings from third-party modules
 LogBox.ignoreLogs(["SafeAreaView has been deprecated"]);
 
-const getInitialLanguage = (): string => {
-  try {
-    const locales = Localization.getLocales();
-    if (locales && locales.length > 0) {
-      const primary = locales[0];
-      const languageCode = (primary.languageCode || '').toLowerCase();
-      if (languageCode.startsWith('zh')) return 'zh';
-    }
-  } catch {
-    // ignore
-  }
-  return 'en'; // Default fallback
-};
-
 const App: React.FC = () => {
   const { colors, isDark } = useThemeColors();
   const [activeTab, setActiveTab] = useState<TabKey>('calendar');
@@ -53,13 +38,7 @@ const App: React.FC = () => {
   const [categories, setCategories] = useState<CategoryMap>({});
 
   // Initialize data persistence
-  const handleDataLoaded = useCallback(() => {
-    setCategories(prev => {
-      return Object.keys(prev).length === 0 ? getDefaultCategories(getInitialLanguage()) : prev;
-    });
-  }, []);
-
-  useAppData(projects, events, categories, setProjects, setEvents, setCategories, handleDataLoaded);
+  useAppData(projects, events, categories, setProjects, setEvents, setCategories);
 
   // 当主题颜色变化时，同步原生根视图的背景色（避免切出/切回出现白条）
   useEffect(() => {

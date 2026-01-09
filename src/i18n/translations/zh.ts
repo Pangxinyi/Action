@@ -103,7 +103,6 @@ export default {
     dataManagement: '数据管理',
     importData: '导入数据（JSON）',
     exportData: '导出数据（JSON）',
-    clearAllData: '清空所有数据',
     categoryManagement: '类别管理',
     projectManagement: '项目管理',
     noActiveProjects: '没有活跃项目',
@@ -112,6 +111,7 @@ export default {
     deleteProjectConfirm: '确定要永久删除这个项目吗？',
     newProject: '新建项目',
     newCategory: '新建类别',
+    noCategories: '尚未添加任何类别',
     noProjectsYet: '你还没有关联任何项目',
     noProjectsHint: '在「日历」中添加事件，并为事件关联项目后，它们会出现在这里。',
     goToCalendar: '去添加你的第一个事件',
@@ -135,10 +135,7 @@ export default {
     importFailed: '导入失败：{{error}}',
     importFileArrayRequired: '文件 {{file}} 必须包含事件数组',
     importProcessFailed: '处理文件 {{file}} 失败：{{error}}',
-    clearConfirmTitle: '清空所有数据',
-    clearConfirmMessage: '确认要删除所有项目和事件吗？此操作不可撤销。',
-    clearSuccess: '数据已清空',
-    clearPartialWarning: '应用内数据已清空，但存储可能需要手动重置',
+    
   },
 
   // Visualization view (Project Quadrant Map)

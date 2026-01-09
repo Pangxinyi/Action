@@ -6,7 +6,6 @@ This repository is an Expo (React Native + web) app using `expo-router` and Type
 ## Quick commands
 - Install deps: `npm install`
 - Start dev server: `npx expo start` (then open iOS/Android/web or Expo Go)
-- Reset starter content: `npm run reset-project` (see `scripts/reset-project.js` — it moves old app to `app-example`)
 - Lint: `npm run lint`
 
 ## High-level architecture
@@ -37,7 +36,7 @@ This repository is an Expo (React Native + web) app using `expo-router` and Type
 
 ## Developer workflows & gotchas
 - No test runner configured: There are no test scripts in `package.json`. Do not assume existing unit tests.
-- Reset behavior: `npm run reset-project` interactively moves `app`, `components`, `hooks`, `constants`, and `scripts` to `app-example` (or deletes them). Read `scripts/reset-project.js` before running.
+ - Reset behavior: (developer reset script removed) previously used to interactively move `app`, `components`, `hooks`, `constants`, and `scripts` to `app-example`.
 - Linting: `expo lint` is available as `npm run lint`.
 - Native deps: When adding/upgrading native modules (e.g., reanimated), follow Expo docs for managed workflow or use a custom dev client.
 
@@ -46,7 +45,7 @@ This repository is an Expo (React Native + web) app using `expo-router` and Type
 - Shared UI: `components/` and `components/ui/`
 - Hooks: `hooks/` and platform-specific variants `use-color-scheme.web.ts`
 - Aliases/config: `tsconfig.json`, `babel.config.js`
-- Scripts: `scripts/reset-project.js`
+ - Scripts: (no destructive reset script included)
 - Package manifest: `package.json`
 
 ## Example tasks and how to perform them

@@ -8,6 +8,7 @@ import { ModalHeader } from '../../../components/ModalHeader';
 import type { AppThemeColors } from '../../../hooks/useThemeColors';
 import type { CategoryMap, EventItem, Project } from '../../../types';
 import { useDataManagement } from '../hooks/useDataManagement';
+import { ArchivedSection } from './settings/ArchivedSection';
 import { CategorySection } from './settings/CategorySection';
 import { DataSection } from './settings/DataSection';
 import { ProjectSection } from './settings/ProjectSection';
@@ -49,14 +50,14 @@ export const SettingsModal: React.FC<Props> = ({
   colors,
 }) => {
   const { t } = useTranslation();
-  type SectionType = 'category' | 'project' | 'theme' | 'data' | null;
+  type SectionType = 'category' | 'project' | 'archived' | 'theme' | 'data' | null;
   const [activeSection, setActiveSection] = useState<SectionType>(null);
 
   const toggleSection = (section: SectionType) => {
     setActiveSection((prev) => (prev === section ? null : section));
   };
 
-  const { handleImportData, handleExportData, handleClearData } = useDataManagement({
+  const { handleImportData, handleExportData } = useDataManagement({
     projects,
     categories,
     setProjects,
@@ -94,11 +95,18 @@ export const SettingsModal: React.FC<Props> = ({
           categories={categories}
           setProjects={setProjects}
           onArchive={onArchiveProject}
-          onUnarchive={onUnarchiveProject}
-          onDelete={onDeleteProject}
           colors={colors}
           isOpen={activeSection === 'project'}
           onToggle={() => toggleSection('project')}
+        />
+
+        <ArchivedSection
+          projects={projects}
+          onUnarchive={onUnarchiveProject}
+          onDelete={onDeleteProject}
+          colors={colors}
+          isOpen={activeSection === 'archived'}
+          onToggle={() => toggleSection('archived')}
         />
 
         <ThemeSection
@@ -112,7 +120,6 @@ export const SettingsModal: React.FC<Props> = ({
           colors={colors}
           onImport={handleImportData}
           onExport={handleExportData}
-          onClear={handleClearData}
           isOpen={activeSection === 'data'}
           onToggle={() => toggleSection('data')}
         />

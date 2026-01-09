@@ -25,7 +25,6 @@ export const saveAppData = async (data: AppData): Promise<void> => {
       version: APP_VERSION,
     };
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-    console.log('✓ App data saved successfully');
   } catch (error) {
     console.error('✗ Failed to save app data:', error);
     throw error;
@@ -49,15 +48,7 @@ export const loadAppData = async (): Promise<AppData | null> => {
 /**
  * Clear all app data from local storage
  */
-export const clearAppData = async (): Promise<void> => {
-  try {
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    console.log('✓ App data cleared');
-  } catch (error) {
-    console.error('✗ Failed to clear app data:', error);
-    throw error;
-  }
-};
+ 
 
 /**
  * Export data as JSON

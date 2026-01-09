@@ -55,7 +55,8 @@ export const CategorySection: React.FC<CategorySectionProps> = ({
               prev.map((p) => (p.category === categoryName ? { ...p, category: null, hexColor: '#9CA3AF' } : p)),
             );
 
-            setEvents((prev) => prev.map((e) => (e.category === categoryName ? { ...e, category: undefined } : e)));
+            // 删除类别时，同时更新 events 的 hexColor 为灰色
+            setEvents((prev) => prev.map((e) => (e.category === categoryName ? { ...e, category: undefined, hexColor: '#9CA3AF' } : e)));
           },
         },
       ],

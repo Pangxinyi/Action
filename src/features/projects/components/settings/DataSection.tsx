@@ -1,4 +1,3 @@
-import { Trash2 } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -8,7 +7,6 @@ import type { AppThemeColors } from '../../../../hooks/useThemeColors';
 type Props = {
   onImport: () => void;
   onExport: () => void;
-  onClear: () => void;
   colors: AppThemeColors;
   isOpen: boolean;
   onToggle: () => void;
@@ -39,7 +37,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export const DataSection: React.FC<Props> = ({ onImport, onExport, onClear, colors, isOpen, onToggle }) => {
+export const DataSection: React.FC<Props> = ({ onImport, onExport, colors, isOpen, onToggle }) => {
   const { t } = useTranslation();
 
   return (
@@ -69,13 +67,6 @@ export const DataSection: React.FC<Props> = ({ onImport, onExport, onClear, colo
           >
             <Text style={[styles.buttonText, { color: colors.text }]}>{t('projects.exportData')}</Text>
             <Text style={[styles.iconText, { color: colors.text }]}>↓</Text>
-          </Pressable>
-          <Pressable
-            onPress={onClear}
-            style={[styles.button, styles.danger, { backgroundColor: colors.error, borderColor: 'transparent' }]}
-          >
-            <Text style={[styles.buttonText, { color: colors.accentText }]}>{t('projects.clearAllData')}</Text>
-            <Trash2 size={18} color={colors.accentText} />
           </Pressable>
         </View>
       )}

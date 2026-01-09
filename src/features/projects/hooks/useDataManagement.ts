@@ -6,7 +6,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Platform } from 'react-native';
 
-import { clearAppData, exportDataAsJSON, loadAppData } from 'src/utils/storage';
+import { exportDataAsJSON, loadAppData } from 'src/utils/storage';
 import type { CategoryMap, EventItem, Project } from '../../../types';
 
 type UseDataManagementParams = {
@@ -183,26 +183,25 @@ export const useDataManagement = ({
 
       const jsonString = exportDataAsJSON(data);
 
-      console.log('[Export] Platform.OS:', Platform.OS);
+      // debug: export platform
       // Prefer the legacy filesystem module to avoid deprecation warnings / errors.
       let legacy: any = null;
       try {
         // @ts-ignore
         legacy = await import('expo-file-system/legacy');
-      } catch (legacyErr) {
-        console.log('[Export] legacy module import failed', legacyErr);
+      } catch {
+        // legacy import failed
       }
 
       let dir = legacy ? (legacy.cacheDirectory || legacy.documentDirectory) : undefined;
-      console.log('[Export] legacy.documentDirectory:', legacy && legacy.documentDirectory);
-      console.log('[Export] legacy.cacheDirectory:', legacy && legacy.cacheDirectory);
+      // legacy directories
 
       if (!dir) {
         // As a last fallback, try the modern module (may emit deprecation warnings on some runtimes)
         try {
           const fsModule: any = await import('expo-file-system');
           dir = fsModule && (fsModule.cacheDirectory || fsModule.documentDirectory);
-          console.log('[Export] fallback FileSystem dirs:', dir);
+          // fallback FileSystem dirs
         } catch (errFs) {
           console.warn('[Export] modern FileSystem import failed', errFs);
         }
@@ -216,13 +215,13 @@ export const useDataManagement = ({
       const now = new Date();
       const fileName = `action_export_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.json`;
       const fileUri = `${dir}${fileName}`;
-      console.log('[Export] fileUri:', fileUri);
+      // fileUri for export
 
       // Prefer legacy module to perform the write (avoids deprecation warnings on modern API)
       if (legacy && typeof legacy.writeAsStringAsync === 'function') {
         try {
           await legacy.writeAsStringAsync(fileUri, jsonString);
-          console.log('[Export] wrote file to legacy uri:', fileUri);
+          // wrote file to legacy uri
           const canShare = await Sharing.isAvailableAsync();
           if (!canShare) {
             Alert.alert(t('projects.exportNotAvailable'));
@@ -257,7 +256,7 @@ export const useDataManagement = ({
           if (!legacyDir2) throw new Error('No writable directory');
           const legacyUri2 = `${legacyDir2}${fileName}`;
           await legacy2.writeAsStringAsync(legacyUri2, jsonString);
-          console.log('[Export] wrote file to legacy uri (fallback):', legacyUri2);
+          // wrote file to legacy uri (fallback)
           const canShare2 = await Sharing.isAvailableAsync();
           if (!canShare2) {
             Alert.alert(t('projects.exportNotAvailable'));
@@ -279,7 +278,7 @@ export const useDataManagement = ({
       }
 
       const canShare = await Sharing.isAvailableAsync();
-      console.log('[Export] Sharing.isAvailableAsync():', canShare);
+      // Sharing availability: handled below
       if (!canShare) {
         Alert.alert(t('projects.exportNotAvailable'));
         return;
@@ -303,37 +302,10 @@ export const useDataManagement = ({
     }
   }, [t]);
 
-  const handleClearData = useCallback(() => {
-    Alert.alert(
-      t('projects.clearConfirmTitle'),
-      t('projects.clearConfirmMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            setProjects([]);
-            setCategories({});
-            setEvents([]);
-            setShowSettings(false);
-
-            try {
-              await clearAppData();
-              Alert.alert(t('common.confirm'), t('projects.clearSuccess'));
-            } catch (error) {
-              console.error('Failed to clear storage:', error);
-              Alert.alert(t('common.error'), t('projects.clearPartialWarning'));
-            }
-          },
-        },
-      ],
-    );
-  }, [setCategories, setEvents, setProjects, setShowSettings, t]);
+  // NOTE: "Clear all data" feature removed — destructive action disabled.
 
   return {
     handleImportData,
     handleExportData,
-    handleClearData,
   };
 };

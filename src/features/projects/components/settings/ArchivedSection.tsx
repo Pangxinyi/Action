@@ -1,27 +1,24 @@
-import type { Dispatch, SetStateAction } from 'react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
 import type { AppThemeColors } from '../../../../hooks/useThemeColors';
-import type { CategoryMap, Project } from '../../../../types';
-import { ActiveProjectList } from './ActiveProjectList';
+import type { Project } from '../../../../types';
+import { ArchivedProjectList } from './ArchivedProjectList';
 
 type Props = {
   projects: Project[];
-  categories: CategoryMap;
-  setProjects: Dispatch<SetStateAction<Project[]>>;
-  onArchive: (projectId: number) => void;
+  onUnarchive: (projectId: number) => void;
+  onDelete: (projectId: number) => void;
   colors: AppThemeColors;
   isOpen: boolean;
   onToggle: () => void;
 };
 
-export const ProjectSection: React.FC<Props> = ({
+export const ArchivedSection: React.FC<Props> = ({
   projects,
-  categories,
-  setProjects,
-  onArchive,
+  onUnarchive,
+  onDelete,
   colors,
   isOpen,
   onToggle,
@@ -35,17 +32,16 @@ export const ProjectSection: React.FC<Props> = ({
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: isOpen ? 12 : 0 }}
       >
         <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          {t('projects.projectManagement')}
+          {t('projects.archivedProjects')}
         </Text>
         <Text style={{ fontSize: 12, color: colors.textTertiary }}>{isOpen ? '▼' : '▶'}</Text>
       </Pressable>
 
       {isOpen && (
-        <ActiveProjectList
+        <ArchivedProjectList
           projects={projects}
-          categories={categories}
-          setProjects={setProjects}
-          onArchive={onArchive}
+          onUnarchive={onUnarchive}
+          onDelete={onDelete}
           colors={colors}
         />
       )}
@@ -53,4 +49,4 @@ export const ProjectSection: React.FC<Props> = ({
   );
 };
 
-export default ProjectSection;
+export default ArchivedSection;

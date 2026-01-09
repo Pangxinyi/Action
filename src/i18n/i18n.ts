@@ -7,7 +7,7 @@ import zh from './translations/zh';
 /* eslint import/no-named-as-default-member: off */
 
 // 2. 简单的系统语言检测函数
-const getSystemLanguage = () => {
+export const getSystemLanguage = () => {
   try {
     const locales = Localization.getLocales();
     if (locales && locales.length > 0) {

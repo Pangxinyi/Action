@@ -2,6 +2,8 @@ import { Dispatch, SetStateAction, useEffect, useRef } from 'react';
 import { AppData, loadAppData, saveAppData } from 'src/utils/storage';
 
 import { debounce } from 'lodash';
+import { getDefaultCategories } from '../constants/categories';
+import { getSystemLanguage } from '../i18n/i18n';
 
 export const useAppData = (
   projects: any[],
@@ -17,11 +19,23 @@ export const useAppData = (
   useEffect(() => {
     const loadData = async () => {
       const savedData = await loadAppData();
+      // Only use saved data if it has categories with content
+      // If user deleted all categories, savedData.categories will be {} (empty object)
+      // We should respect that and NOT re-add defaults
+      const hasStoredData = savedData !== null;
+      
       if (savedData) {
-        setProjects((prev) => (prev.length > 0 ? prev : savedData.projects || []));
-        setEvents((prev) => (prev.length > 0 ? prev : savedData.events || []));
-        setCategories((prev) => (Object.keys(prev).length > 0 ? prev : savedData.categories || {}));
+        // 强制使用存储的数据，不管当前状态如何
+        setProjects(savedData.projects || []);
+        setEvents(savedData.events || []);
+        setCategories(savedData.categories || {});
       }
+      
+      // Only add default categories if this is the very first app launch (no saved data at all)
+      if (!hasStoredData) {
+        setCategories(getDefaultCategories(getSystemLanguage()));
+      }
+      
       isLoaded.current = true;
       onLoaded?.();
     };
@@ -32,9 +46,8 @@ export const useAppData = (
 
   const debouncedSave = useRef(
     debounce((data: AppData) => {
-      console.log('Auto-saving data...');
       saveAppData(data).catch(console.error);
-    }, 2000) 
+    }, 500) 
   ).current;
 
 

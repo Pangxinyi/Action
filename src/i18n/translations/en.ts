@@ -103,7 +103,6 @@ export default {
     dataManagement: 'Data Management',
     importData: 'Import Data (JSON)',
     exportData: 'Export Data (JSON)',
-    clearAllData: 'Clear All Data',
     categoryManagement: 'Category Management',
     projectManagement: 'Project Management',
     noActiveProjects: 'No active projects',
@@ -112,6 +111,7 @@ export default {
     deleteProjectConfirm: 'Are you sure you want to permanently delete this project?',
     newProject: 'New Project',
     newCategory: 'New Category',
+    noCategories: 'No categories yet',
     noProjectsYet: "You don't have any projects yet.",
     noProjectsHint: 'Add events in the Calendar and create projects for them. They will appear here.',
     goToCalendar: 'Add your first event',
@@ -135,10 +135,7 @@ export default {
     importFailed: 'Failed to import files: {{error}}',
     importFileArrayRequired: 'File {{file}} must contain an array of events',
     importProcessFailed: 'Failed to process {{file}}: {{error}}',
-    clearConfirmTitle: 'Clear All Data',
-    clearConfirmMessage: 'Are you sure you want to delete all projects and events? This cannot be undone.',
-    clearSuccess: 'All data has been cleared',
-    clearPartialWarning: 'Data cleared from app but storage may need manual reset',
+    
   },
 
   // Visualization view (Project Quadrant Map)

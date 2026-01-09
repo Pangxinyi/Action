@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import AccumulationSlider from '../../../../components/AccumulationSlider';
+import AccumulationSimple from '../../../../components/AccumulationSimple';
 import type { AppThemeColors } from '../../../../hooks/useThemeColors';
 import type { CategoryMap, Project } from '../../../../types';
 
@@ -76,7 +76,7 @@ export const ProjectEditItem: React.FC<Props> = ({
         })}
       </View>
 
-      <AccumulationSlider
+      <AccumulationSimple
         percent={editingProject.percent}
         hexColor={editingProject.hexColor}
         onChangePercent={(newPercent) => 
