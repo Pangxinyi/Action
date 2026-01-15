@@ -1,12 +1,11 @@
 export default {
-  // Tab names
+  /* Translations */
   tabs: {
     calendar: 'Calendar',
     analytics: 'Analytics',
     projects: 'Visualization',
   },
 
-  // Calendar view
   calendar: {
     title: 'Calendar',
     today: 'Today',
@@ -46,7 +45,6 @@ export default {
     end: 'END',
   },
 
-  // Months
   months: {
     january: 'January',
     february: 'February',
@@ -74,7 +72,6 @@ export default {
     dec: 'Dec',
   },
 
-  // Analytics view
   analytics: {
     title: 'Analytics',
     thisWeek: 'This Week',
@@ -88,7 +85,6 @@ export default {
     swipeHint: 'Swipe right to view history',
   },
 
-  // Projects view
   projects: {
     title: 'Projects',
     addProject: 'Add Project',
@@ -101,8 +97,8 @@ export default {
     language: 'Language',
     settings: 'Settings',
     dataManagement: 'Data Management',
-    importData: 'Import Data (JSON)',
-    exportData: 'Export Data (JSON)',
+    importData: 'Import Data',
+    exportData: 'Export Data',
     categoryManagement: 'Category Management',
     projectManagement: 'Project Management',
     noActiveProjects: 'No active projects',
@@ -125,6 +121,7 @@ export default {
     category: 'Category',
     createNewCategory: 'Create New Category',
     categoryNamePlaceholder: 'Category name...',
+    projectNamePlaceholder: 'Project name...',
     createAndAssign: 'Create & Assign',
     saveChanges: 'Save Changes',
     noDataToExport: 'No data available to export',
@@ -138,7 +135,6 @@ export default {
     
   },
 
-  // Visualization view (Project Quadrant Map)
   visualization: {
     title: 'Visualization',
     timeRange30: 'Last 30 Days',
@@ -146,17 +142,14 @@ export default {
     timeRangeYear: 'This Year',
     xAxis: 'Time Share',
     yAxis: 'Accumulation',
-    // Quadrant labels
     quadrantTopRight: 'Core Focus',
     quadrantTopLeft: 'Hidden Gems',
     quadrantBottomRight: 'Time Sinks',
     quadrantBottomLeft: 'Side Quests',
-    // Suggestions
     suggestionTopRight: 'Keep investing — this is where growth happens.',
     suggestionTopLeft: 'High potential! Consider giving more time.',
     suggestionBottomRight: 'Review if this deserves so much time.',
     suggestionBottomLeft: 'Low priority — enjoy casually.',
-    // Detail card
     timeSpent: 'Time',
     share: 'Share',
     noData: 'No project data in this period',
@@ -171,7 +164,6 @@ export default {
 
   },
 
-  // Common
   common: {
     save: 'Save',
     cancel: 'Cancel',
@@ -186,7 +178,6 @@ export default {
     minutes: 'm',
   },
 
-  // Color themes
   themes: {
     default: 'Default',
     seaside: 'Seaside',
@@ -196,14 +187,12 @@ export default {
     mineral: 'Mineral',
   },
 
-  // Category labels
   categories: {
     work: 'Work',
     study: 'Learning',
     fitness: 'Fitness',
   },
 
-  // Languages
   languages: {
     english: 'English',
     chinese: '中文',

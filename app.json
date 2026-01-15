@@ -3,7 +3,7 @@
     "backgroundColor": "#ffffff",
     "name": "Action Journal",
     "slug": "action",
-    "version": "1.0.9",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "action",
@@ -12,7 +12,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pangxinyi.action",
-      "buildNumber": "9",
+      "buildNumber": "11",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -25,7 +25,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.pangxinyi.action",
-      "versionCode": 9
+      "versionCode": 11
     },
     "web": {
       "output": "static",

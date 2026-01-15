@@ -57,7 +57,7 @@ export const useAppData = (
         projects,
         events,
         categories,
-        version: '1.0.0',
+        version: '1.1.0',
       };
       debouncedSave(data);
     }

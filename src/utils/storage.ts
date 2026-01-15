@@ -45,14 +45,7 @@ export const loadAppData = async (): Promise<AppData | null> => {
   }
 };
 
-/**
- * Clear all app data from local storage
- */
- 
 
-/**
- * Export data as JSON
- */
 export const exportDataAsJSON = (data: AppData): string => {
   return JSON.stringify(data, null, 2);
 };

@@ -183,25 +183,19 @@ export const useDataManagement = ({
 
       const jsonString = exportDataAsJSON(data);
 
-      // debug: export platform
-      // Prefer the legacy filesystem module to avoid deprecation warnings / errors.
       let legacy: any = null;
       try {
         // @ts-ignore
         legacy = await import('expo-file-system/legacy');
       } catch {
-        // legacy import failed
       }
 
       let dir = legacy ? (legacy.cacheDirectory || legacy.documentDirectory) : undefined;
-      // legacy directories
 
       if (!dir) {
-        // As a last fallback, try the modern module (may emit deprecation warnings on some runtimes)
         try {
           const fsModule: any = await import('expo-file-system');
           dir = fsModule && (fsModule.cacheDirectory || fsModule.documentDirectory);
-          // fallback FileSystem dirs
         } catch (errFs) {
           console.warn('[Export] modern FileSystem import failed', errFs);
         }
@@ -215,40 +209,32 @@ export const useDataManagement = ({
       const now = new Date();
       const fileName = `action_export_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.json`;
       const fileUri = `${dir}${fileName}`;
-      // fileUri for export
 
-      // Prefer legacy module to perform the write (avoids deprecation warnings on modern API)
       if (legacy && typeof legacy.writeAsStringAsync === 'function') {
         try {
           await legacy.writeAsStringAsync(fileUri, jsonString);
-          // wrote file to legacy uri
           const canShare = await Sharing.isAvailableAsync();
           if (!canShare) {
             Alert.alert(t('projects.exportNotAvailable'));
             return;
           }
           await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Export Data', UTI: 'public.json' });
-          // cleanup
           try {
             if (legacy.cacheDirectory && fileUri.startsWith(legacy.cacheDirectory)) {
               await legacy.deleteAsync(fileUri, { idempotent: true });
             }
           } catch {}
-          // Export completed and sharing was invoked. No separate alert required.
           return;
         } catch (legacyWriteErr) {
           console.warn('[Export] legacy write failed, will try modern FS as fallback', legacyWriteErr);
-          // fallthrough to modern FS
         }
       }
 
-      // If we get here, try modern FileSystem API as a fallback (may emit deprecation warnings on some runtimes)
       try {
         const fsModule: any = await import('expo-file-system');
         await fsModule.writeAsStringAsync(fileUri, jsonString);
       } catch (err) {
         console.warn('[Export] modern write failed', err);
-        // Try to use legacy with explicit legacy dir if available
         try {
           // @ts-ignore
           const legacy2: any = await import('expo-file-system/legacy');
@@ -256,7 +242,6 @@ export const useDataManagement = ({
           if (!legacyDir2) throw new Error('No writable directory');
           const legacyUri2 = `${legacyDir2}${fileName}`;
           await legacy2.writeAsStringAsync(legacyUri2, jsonString);
-          // wrote file to legacy uri (fallback)
           const canShare2 = await Sharing.isAvailableAsync();
           if (!canShare2) {
             Alert.alert(t('projects.exportNotAvailable'));
@@ -268,7 +253,6 @@ export const useDataManagement = ({
               await legacy2.deleteAsync(legacyUri2, { idempotent: true });
             }
           } catch {}
-          // Export completed and sharing was invoked. No alert shown to avoid interrupting sharing UI.
           return;
         } catch (err2) {
           console.error('[Export] Write failed (legacy fallback)', err2);
@@ -278,7 +262,6 @@ export const useDataManagement = ({
       }
 
       const canShare = await Sharing.isAvailableAsync();
-      // Sharing availability: handled below
       if (!canShare) {
         Alert.alert(t('projects.exportNotAvailable'));
         return;
@@ -286,23 +269,17 @@ export const useDataManagement = ({
 
       await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Export Data', UTI: 'public.json' });
 
-      // Clean up if we wrote to cache
       try {
         if (dir === (FileSystem as any).cacheDirectory) {
           await (FileSystem as any).deleteAsync(fileUri, { idempotent: true });
         }
       } catch {
-        // ignore
       }
-
-      // Export completed and sharing was invoked. No separate alert required.
     } catch (error) {
       console.error('Export failed', error);
       Alert.alert(t('projects.exportFailed'), String(error));
     }
   }, [t]);
-
-  // NOTE: "Clear all data" feature removed — destructive action disabled.
 
   return {
     handleImportData,

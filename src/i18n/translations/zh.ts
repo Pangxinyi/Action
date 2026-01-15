@@ -1,12 +1,11 @@
 export default {
-  // Tab names
+  /* 翻译 */
   tabs: {
     calendar: '日历',
     analytics: '分析',
     projects: '可视化',
   },
 
-  // Calendar view
   calendar: {
     title: '日历',
     today: '今天',
@@ -46,7 +45,6 @@ export default {
     end: '结束',
   },
 
-  // Months
   months: {
     january: '1月',
     february: '2月',
@@ -74,7 +72,6 @@ export default {
     dec: '12月',
   },
 
-  // Analytics view
   analytics: {
     title: '分析',
     thisWeek: '本周',
@@ -88,7 +85,6 @@ export default {
     swipeHint: '左滑查看历史记录',
   },
 
-  // Projects view
   projects: {
     title: '项目',
     addProject: '添加项目',
@@ -101,8 +97,8 @@ export default {
     language: '语言',
     settings: '设置',
     dataManagement: '数据管理',
-    importData: '导入数据（JSON）',
-    exportData: '导出数据（JSON）',
+    importData: '导入数据',
+    exportData: '导出数据',
     categoryManagement: '类别管理',
     projectManagement: '项目管理',
     noActiveProjects: '没有活跃项目',
@@ -125,6 +121,7 @@ export default {
     category: '类别',
     createNewCategory: '创建新类别',
     categoryNamePlaceholder: '类别名称...',
+    projectNamePlaceholder: '项目名称...',
     createAndAssign: '创建并分配',
     saveChanges: '保存更改',
     noDataToExport: '没有可导出的数据',
@@ -138,7 +135,6 @@ export default {
     
   },
 
-  // Visualization view (Project Quadrant Map)
   visualization: {
     title: '可视化',
     timeRange30: '最近30天',
@@ -146,17 +142,14 @@ export default {
     timeRangeYear: '今年',
     xAxis: '时间占比',
     yAxis: '积累度',
-    // Quadrant labels
     quadrantTopRight: '核心投入',
     quadrantTopLeft: '潜力股',
     quadrantBottomRight: '时间黑洞',
     quadrantBottomLeft: '边缘探索',
-    // Suggestions
     suggestionTopRight: '保持投入，这是成长所在。',
     suggestionTopLeft: '潜力很大！值得多给点时间。',
     suggestionBottomRight: '审视一下，是否值得这么多时间。',
     suggestionBottomLeft: '低优先级，边缘探索。',
-    // Detail card
     timeSpent: '时长',
     share: '占比',
     noData: '该时间段内没有项目数据',
@@ -170,7 +163,6 @@ export default {
     events: '条事件',
   },
 
-  // Common
   common: {
     save: '保存',
     cancel: '取消',
@@ -185,7 +177,6 @@ export default {
     minutes: '分钟',
   },
 
-  // Color themes
   themes: {
     default: '默认',
     seaside: '海滨',
@@ -195,14 +186,12 @@ export default {
     mineral: '矿物',
   },
   
-  // Category labels
   categories: {
     work: '工作',
     study: '学习',
     fitness: '运动',
   },
 
-  // Languages
   languages: {
     english: 'English',
     chinese: '中文',

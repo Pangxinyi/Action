@@ -214,7 +214,7 @@ export const EventEditForm: React.FC<EventEditFormProps> = ({
           {t('calendar.projectHint')}
         </Text>
         <View style={styles.projectGrid}>
-          {projects.map((p) => {
+          {projects.filter(p => !p.archived).map((p) => {
             const active =
               !draftEvent.isNewProject &&
               draftEvent.selectedProjectId === p.id;
