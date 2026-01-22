@@ -68,6 +68,7 @@ export const DataSection: React.FC<Props> = ({ onImport, onExport, colors, isOpe
             <Text style={[styles.buttonText, { color: colors.text }]}>{t('projects.exportData')}</Text>
             <Text style={[styles.iconText, { color: colors.text }]}>↓</Text>
           </Pressable>
+          {/* Clear All Data removed */}
         </View>
       )}
     </View>

@@ -83,71 +83,111 @@ export const useDataManagement = ({
         try {
           const response = await fetch(file.uri);
           const jsonText = await response.text();
-          const data = JSON.parse(jsonText);
+          const parsed = JSON.parse(jsonText);
 
-          if (!Array.isArray(data)) {
+          // Handle both AppData format (exported data) and raw event arrays
+          let data: any[];
+          if (Array.isArray(parsed)) {
+            data = parsed;
+          } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.events)) {
+            // AppData format from export - also import projects and categories
+            data = parsed.events;
+            
+            // Import categories first if they exist
+            if (parsed.categories && typeof parsed.categories === 'object') {
+              Object.assign(newCategories, parsed.categories);
+              // Update colorIndex to account for imported categories
+              colorIndex = Object.keys(newCategories).filter(name => name !== 'uncategorized').length;
+            }
+            
+            // Import projects if they exist
+            if (Array.isArray(parsed.projects)) {
+              parsed.projects.forEach((p: any) => {
+                // Check if project already exists by ID or name
+                const existing = newProjects.find(proj => proj.id === p.id || proj.name === p.name);
+                if (!existing) {
+                  newProjects.push(p);
+                  totalProjectsCreated++;
+                }
+              });
+            }
+          } else {
             Alert.alert(t('common.error'), t('projects.importFileArrayRequired', { file: file.name }));
             continue;
           }
 
           data.forEach((item: any, index: number) => {
-            const date = item.date || new Date().toISOString().split('T')[0];
-            const tag = item.tag || undefined;
-            const type = item.type || null;
-            const project = item.project || null;
-            const time = item.time || null;
+            // Check if this is already an EventItem (from export) or old CSV format
+            const isEventItem = typeof item.start === 'number' && typeof item.duration === 'number';
 
-            const timeData = time ? parseTimeRangeWithStart(time) : { start: 9 * 60, duration: 60 };
-            const start = timeData.start;
-            const duration = timeData.duration;
+            if (isEventItem) {
+              // Direct EventItem format - just add it with a new ID
+              const event: EventItem = {
+                ...item,
+                id: Date.now() + totalImported * 100 + Math.random() * 50,
+              };
+              allNewEvents.push(event);
+              totalImported++;
+            } else {
+              // Old CSV format - parse and convert
+              const date = item.date || new Date().toISOString().split('T')[0];
+              const tag = item.tag || undefined;
+              const type = item.type || null;
+              const project = item.project || null;
+              const time = item.time || null;
 
-            const category = type;
-            if (category && !newCategories[category]) {
-              const color = themeColors[colorIndex % themeColors.length];
-              newCategories[category] = color;
-              colorIndex++;
-            }
+              const timeData = time ? parseTimeRangeWithStart(time) : { start: 9 * 60, duration: 60 };
+              const start = timeData.start;
+              const duration = timeData.duration;
 
-            let projectId: number | undefined;
-            if (project && project.length > 0) {
-              const projectName = Array.isArray(project) ? project[0] : project;
-
-              let existingProject = newProjects.find(p => p.name === projectName);
-              if (!existingProject) {
-                existingProject = {
-                  id: Date.now() + newProjects.length + index * 1000 + Math.random() * 100,
-                  name: projectName,
-                  time: '0h 0m',
-                  percent: 0,
-                  hexColor: category && newCategories[category] ? newCategories[category] : '#9CA3AF',
-                  category: category,
-                  x: 180 + (Math.random() - 0.5) * 100,
-                  y: 250 + (Math.random() - 0.5) * 100,
-                  vx: 0,
-                  vy: 0,
-                };
-                newProjects.push(existingProject);
-                totalProjectsCreated++;
+              const category = type;
+              if (category && !newCategories[category]) {
+                const color = themeColors[colorIndex % themeColors.length];
+                newCategories[category] = color;
+                colorIndex++;
               }
-              projectId = existingProject.id;
+
+              let projectId: number | undefined;
+              if (project && project.length > 0) {
+                const projectName = Array.isArray(project) ? project[0] : project;
+
+                let existingProject = newProjects.find(p => p.name === projectName);
+                if (!existingProject) {
+                  existingProject = {
+                    id: Date.now() + newProjects.length + index * 1000 + Math.random() * 100,
+                    name: projectName,
+                    time: '0h 0m',
+                    percent: 0,
+                    hexColor: category && newCategories[category] ? newCategories[category] : '#9CA3AF',
+                    category: category,
+                    x: 180 + (Math.random() - 0.5) * 100,
+                    y: 250 + (Math.random() - 0.5) * 100,
+                    vx: 0,
+                    vy: 0,
+                  };
+                  newProjects.push(existingProject);
+                  totalProjectsCreated++;
+                }
+                projectId = existingProject.id;
+              }
+
+              const color = category && newCategories[category] ? newCategories[category] : '#9CA3AF';
+
+              const event: EventItem = {
+                id: Date.now() + totalImported * 100 + Math.random() * 50,
+                title: projectId ? newProjects.find(p => p.id === projectId)?.name || 'Event' : 'Event',
+                start,
+                duration,
+                hexColor: color,
+                details: tag,
+                category: category,
+                date: date,
+                projectId,
+              };
+
+              allNewEvents.push(event);
+              totalImported++;
             }
-
-            const color = category && newCategories[category] ? newCategories[category] : '#9CA3AF';
-
-            const event: EventItem = {
-              id: Date.now() + totalImported * 100 + Math.random() * 50,
-              title: projectId ? newProjects.find(p => p.id === projectId)?.name || 'Event' : 'Event',
-              start,
-              duration,
-              hexColor: color,
-              details: tag,
-              category: category,
-              date: date,
-              projectId,
-            };
-
-            allNewEvents.push(event);
-            totalImported++;
           });
         } catch (fileError) {
           console.error(`Error processing file ${file.name}:`, fileError);
@@ -281,8 +321,11 @@ export const useDataManagement = ({
     }
   }, [t]);
 
+  // clear data feature removed
+
   return {
     handleImportData,
     handleExportData,
+    // handleClearData removed
   };
 };
